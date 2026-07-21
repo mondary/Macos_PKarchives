@@ -6,8 +6,8 @@ SECRETS_DIR="${DIR}/secrets"
 ENV_FILE="${SECRETS_DIR}/.env"
 
 # Couleurs
-GREEN='\033[0;32m'
-NC='\033[0m'
+GREEN=$(printf '\033[0;32m')
+NC=$(printf '\033[0m')
 
 echo "📦 PKarchives — Setup"
 echo ""
@@ -31,8 +31,8 @@ fi
 # Demander le Drive Folder ID
 echo "1. Google Drive Folder ID"
 echo ""
-echo "   Exemple d'URL : https://drive.google.com/drive/folders/${GREEN}1GFBhH-BbuWq33_YMOUcJIGovPN3q5NXv${NC}"
-echo "   L'ID est la partie verte : ${GREEN}1GFBhH-BbuWq33_YMOUcJIGovPN3q5NXv${NC}"
+printf "%b\n" "   Exemple d'URL : https://drive.google.com/drive/folders/${GREEN}1GFBhH-BbuWq33_YMOUcJIGovPN3q5NXv${NC}"
+printf "%b\n" "   L'ID est la partie verte : ${GREEN}1GFBhH-BbuWq33_YMOUcJIGovPN3q5NXv${NC}"
 echo ""
 while true; do
   read -p "   Votre Drive Folder ID : " DRIVE_ID
@@ -45,14 +45,14 @@ echo ""
 
 # Demander le desktop path (optionnel, défaut : ~/Desktop)
 echo "2. Dossier à archiver"
-echo "   Par défaut : ${GREEN}~/Desktop${NC} (appuyez sur Entrée)"
+printf "%b\n" "   Par défaut : ${GREEN}~/Desktop${NC} (appuyez sur Entrée)"
 read -p "   Votre dossier : " DESKTOP_PATH
 DESKTOP_PATH="${DESKTOP_PATH:-~/Desktop}"
 echo ""
 
 # Demander le nom du symlink (optionnel, défaut : DesktopArchive)
 echo "3. Nom du symlink à exclure"
-echo "   Par défaut : ${GREEN}DesktopArchive${NC} (appuyez sur Entrée)"
+printf "%b\n" "   Par défaut : ${GREEN}DesktopArchive${NC} (appuyez sur Entrée)"
 read -p "   Votre nom : " LINK_NAME
 LINK_NAME="${LINK_NAME:-DesktopArchive}"
 echo ""
@@ -66,7 +66,7 @@ echo ""
 if command -v rclone &> /dev/null; then
   echo "   Remotes disponibles :"
   while IFS= read -r remote; do
-    echo "   - ${GREEN}${remote}${NC}"
+    printf "%b\n" "   - ${GREEN}${remote}${NC}"
   done < <(rclone listremotes)
   echo ""
 fi
