@@ -5,6 +5,10 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 SECRETS_DIR="${DIR}/secrets"
 ENV_FILE="${SECRETS_DIR}/.env"
 
+# Couleurs
+GREEN='\033[0;32m'
+NC='\033[0m'
+
 echo "📦 PKarchives — Setup"
 echo ""
 
@@ -26,8 +30,9 @@ fi
 
 # Demander le Drive Folder ID
 echo "1. Google Drive Folder ID"
-echo "   Ouvrez votre dossier Google Drive dans le navigateur"
-echo "   L'ID se trouve dans l'URL après /folders/"
+echo ""
+echo "   Exemple d'URL : https://drive.google.com/drive/folders/${GREEN}1GFBhH-BbuWq33_YMOUcJIGovPN3q5NXv${NC}"
+echo "   L'ID est la partie verte : ${GREEN}1GFBhH-BbuWq33_YMOUcJIGovPN3q5NXv${NC}"
 echo ""
 while true; do
   read -p "   Votre Drive Folder ID : " DRIVE_ID
