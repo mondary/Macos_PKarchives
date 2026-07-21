@@ -247,6 +247,8 @@ struct ContentView: View {
         proc.executableURL = URL(fileURLWithPath: "/bin/bash")
         proc.arguments = [scriptPath, selectedMode]
 
+        let statusFile = FileManager.default.temporaryDirectory.appendingPathComponent("pkarchives_\(ProcessInfo.processInfo.processIdentifier)").path
+
         // Pass config as env vars
         var env = ProcessInfo.processInfo.environment
         if let v = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") { env["PKARCHIVES_DRIVE_FOLDER_ID"] = v }
@@ -263,7 +265,6 @@ struct ContentView: View {
         self.process = proc
 
         // Poll status file
-        let statusFile = FileManager.default.temporaryDirectory.appendingPathComponent("pkarchives_\(ProcessInfo.processInfo.processIdentifier)").path
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
             if let data = try? Data(contentsOf: URL(fileURLWithPath: statusFile)),
