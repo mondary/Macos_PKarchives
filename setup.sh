@@ -44,17 +44,34 @@ done
 echo ""
 
 # Demander le desktop path (optionnel, défaut : ~/Desktop)
-read -p "2. Dossier à archiver [~/Desktop] : " DESKTOP_PATH
+echo "2. Dossier à archiver"
+echo "   Par défaut : ${GREEN}~/Desktop${NC} (appuyez sur Entrée)"
+read -p "   Votre dossier : " DESKTOP_PATH
 DESKTOP_PATH="${DESKTOP_PATH:-~/Desktop}"
 echo ""
 
 # Demander le nom du symlink (optionnel, défaut : DesktopArchive)
-read -p "3. Nom du symlink à exclure [DesktopArchive] : " LINK_NAME
+echo "3. Nom du symlink à exclure"
+echo "   Par défaut : ${GREEN}DesktopArchive${NC} (appuyez sur Entrée)"
+read -p "   Votre nom : " LINK_NAME
 LINK_NAME="${LINK_NAME:-DesktopArchive}"
 echo ""
 
-# Demander le remote rclone (optionnel, défaut : gdrive)
-read -p "4. Nom du remote rclone [gdrive] : " RCLONE_REMOTE
+# Demander le remote rclone
+echo "4. Remote rclone (connexion Google Drive)"
+echo "   rclone utilise des \"remotes\" que tu as configurés au préalable"
+echo ""
+
+# Lister les remotes disponibles
+if command -v rclone &> /dev/null; then
+  echo "   Remotes disponibles :"
+  while IFS= read -r remote; do
+    echo "   - ${GREEN}${remote}${NC}"
+  done < <(rclone listremotes)
+  echo ""
+fi
+
+read -p "   Votre remote rclone [gdrive] : " RCLONE_REMOTE
 RCLONE_REMOTE="${RCLONE_REMOTE:-gdrive}"
 echo ""
 
