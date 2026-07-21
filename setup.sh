@@ -1,0 +1,86 @@
+#!/bin/bash
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+SECRETS_DIR="${DIR}/secrets"
+ENV_FILE="${SECRETS_DIR}/.env"
+
+echo "📦 PKarchives — Setup"
+echo ""
+
+# Créer le dossier secrets
+mkdir -p "${SECRETS_DIR}"
+
+# Vérifier si .env existe déjà
+if [[ -f "${ENV_FILE}" ]]; then
+  echo "✅ Configuration existante : ${ENV_FILE}"
+  echo ""
+  read -p "Voulez-vous reconfigurer ? (o/N) " -n 1 -r
+  echo ""
+  if [[ ! $REPLY =~ ^[Oo]$ ]]; then
+    echo "Setup terminé. Pour modifier : ${ENV_FILE}"
+    exit 0
+  fi
+  rm -f "${ENV_FILE}"
+fi
+
+# Demander le Drive Folder ID
+echo "1. Google Drive Folder ID"
+echo "   Ouvrez votre dossier Google Drive dans le navigateur"
+echo "   L'ID se trouve dans l'URL après /folders/"
+echo ""
+while true; do
+  read -p "   Votre Drive Folder ID : " DRIVE_ID
+  if [[ -n "${DRIVE_ID}" ]]; then
+    break
+  fi
+  echo "   ⚠️  ID requis"
+done
+echo ""
+
+# Demander le desktop path (optionnel, défaut : ~/Desktop)
+read -p "2. Dossier à archiver [~/Desktop] : " DESKTOP_PATH
+DESKTOP_PATH="${DESKTOP_PATH:-~/Desktop}"
+echo ""
+
+# Demander le nom du symlink (optionnel, défaut : DesktopArchive)
+read -p "3. Nom du symlink à exclure [DesktopArchive] : " LINK_NAME
+LINK_NAME="${LINK_NAME:-DesktopArchive}"
+echo ""
+
+# Demander le remote rclone (optionnel, défaut : gdrive)
+read -p "4. Nom du remote rclone [gdrive] : " RCLONE_REMOTE
+RCLONE_REMOTE="${RCLONE_REMOTE:-gdrive}"
+echo ""
+
+# Vérifier rclone
+echo "5. Vérification de rclone..."
+if ! command -v rclone &> /dev/null; then
+  echo "   ⚠️  rclone n'est pas installé"
+  echo "   Installez-le : brew install rclone"
+else
+  if rclone listremotes | grep -q "^${RCLONE_REMOTE}:"; then
+    echo "   ✅ Remote '${RCLONE_REMOTE}' trouvé"
+  else
+    echo "   ⚠️  Remote '${RCLONE_REMOTE}' non trouvé"
+    echo "   Configurez-le : rclone config"
+  fi
+fi
+echo ""
+
+# Créer le .env
+cat > "${ENV_FILE}" << EOF
+# PKarchives — Configuration générée automatiquement le $(date +%Y-%m-%d)
+PKARCHIVES_DRIVE_FOLDER_ID="${DRIVE_ID}"
+PKARCHIVES_DESKTOP_PATH="${DESKTOP_PATH}"
+PKARCHIVES_DESKTOP_LINK_NAME="${LINK_NAME}"
+PKARCHIVES_RCLONE_REMOTE="${RCLONE_REMOTE}"
+EOF
+
+echo "✅ Configuration créée : ${ENV_FILE}"
+echo ""
+echo "🚀 Build de l'app..."
+"${DIR}/build.sh"
+echo ""
+echo "🎉 Setup terminé !"
+echo "   Lancez l'app : open release/PKarchives.app"

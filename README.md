@@ -17,13 +17,27 @@ Archive du Bureau vers Google Drive via rclone, avec interface native macOS (men
 
 ## 🧠 Utilisation
 
-### App
+### Premier setup (automatisé)
+
 ```bash
-# Depuis le binaire compilé
-open build/PKarchives.app
+./setup.sh
 ```
 
-### Script
+Le script interactif vous guide pour :
+1. Saisir votre Google Drive Folder ID
+2. Configurer le dossier à archiver (défaut : `~/Desktop`)
+3. Définir le remote rclone (défaut : `gdrive`)
+4. Vérifier que rclone est installé et configuré
+5. Build et lancer l'app
+
+### Lancer l'app
+
+```bash
+open release/PKarchives.app
+```
+
+### Script manuel
+
 ```bash
 ./src/archive.sh files      # Fichiers seulement
 ./src/archive.sh all        # Fichiers + dossiers
@@ -31,13 +45,7 @@ open build/PKarchives.app
 
 ## ⚙️ Configuration
 
-1. Copier `secrets/.env.example` → `secrets/.env`
-2. Remplir `PKARCHIVES_DRIVE_FOLDER_ID` avec l'ID de votre dossier Google Drive
-
-```bash
-cp secrets/.env.example secrets/.env
-# Éditer secrets/.env avec votre Drive Folder ID
-```
+La configuration est générée automatiquement par `setup.sh` dans `secrets/.env`.
 
 ### Variables disponibles
 
