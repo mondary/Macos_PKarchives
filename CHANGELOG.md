@@ -1,0 +1,39 @@
+# Changelog
+
+---
+
+## TODO — Roadmap
+
+Statut : `🔥v1.2026.1` (initiale)
+
+### Sécurité & Publication GitHub
+- [x] Supprimer les binaire compilé et .app du repo
+- [x] Ajouter .gitignore complet (secrets, build artifacts, IDE, OS)
+- [x] Externaliser le Google Drive Folder ID dans secrets/.env
+- [x] Externaliser le remote rclone, le chemin du Bureau, le nom du symlink
+- [x] Rendre le fichier /tmp prédictible (PID-based)
+- [x] Supprimer les chemins personnels hardcodés
+- [ ] README FR + EN synchronisé
+- [ ] Lien vers CHANGELOG dans README
+
+---
+
+## Releases
+
+### [🔥v1.2026.1] - 2026-07-21
+#### Added
+- App SwiftUI menu bar pour archiver le Bureau vers Google Drive
+- Script bash archive.sh avec upload rclone et suppression auto
+- Fichier secrets/.env pour la configuration sensible
+- Fichier secrets/.env.example comme template
+- Lecture de la config via env vars ou secrets/.env
+
+#### Changed
+- Toute la config sensible externalisée (Drive Folder ID, remote rclone, etc.)
+- Fichier /tmp renommé avec PID pour éviter les attaques par symlink
+- Recherche du script: env var > app bundle > ~/.config/pkarchives/
+
+#### Fixed
+- Suppression du binaire compilé et du .app bundle du repo
+- .gitignore complet (secrets/, release/, *.app/, .vscode/, etc.)
+- Suppression des chemins personnels hardcodés (Documents/GitHub/...)
