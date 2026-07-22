@@ -101,7 +101,7 @@ echo -e "${BLUE}📦 ${count} élément(s) à archiver${NC}"
 echo -e "${CYAN}🚀 Upload d'abord, suppression à la fin${NC}"
 echo ""
 
-rclone_dir="${rclone_remote}:${current_month_year}"
+rclone_dir="${rclone_remote}:"
 success=0
 uploaded=()
 failed_items=()
@@ -184,6 +184,6 @@ done
 echo ""
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}✅ ${success}/${count} élément(s) archivé(s) + supprimé(s)${NC}"
-echo -e "${BLUE}📁 ${current_month_year}${NC}"
+echo -e "${BLUE}📁 Google Drive archive folder${NC}"
 echo -e "${CYAN}🔗 https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}${NC}"
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

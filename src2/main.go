@@ -127,16 +127,15 @@ func loadConfig() Config {
 	return cfg
 }
 
-func monthYear() string {
-	now := time.Now()
-	return fmt.Sprintf("%d_%02d_%s", now.Year(), int(now.Month()), strings.ToLower(now.Month().String()))
-}
-
 func driveURL(cfg Config) string {
 	if cfg.DriveFolderID == "" {
 		return "https://drive.google.com"
 	}
 	return fmt.Sprintf("https://drive.google.com/drive/folders/%s", cfg.DriveFolderID)
+}
+
+func archiveRemote(cfg Config) string {
+	return fmt.Sprintf("%s:", cfg.RcloneRemote)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -549,7 +548,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isRunning = false
 		m.status = "Done"
 		m.output += fmt.Sprintf("\n✅ %d/%d archived + deleted\n", m.success, len(m.items))
-		m.output += fmt.Sprintf("📁 %s\n", monthYear())
+			m.output += "📁 Google Drive archive folder\n"
 		return m, nil
 
 	case errMsg:
@@ -662,7 +661,7 @@ func scanCmd(cfg Config, mode string) tea.Cmd {
 func startUploadCmd(cfg Config, items []fileItem, idx int) tea.Cmd {
 	return func() tea.Msg {
 		item := items[idx]
-		rcloneDir := fmt.Sprintf("%s:%s", cfg.RcloneRemote, monthYear())
+		rcloneDir := archiveRemote(cfg)
 
 		if item.IsDir {
 			// Scan directory for sub-files
@@ -692,7 +691,7 @@ func uploadSubFileCmd(cfg Config, parentIdx int, subFiles, subNames []string, su
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 
-		rcloneDir := fmt.Sprintf("%s:%s", cfg.RcloneRemote, monthYear())
+		rcloneDir := archiveRemote(cfg)
 		rcloneUpload(ctx, cfg, subFiles[subIdx], rcloneDir)
 
 		return subFileDoneMsg{

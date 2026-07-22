@@ -216,6 +216,44 @@ struct ContentView: View {
         timer?.invalidate()
     }
 
+    func mountDrive() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let desktop = (loadEnv("PKARCHIVES_DESKTOP_PATH") ?? "\(home)/Desktop")
+            .replacingOccurrences(of: "~", with: home, options: [], range: nil)
+        let linkName = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME") ?? "DesktopArchive"
+        let remote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
+        guard let folderID = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID"), !folderID.isEmpty else {
+            output += "\n⚠️ Drive Folder ID absent, montage ignoré.\n"
+            return
+        }
+
+        let mountPath = "\(home)/.local/share/pkarchives/mount"
+        let fileManager = FileManager.default
+        try? fileManager.createDirectory(atPath: mountPath, withIntermediateDirectories: true)
+
+        let mount = Process()
+        mount.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        mount.arguments = [
+            "rclone", "mount", "\(remote):", mountPath,
+            "--drive-root-folder-id", folderID,
+            "--daemon", "--vfs-cache-mode", "minimal", "--volname", "PKarchives"
+        ]
+        do {
+            try mount.run()
+        } catch {
+            output += "\n⚠️ Montage Google Drive impossible: \(error.localizedDescription)\n"
+        }
+
+        let linkPath = "\(desktop)/\(linkName)"
+        try? fileManager.removeItem(atPath: linkPath)
+        do {
+            try fileManager.createSymbolicLink(atPath: linkPath, withDestinationPath: mountPath)
+            output += "\n📁 Google Drive monté dans Finder\n🔗 DesktopArchive → \(mountPath)\n"
+        } catch {
+            output += "\n⚠️ Symlink DesktopArchive impossible: \(error.localizedDescription)\n"
+        }
+    }
+
     func startArchive(mode: String) {
         selectedMode = mode
         runArchive()
@@ -274,12 +312,15 @@ struct ContentView: View {
             }
         }
 
-        proc.terminationHandler = { _ in
+        proc.terminationHandler = { process in
             DispatchQueue.main.async {
                 self.isRunning = false
                 self.process = nil
                 self.timer?.invalidate()
                 self.status = "Terminé"
+                if process.terminationStatus == 0 {
+                    self.mountDrive()
+                }
                 try? FileManager.default.removeItem(atPath: statusFile)
             }
         }
