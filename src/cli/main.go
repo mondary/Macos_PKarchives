@@ -92,6 +92,20 @@ func driveURL(cfg Config) string {
 }
 func archiveRemote(cfg Config) string { return cfg.RcloneRemote + ":" }
 
+func rcloneBinary() string {
+	if configured := os.Getenv("PKARCHIVES_RCLONE_BINARY"); configured != "" {
+		return configured
+	}
+	home, err := os.UserHomeDir()
+	if err == nil {
+		local := filepath.Join(home, ".local", "share", "pkarchives", "bin", "rclone")
+		if info, err := os.Stat(local); err == nil && !info.IsDir() && info.Mode().Perm()&0111 != 0 {
+			return local
+		}
+	}
+	return "rclone"
+}
+
 type fileItem struct {
 	Path, Name string
 	IsDir      bool
@@ -137,7 +151,7 @@ func scanDesktop(cfg Config, mode string) ([]fileItem, error) {
 }
 
 func rcloneUpload(ctx context.Context, cfg Config, path, destination string) error {
-	return exec.CommandContext(ctx, "rclone", "copy", path, destination+"/", "--drive-root-folder-id", cfg.DriveFolderID, "--drive-chunk-size", "32M", "--buffer-size", "32M", "--drive-upload-cutoff", "32M", "--drive-pacer-min-sleep", "10ms", "--drive-pacer-burst", "200", "--quiet").Run()
+	return exec.CommandContext(ctx, rcloneBinary(), "copy", path, destination+"/", "--drive-root-folder-id", cfg.DriveFolderID, "--drive-chunk-size", "32M", "--buffer-size", "32M", "--drive-upload-cutoff", "32M", "--drive-pacer-min-sleep", "10ms", "--drive-pacer-burst", "200", "--quiet").Run()
 }
 
 type phase int
@@ -478,7 +492,7 @@ func mountDriveCmd(cfg Config) tea.Cmd {
 		}
 
 		logPath := filepath.Join(os.TempDir(), "pkarchives-mount.log")
-		err := exec.Command("rclone", "mount", archiveRemote(cfg), mount,
+		err := exec.Command(rcloneBinary(), "mount", archiveRemote(cfg), mount,
 			"--drive-root-folder-id", cfg.DriveFolderID,
 			"--daemon", "--daemon-wait", "10s",
 			"--vfs-cache-mode", "minimal", "--volname", "PKarchives",

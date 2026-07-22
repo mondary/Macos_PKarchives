@@ -33,6 +33,8 @@ fi
 desktop_path=$(load_env "PKARCHIVES_DESKTOP_PATH" "${HOME}/Desktop")
 desktop_link_name=$(load_env "PKARCHIVES_DESKTOP_LINK_NAME" "DesktopArchive")
 rclone_remote=$(load_env "PKARCHIVES_RCLONE_REMOTE" "gdrive")
+rclone_bin="${PKARCHIVES_RCLONE_BINARY:-${HOME}/.local/share/pkarchives/bin/rclone}"
+[[ -x "${rclone_bin}" ]] || rclone_bin="rclone"
 
 current_month_year="$(LC_TIME=fr_FR.UTF-8 date +%Y_%m_%B)"
 
@@ -110,7 +112,7 @@ upload_file() {
   local bn
   bn="$(basename "${file}")"
 
-  rclone copy "${file}" "${rclone_dir}/" \
+  "${rclone_bin}" copy "${file}" "${rclone_dir}/" \
     --drive-root-folder-id "${DRIVE_FOLDER_ID}" \
     --drive-chunk-size 32M --buffer-size 32M \
     --drive-upload-cutoff 32M \
@@ -132,7 +134,7 @@ for item in "${files_to_process[@]}"; do
       echo ""
       continue
     fi
-    file_id=$(rclone lsjson "${rclone_dir}/${bn}" --drive-root-folder-id "${DRIVE_FOLDER_ID}" 2>/dev/null | grep -oE '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
+    file_id=$("${rclone_bin}" lsjson "${rclone_dir}/${bn}" --drive-root-folder-id "${DRIVE_FOLDER_ID}" 2>/dev/null | grep -oE '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
     if [[ -n "${file_id}" ]]; then
       echo -e "  ${CYAN}🔗 https://drive.google.com/file/d/${file_id}/view${NC}"
     fi

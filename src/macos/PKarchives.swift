@@ -70,6 +70,15 @@ func loadEnv(_ key: String) -> String? {
     return nil
 }
 
+func rcloneBinary() -> String {
+    if let configured = loadEnv("PKARCHIVES_RCLONE_BINARY"), !configured.isEmpty {
+        return configured
+    }
+    let bundled = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".local/share/pkarchives/bin/rclone").path
+    return FileManager.default.isExecutableFile(atPath: bundled) ? bundled : "rclone"
+}
+
 let driveURL: String = {
     guard let id = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID"), !id.isEmpty else {
         return "https://drive.google.com"
@@ -401,14 +410,26 @@ struct ContentView: View {
             let logPath = FileManager.default.temporaryDirectory
                 .appendingPathComponent("pkarchives-mount.log").path
             let mount = Process()
-            mount.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            mount.arguments = [
-                "rclone", "mount", "\(remote):", mountPath,
+            let binary = rcloneBinary()
+            if binary.contains("/") {
+                mount.executableURL = URL(fileURLWithPath: binary)
+                mount.arguments = [
+                    "mount", "\(remote):", mountPath,
+                    "--drive-root-folder-id", folderID,
+                    "--daemon", "--daemon-wait", "10s",
+                    "--vfs-cache-mode", "minimal", "--volname", "PKarchives",
+                    "--log-file", logPath, "--log-level", "INFO"
+                ]
+            } else {
+                mount.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+                mount.arguments = [
+                    "rclone", "mount", "\(remote):", mountPath,
                 "--drive-root-folder-id", folderID,
                 "--daemon", "--daemon-wait", "10s",
                 "--vfs-cache-mode", "minimal", "--volname", "PKarchives",
                 "--log-file", logPath, "--log-level", "INFO"
-            ]
+                ]
+            }
             do {
                 try mount.run()
                 mount.waitUntilExit()
@@ -476,6 +497,7 @@ struct ContentView: View {
         if let v = loadEnv("PKARCHIVES_DESKTOP_PATH"), !v.isEmpty { env["PKARCHIVES_DESKTOP_PATH"] = v }
         if let v = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME"), !v.isEmpty { env["PKARCHIVES_DESKTOP_LINK_NAME"] = v }
         if let v = loadEnv("PKARCHIVES_RCLONE_REMOTE"), !v.isEmpty { env["PKARCHIVES_RCLONE_REMOTE"] = v }
+        env["PKARCHIVES_RCLONE_BINARY"] = rcloneBinary()
         proc.environment = env
 
         let outPipe = Pipe()
