@@ -150,6 +150,17 @@ type fileItem struct {
 	Size  int64
 }
 
+func hasBureauTag(path string) bool {
+	if runtime.GOOS != "darwin" {
+		return false
+	}
+	out, err := exec.Command("mdls", "-name", "kMDItemUserTags", "-raw", path).Output()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(out), "Bureau")
+}
+
 func scanDesktop(cfg Config, mode string) ([]fileItem, error) {
 	entries, err := os.ReadDir(cfg.DesktopPath)
 	if err != nil {
@@ -165,6 +176,12 @@ func scanDesktop(cfg Config, mode string) ([]fileItem, error) {
 		}
 
 		fullPath := filepath.Join(cfg.DesktopPath, name)
+
+		// Skip files tagged "Bureau" (macOS tag)
+		if hasBureauTag(fullPath) {
+			continue
+		}
+
 		info, err := e.Info()
 		if err != nil {
 			continue
@@ -238,6 +255,11 @@ type deleteDoneMsg struct {
 	name  string
 }
 
+type mountDoneMsg struct {
+	mountPath string
+	err       error
+}
+
 type errMsg struct{ err error }
 
 // ═══════════════════════════════════════════════════════════════
@@ -252,6 +274,7 @@ const (
 	phaseScanning
 	phaseUploading
 	phaseDeleting
+	phaseMounting
 	phaseDone
 	phaseFailed
 	phaseEmpty
@@ -331,8 +354,12 @@ func initialModel() model {
 	}
 
 	macOS := "N/A"
-	if out, err := exec.Command("sw_vers", "-productVersion").Output(); err == nil {
-		macOS = strings.TrimSpace(string(out))
+	if runtime.GOOS == "darwin" {
+		if out, err := exec.Command("sw_vers", "-productVersion").Output(); err == nil {
+			macOS = strings.TrimSpace(string(out))
+		}
+	} else {
+		macOS = runtime.GOOS
 	}
 
 	rcloneVer := "not found"
@@ -503,14 +530,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case deleteDoneMsg:
 		m.deletedIdx = msg.index + 1
 		if msg.index+1 >= msg.total {
-			m.phase = phaseDone
-			m.isRunning = false
-			m.status = "Done"
-			m.output += fmt.Sprintf("\n✅ %d/%d archived + deleted\n", m.success, len(m.items))
-			m.output += fmt.Sprintf("📁 %s\n", monthYear())
-			return m, nil
+			// Phase mount — monter le Drive et créer le symlink
+			m.phase = phaseMounting
+			m.output += "\n📁 Mounting Google Drive...\n"
+			m.status = "Mounting..."
+			return m, tea.Batch(m.spinner.Tick, mountDriveCmd(m.cfg))
 		}
 		return m, deleteItemCmd(m.items, msg.index+1, msg.total)
+
+	case mountDoneMsg:
+		if msg.err != nil {
+			m.output += fmt.Sprintf("  ⚠ mount failed: %v\n", msg.err)
+		} else {
+			m.output += fmt.Sprintf("  ✓ Mounted → %s\n", msg.mountPath)
+			m.output += fmt.Sprintf("  ✓ Symlink → ~/Desktop/%s\n", m.cfg.LinkName)
+		}
+		m.phase = phaseDone
+		m.isRunning = false
+		m.status = "Done"
+		m.output += fmt.Sprintf("\n✅ %d/%d archived + deleted\n", m.success, len(m.items))
+		m.output += fmt.Sprintf("📁 %s\n", monthYear())
+		return m, nil
 
 	case errMsg:
 		m.phase = phaseFailed
@@ -554,7 +594,7 @@ func (m model) handleEnter() (tea.Model, tea.Cmd) {
 		case focusArchiveBtn:
 			return m.startArchive()
 		case focusDriveBtn:
-			exec.Command("open", driveURL(m.cfg)).Start()
+			openURL(driveURL(m.cfg))
 			return m, nil
 		case focusSettingsBtn:
 			m.phase = phaseSettings
@@ -683,6 +723,65 @@ func deleteItemCmd(items []fileItem, idx, total int) tea.Cmd {
 	}
 }
 
+func mountDriveCmd(cfg Config) tea.Cmd {
+	return func() tea.Msg {
+		home, _ := os.UserHomeDir()
+
+		// Point de montage stable
+		mountPath := filepath.Join(home, ".local", "share", "pkarchives", "mount")
+		os.MkdirAll(mountPath, 0755)
+
+		// Vérifier si déjà monté
+		if isMountActive(mountPath) {
+			// Créer le symlink quand même
+			symlinkPath := filepath.Join(cfg.DesktopPath, cfg.LinkName)
+			os.Remove(symlinkPath)
+			os.Symlink(mountPath, symlinkPath)
+			return mountDoneMsg{mountPath: mountPath, err: nil}
+		}
+
+		// Monter avec rclone mount --daemon
+		cmd := exec.Command("rclone", "mount",
+			fmt.Sprintf("%s:", cfg.RcloneRemote),
+			mountPath,
+			"--drive-root-folder-id", cfg.DriveFolderID,
+			"--daemon",
+			"--vfs-cache-mode", "minimal",
+			"--volname", "PKarchives",
+		)
+		err := cmd.Run()
+
+		// Attendre que le mount soit actif (max 5s)
+		if err == nil {
+			for i := 0; i < 10; i++ {
+				time.Sleep(500 * time.Millisecond)
+				if isMountActive(mountPath) {
+					break
+				}
+			}
+		}
+
+		// Créer le symlink sur le Bureau
+		symlinkPath := filepath.Join(cfg.DesktopPath, cfg.LinkName)
+		os.Remove(symlinkPath)
+		symlinkErr := os.Symlink(mountPath, symlinkPath)
+		if symlinkErr != nil {
+			return mountDoneMsg{mountPath: mountPath, err: fmt.Errorf("symlink: %w", symlinkErr)}
+		}
+
+		return mountDoneMsg{mountPath: mountPath, err: err}
+	}
+}
+
+func isMountActive(path string) bool {
+	// Sur macOS/Linux: vérifier si le path est un mount point
+	entries, err := os.ReadDir(path)
+	if err != nil || len(entries) == 0 {
+		return false
+	}
+	return true
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Views
 // ═══════════════════════════════════════════════════════════════
@@ -699,6 +798,9 @@ func (m model) View() string {
 	case phaseUploading:
 		body = m.mainView()
 	case phaseDeleting:
+		body = m.mainView()
+	case phaseMounting:
+		m.status = "📁 Mounting Google Drive..."
 		body = m.mainView()
 	case phaseDone:
 		body = m.mainView()
@@ -922,6 +1024,17 @@ func (m model) settingsView() string {
 
 func faint(s string) string {
 	return lipgloss.NewStyle().Foreground(gray).Render(s)
+}
+
+func openURL(url string) {
+	switch runtime.GOOS {
+	case "darwin":
+		exec.Command("open", url).Start()
+	case "linux":
+		exec.Command("xdg-open", url).Start()
+	case "windows":
+		exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	}
 }
 
 func max(a, b int) int {
