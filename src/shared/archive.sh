@@ -33,6 +33,7 @@ fi
 desktop_path=$(load_env "PKARCHIVES_DESKTOP_PATH" "${HOME}/Desktop")
 desktop_link_name=$(load_env "PKARCHIVES_DESKTOP_LINK_NAME" "DesktopArchive")
 rclone_remote=$(load_env "PKARCHIVES_RCLONE_REMOTE" "gdrive")
+rclone_remote="${rclone_remote%:}"
 rclone_bin="${PKARCHIVES_RCLONE_BINARY:-${HOME}/.local/share/pkarchives/bin/rclone}"
 [[ -x "${rclone_bin}" ]] || rclone_bin="rclone"
 
@@ -103,7 +104,7 @@ echo -e "${BLUE}📦 ${count} élément(s) à archiver${NC}"
 echo -e "${CYAN}🚀 Upload puis suppression immédiate après vérification${NC}"
 echo ""
 
-rclone_dir="${rclone_remote}:"
+rclone_dir="${rclone_remote}:${current_month_year}"
 success=0
 failed_items=()
 

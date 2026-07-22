@@ -383,6 +383,7 @@ struct ContentView: View {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let path = "\(home)/.config/pkarchives/pkarchives.conf"
         try? FileManager.default.createDirectory(atPath: "\(home)/.config/pkarchives", withIntermediateDirectories: true)
+        rcloneRemote = rcloneRemote.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
         let content = "PKARCHIVES_DRIVE_FOLDER_ID=\"\(driveFolderID)\"\nPKARCHIVES_DESKTOP_PATH=\"\(desktopPath)\"\nPKARCHIVES_RCLONE_REMOTE=\"\(rcloneRemote)\"\nPKARCHIVES_DESKTOP_LINK_NAME=\"\(linkName)\"\n"
         try? content.write(toFile: path, atomically: true, encoding: .utf8)
     }
@@ -402,7 +403,7 @@ struct ContentView: View {
         let desktop = (loadEnv("PKARCHIVES_DESKTOP_PATH") ?? "\(home)/Desktop")
             .replacingOccurrences(of: "~", with: home, options: [], range: nil)
         let linkName = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME") ?? "DesktopArchive"
-        let remote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
+        let remote = (loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive").trimmingCharacters(in: CharacterSet(charactersIn: ":"))
         guard let folderID = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID"), !folderID.isEmpty else {
             output += "\n⚠️ Drive Folder ID absent, montage ignoré.\n"
             return

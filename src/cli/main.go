@@ -72,6 +72,7 @@ func loadConfig() Config {
 			}
 		}
 	}
+	cfg.RcloneRemote = strings.TrimSuffix(cfg.RcloneRemote, ":")
 	return cfg
 }
 
@@ -90,7 +91,15 @@ func driveURL(cfg Config) string {
 	}
 	return "https://drive.google.com/drive/folders/" + cfg.DriveFolderID
 }
-func archiveRemote(cfg Config) string { return cfg.RcloneRemote + ":" }
+func archiveRemote(cfg Config) string { return strings.TrimSuffix(cfg.RcloneRemote, ":") + ":" }
+
+func archiveMonth() string {
+	months := []string{"janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"}
+	now := time.Now()
+	return fmt.Sprintf("%d_%02d_%s", now.Year(), int(now.Month()), months[int(now.Month())-1])
+}
+
+func archiveDestination(cfg Config) string { return archiveRemote(cfg) + archiveMonth() }
 
 func rcloneBinary() string {
 	if configured := os.Getenv("PKARCHIVES_RCLONE_BINARY"); configured != "" {
@@ -447,7 +456,7 @@ func startUploadCmd(cfg Config, items []fileItem, idx int) tea.Cmd {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
-		err := rcloneUpload(ctx, cfg, item.Path, archiveRemote(cfg))
+		err := rcloneUpload(ctx, cfg, item.Path, archiveDestination(cfg))
 		return itemDoneMsg{idx, item.Name, false, err}
 	}
 }
@@ -455,7 +464,7 @@ func uploadSubFileCmd(cfg Config, parent int, paths, names []string, idx int) te
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
-		err := rcloneUpload(ctx, cfg, paths[idx], archiveRemote(cfg))
+		err := rcloneUpload(ctx, cfg, paths[idx], archiveDestination(cfg))
 		return subFileDoneMsg{parent, idx, len(paths), names[idx], err}
 	}
 }

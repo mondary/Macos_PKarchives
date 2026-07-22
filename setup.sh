@@ -253,10 +253,12 @@ for r in $REMOTES; do
 done
 println
 DEFAULT_REMOTE="$(echo "$REMOTES" | awk '{print $1}')"
+DEFAULT_REMOTE="${DEFAULT_REMOTE%:}"
 printf '   Default: %b%s%b (just press Enter)\n' "$GREEN" "$DEFAULT_REMOTE" "$RST"
 printf '   %bYour remote:%b ' "$CYAN" "$RST"
 read -r REMOTE_INPUT
 RCLONE_REMOTE="${REMOTE_INPUT:-$DEFAULT_REMOTE}"
+RCLONE_REMOTE="${RCLONE_REMOTE%:}"
 println
 
 # ── Résumé ───────────────────────────────────────────────────
