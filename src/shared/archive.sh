@@ -98,12 +98,11 @@ if [[ ${count} -eq 0 ]]; then
 fi
 
 echo -e "${BLUE}📦 ${count} élément(s) à archiver${NC}"
-echo -e "${CYAN}🚀 Upload d'abord, suppression à la fin${NC}"
+echo -e "${CYAN}🚀 Upload puis suppression immédiate après vérification${NC}"
 echo ""
 
 rclone_dir="${rclone_remote}:"
 success=0
-uploaded=()
 failed_items=()
 
 upload_file() {
@@ -127,14 +126,21 @@ for item in "${files_to_process[@]}"; do
     sz=$(ls -lh "${item}" | awk '{print $5}')
     echo -e "${BOLD}[${num}/${count}]${NC} 📄 ${bn} (${sz})"
     set_status "📄 [${num}/${count}] ${bn}"
-    upload_file "${item}"
+    if ! upload_file "${item}"; then
+      failed_items+=("${item}")
+      echo -e "  ${RED}❌ Upload échoué, fichier conservé${NC}"
+      echo ""
+      continue
+    fi
     file_id=$(rclone lsjson "${rclone_dir}/${bn}" --drive-root-folder-id "${DRIVE_FOLDER_ID}" 2>/dev/null | grep -oE '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
     if [[ -n "${file_id}" ]]; then
       echo -e "  ${CYAN}🔗 https://drive.google.com/file/d/${file_id}/view${NC}"
     fi
-    uploaded+=("${item}")
     success=$((success + 1))
     echo -e "  ${GREEN}✅ Uploadé${NC}"
+    set_status "🧹 Suppression ${num}/${count} — ${bn}"
+    rm -f "${item}"
+    echo -e "  🗑️  ${bn} supprimé"
     echo ""
 
   elif [[ -d "${item}" ]]; then
@@ -157,28 +163,26 @@ for item in "${files_to_process[@]}"; do
       sub_sz=$(ls -lh "${sub_file}" | awk '{print $5}')
       echo -e "  📄 ${sub_bn} (${sub_sz})"
       set_status "📁 [${num}/${count}] ${bn}/ — ${sub_ok}/${sub_count} — ${sub_bn}"
-      upload_file "${sub_file}"
-      sub_ok=$((sub_ok + 1))
-      echo -e "  ${GREEN}✅ OK${NC}"
+      if upload_file "${sub_file}"; then
+        sub_ok=$((sub_ok + 1))
+        echo -e "  ${GREEN}✅ OK${NC}"
+      else
+        sub_fail=$((sub_fail + 1))
+        echo -e "  ${RED}❌ Échec, dossier conservé${NC}"
+      fi
     done
 
-    uploaded+=("${item}")
-    success=$((success + 1))
-    echo -e "  ${GREEN}📁 Dossier '${bn}' uploadé (${sub_ok}/${sub_count})${NC}"
+    if [[ ${sub_fail} -eq 0 ]]; then
+      success=$((success + 1))
+      set_status "🧹 Suppression ${num}/${count} — ${bn}"
+      rm -rf "${item}"
+      echo -e "  ${GREEN}📁 Dossier '${bn}' uploadé + supprimé (${sub_ok}/${sub_count})${NC}"
+    else
+      failed_items+=("${item}")
+      echo -e "  ${YELLOW}⚠️  Dossier '${bn}' conservé (${sub_fail} échec(s))${NC}"
+    fi
     echo ""
   fi
-done
-
-# Phase 2 : Suppression de tout ce qui a été uploadé
-echo -e "${CYAN}🧹 Suppression des fichiers du Bureau...${NC}"
-set_status "🧹 Suppression..."
-del_idx=0
-for item in "${uploaded[@]}"; do
-  bn="$(basename "${item}")"
-  del_idx=$((del_idx + 1))
-  set_status "🧹 Suppression ${del_idx}/${#uploaded[@]} — ${bn}"
-  rm -rf "${item}"
-  echo -e "  🗑️  ${bn} supprimé"
 done
 
 echo ""
@@ -186,4 +190,7 @@ echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${GREEN}✅ ${success}/${count} élément(s) archivé(s) + supprimé(s)${NC}"
 echo -e "${BLUE}📁 Google Drive archive folder${NC}"
 echo -e "${CYAN}🔗 https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}${NC}"
+if [[ ${#failed_items[@]} -gt 0 ]]; then
+  echo -e "${YELLOW}⚠️  ${#failed_items[@]} élément(s) conservé(s) après échec d'upload${NC}"
+fi
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

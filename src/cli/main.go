@@ -321,20 +321,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.index < len(m.items) {
 			m.sessionBytes += itemBytes(m.items[msg.index].Path)
 		}
-		m.success++
-		m.current = msg.index + 1
-		if m.current < len(m.items) {
-			return m, startUploadCmd(m.cfg, m.items, m.current)
-		}
-		m.phase, m.deleted = phaseDeleting, 0
-		return m, tea.Batch(m.spinner.Tick, deleteItemCmd(m.items, 0, m.success))
+		m.phase, m.deleted = phaseDeleting, msg.index
+		return m, tea.Batch(m.spinner.Tick, deleteItemCmd(m.items, msg.index, len(m.items)))
 	case deleteDoneMsg:
 		if msg.err != nil {
 			return m.fail(msg.err)
 		}
-		m.deleted = msg.index + 1
-		if m.deleted < msg.total {
-			return m, deleteItemCmd(m.items, m.deleted, msg.total)
+		m.success++
+		m.current = msg.index + 1
+		if m.current < len(m.items) {
+			m.phase = phaseUploading
+			return m, startUploadCmd(m.cfg, m.items, m.current)
 		}
 		m.phase = phaseMounting
 		return m, tea.Batch(m.spinner.Tick, mountDriveCmd(m.cfg))
@@ -462,29 +459,52 @@ func deleteItemCmd(items []fileItem, idx, total int) tea.Cmd {
 }
 func mountDriveCmd(cfg Config) tea.Cmd {
 	return func() tea.Msg {
-		home, _ := os.UserHomeDir()
-		mount := filepath.Join(home, ".local", "share", "pkarchives", "mount")
-		os.MkdirAll(mount, 0755)
-		var err error
-		if !isMountActive(mount) {
-			err = exec.Command("rclone", "mount", archiveRemote(cfg), mount, "--drive-root-folder-id", cfg.DriveFolderID, "--daemon", "--vfs-cache-mode", "minimal", "--volname", "PKarchives").Run()
-			if err == nil {
-				for i := 0; i < 10 && !isMountActive(mount); i++ {
-					time.Sleep(500 * time.Millisecond)
+		mount := filepath.Join(cfg.DesktopPath, cfg.LinkName)
+		if isMountActive(mount) {
+			return mountDoneMsg{mount, nil}
+		}
+
+		if info, err := os.Lstat(mount); err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				if err := os.Remove(mount); err != nil {
+					return mountDoneMsg{mount, err}
 				}
+			} else if entries, err := os.ReadDir(mount); err != nil || len(entries) > 0 {
+				return mountDoneMsg{mount, fmt.Errorf("%s already exists and is not empty", cfg.LinkName)}
 			}
 		}
-		link := filepath.Join(cfg.DesktopPath, cfg.LinkName)
-		os.Remove(link)
-		if linkErr := os.Symlink(mount, link); linkErr != nil && err == nil {
-			err = linkErr
+		if err := os.MkdirAll(mount, 0755); err != nil {
+			return mountDoneMsg{mount, err}
+		}
+
+		logPath := filepath.Join(os.TempDir(), "pkarchives-mount.log")
+		err := exec.Command("rclone", "mount", archiveRemote(cfg), mount,
+			"--drive-root-folder-id", cfg.DriveFolderID,
+			"--daemon", "--daemon-wait", "10s",
+			"--vfs-cache-mode", "minimal", "--volname", "PKarchives",
+			"--log-file", logPath, "--log-level", "INFO").Run()
+		if err == nil {
+			for i := 0; i < 10 && !isMountActive(mount); i++ {
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+		if isMountActive(mount) {
+			return mountDoneMsg{mount, nil}
+		}
+		os.Remove(mount)
+		log, _ := os.ReadFile(logPath)
+		if strings.Contains(string(log), "installed via Homebrew") {
+			return mountDoneMsg{mount, fmt.Errorf("rclone Homebrew cannot mount on macOS; install the official rclone binary from rclone.org/downloads")}
+		}
+		if err == nil {
+			err = fmt.Errorf("rclone mount did not become active")
 		}
 		return mountDoneMsg{mount, err}
 	}
 }
 func isMountActive(path string) bool {
-	entries, err := os.ReadDir(path)
-	return err == nil && len(entries) > 0
+	out, err := exec.Command("mount").Output()
+	return err == nil && strings.Contains(string(out), " on "+path+" ")
 }
 func modeName(items []fileItem) string {
 	for _, item := range items {
@@ -596,7 +616,7 @@ func (m model) progressView() string {
 		status = fmt.Sprintf("%s deleting %d/%d", m.spinner.View(), m.deleted+1, m.success)
 	}
 	if m.phase == phaseMounting {
-		status = m.spinner.View() + " mounting Drive and linking DesktopArchive"
+		status = m.spinner.View() + " mounting Drive on Desktop/DesktopArchive"
 	}
 	if m.phase == phaseDone {
 		status = fmt.Sprintf("%s %d/%d archived and deleted", ok("OK"), m.success, len(m.items))

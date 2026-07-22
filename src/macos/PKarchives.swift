@@ -149,7 +149,7 @@ struct ContentView: View {
     @State private var process: Process?
     @State private var timer: Timer?
     @State private var history = loadHistory()
-    @State private var showingSettings = false
+    @State private var page = "dashboard"
     @State private var driveFolderID = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
     @State private var desktopPath = loadEnv("PKARCHIVES_DESKTOP_PATH") ?? ""
     @State private var rcloneRemote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
@@ -158,15 +158,12 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    statsRow
-                    dashboardChart
-                    liveConsole
-                    historyList
-                    actionBar
+            Group {
+                switch page {
+                case "history": historyPage
+                case "settings": settingsPage
+                default: dashboardPage
                 }
-                .padding(22)
             }
         }
         .frame(width: 900, height: 680)
@@ -176,7 +173,6 @@ struct ContentView: View {
                 startArchive(mode: mode)
             }
         }
-        .sheet(isPresented: $showingSettings) { settingsView }
     }
 
     private var header: some View {
@@ -189,9 +185,13 @@ struct ContentView: View {
             Label(isRunning ? status : "Ready", systemImage: isRunning ? "arrow.up.right" : "checkmark.circle.fill")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(isRunning ? .orange : .green)
-            Button { showingSettings = true } label: { Image(systemName: "slider.horizontal.3") }
-                .buttonStyle(.borderless)
-                .help("Settings")
+            Picker("Page", selection: $page) {
+                Text("Dashboard").tag("dashboard")
+                Text("History").tag("history")
+                Text("Settings").tag("settings")
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 280)
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 16)
@@ -204,6 +204,27 @@ struct ContentView: View {
             statCard("Archived", value: "\(history.reduce(0) { $0 + $1.success })", icon: "archivebox.fill", color: .orange)
             statCard("Freed", value: ByteCountFormatter.string(fromByteCount: history.reduce(0) { $0 + $1.bytesFreed }, countStyle: .file), icon: "internaldrive.fill", color: .green)
             statCard("Mount", value: "DesktopArchive", icon: "externaldrive.fill", color: .purple)
+        }
+    }
+
+    private var dashboardPage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                statsRow
+                liveConsole
+                actionBar
+            }
+            .padding(22)
+        }
+    }
+
+    private var historyPage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                dashboardChart
+                historyList
+            }
+            .padding(22)
         }
     }
 
@@ -295,18 +316,36 @@ struct ContentView: View {
         }
     }
 
-    private var settingsView: some View {
-        Form {
-            Section("Storage") {
-                TextField("Google Drive folder ID", text: $driveFolderID)
-                TextField("Desktop path", text: $desktopPath)
-                TextField("rclone remote", text: $rcloneRemote)
-                TextField("Desktop link name", text: $linkName)
+    private var settingsPage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("Settings").font(.system(size: 24, weight: .bold, design: .rounded))
+                Text("Configuration shared with the CLI.")
+                    .font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary)
+                settingField("Google Drive folder ID", text: $driveFolderID, hint: "Destination folder in Google Drive")
+                settingField("Desktop path", text: $desktopPath, hint: "Leave empty to use ~/Desktop")
+                settingField("rclone remote", text: $rcloneRemote, hint: "Usually gdrive")
+                settingField("Desktop archive name", text: $linkName, hint: "Mount point created on the Desktop")
+                HStack {
+                    Button("Save settings") { saveSettings(); status = "Settings saved" }
+                        .buttonStyle(.borderedProminent).tint(.cyan)
+                    Button("Open Google Drive", action: openDrive).buttonStyle(.bordered)
+                }
+                Divider().padding(.vertical, 4)
+                Text("Drive mount").font(.headline)
+                Text("PKarchives mounts the Drive directly on DesktopArchive after a successful archive. No symlink is created if the mount fails.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
             }
-            Section { Button("Save settings") { saveSettings(); showingSettings = false } }
+            .padding(28)
         }
-        .padding(20)
-        .frame(width: 440)
+    }
+
+    private func settingField(_ title: String, text: Binding<String>, hint: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.system(size: 12, weight: .semibold))
+            TextField(title, text: text).textFieldStyle(.roundedBorder)
+            Text(hint).font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+        }
     }
 
     private func saveSettings() {
@@ -338,30 +377,62 @@ struct ContentView: View {
             return
         }
 
-        let mountPath = "\(home)/.local/share/pkarchives/mount"
-        let fileManager = FileManager.default
-        try? fileManager.createDirectory(atPath: mountPath, withIntermediateDirectories: true)
+        let mountPath = "\(desktop)/\(linkName)"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let fileManager = FileManager.default
+            if isMounted(at: mountPath) {
+                DispatchQueue.main.async {
+                    self.output += "\n📁 Google Drive déjà monté dans Finder : \(mountPath)\n"
+                }
+                return
+            }
 
-        let mount = Process()
-        mount.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        mount.arguments = [
-            "rclone", "mount", "\(remote):", mountPath,
-            "--drive-root-folder-id", folderID,
-            "--daemon", "--vfs-cache-mode", "minimal", "--volname", "PKarchives"
-        ]
-        do {
-            try mount.run()
-        } catch {
-            output += "\n⚠️ Montage Google Drive impossible: \(error.localizedDescription)\n"
-        }
+            if fileManager.fileExists(atPath: mountPath) {
+                guard (try? fileManager.contentsOfDirectory(atPath: mountPath).isEmpty) == true else {
+                    DispatchQueue.main.async {
+                        self.output += "\n⚠️ \(linkName) existe déjà et n'est pas vide. Montage annulé.\n"
+                    }
+                    return
+                }
+            } else {
+                try? fileManager.createDirectory(atPath: mountPath, withIntermediateDirectories: true)
+            }
 
-        let linkPath = "\(desktop)/\(linkName)"
-        try? fileManager.removeItem(atPath: linkPath)
-        do {
-            try fileManager.createSymbolicLink(atPath: linkPath, withDestinationPath: mountPath)
-            output += "\n📁 Google Drive monté dans Finder\n🔗 DesktopArchive → \(mountPath)\n"
-        } catch {
-            output += "\n⚠️ Symlink DesktopArchive impossible: \(error.localizedDescription)\n"
+            let logPath = FileManager.default.temporaryDirectory
+                .appendingPathComponent("pkarchives-mount.log").path
+            let mount = Process()
+            mount.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            mount.arguments = [
+                "rclone", "mount", "\(remote):", mountPath,
+                "--drive-root-folder-id", folderID,
+                "--daemon", "--daemon-wait", "10s",
+                "--vfs-cache-mode", "minimal", "--volname", "PKarchives",
+                "--log-file", logPath, "--log-level", "INFO"
+            ]
+            do {
+                try mount.run()
+                mount.waitUntilExit()
+            } catch {
+                DispatchQueue.main.async {
+                    self.output += "\n⚠️ Impossible de lancer rclone mount: \(error.localizedDescription)\n"
+                }
+                return
+            }
+
+            if isMounted(at: mountPath) {
+                DispatchQueue.main.async {
+                    self.output += "\n📁 Google Drive monté dans Finder : \(mountPath)\n"
+                }
+            } else {
+                try? fileManager.removeItem(atPath: mountPath)
+                let log = (try? String(contentsOfFile: logPath, encoding: .utf8)) ?? ""
+                let help = log.contains("installed via Homebrew")
+                    ? "Installe le binaire officiel rclone depuis rclone.org/downloads : Homebrew ne prend pas en charge mount sur macOS."
+                    : "Consulte le log rclone et vérifie FUSE-T/macFUSE."
+                DispatchQueue.main.async {
+                    self.output += "\n⚠️ Google Drive non monté. \(help)\n"
+                }
+            }
         }
     }
 
@@ -478,4 +549,19 @@ func stripAnsi(_ text: String) -> String {
     result = result.replacingOccurrences(of: "\u{1B}\\[[0-9;]*m", with: "", options: .regularExpression)
     result = result.replacingOccurrences(of: "\u{1B}\\[[0-9;]*[A-Za-z]", with: "", options: .regularExpression)
     return result
+}
+
+func isMounted(at path: String) -> Bool {
+    let process = Process()
+    let pipe = Pipe()
+    process.executableURL = URL(fileURLWithPath: "/sbin/mount")
+    process.standardOutput = pipe
+    do {
+        try process.run()
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8)?.contains(" on \(path) ") == true
+    } catch {
+        return false
+    }
 }
