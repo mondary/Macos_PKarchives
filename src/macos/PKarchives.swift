@@ -63,7 +63,7 @@ func loadEnv(_ key: String) -> String? {
                 if (v.hasPrefix("\"") && v.hasSuffix("\"")) || (v.hasPrefix("'") && v.hasSuffix("'")) {
                     v = String(v.dropFirst().dropLast())
                 }
-                return v
+                return v.isEmpty ? nil : v
             }
         }
     }
