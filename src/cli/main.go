@@ -17,136 +17,85 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// ═══════════════════════════════════════════════════════════════
-//  Styles
-// ═══════════════════════════════════════════════════════════════
-
 var (
-	accent    = lipgloss.AdaptiveColor{Dark: "#39d0d8"}
-	green     = lipgloss.AdaptiveColor{Dark: "#7ee787"}
-	red       = lipgloss.AdaptiveColor{Dark: "#ff7b72"}
-	yellow    = lipgloss.AdaptiveColor{Dark: "#f0c674"}
-	orange    = lipgloss.AdaptiveColor{Dark: "#f0883e"}
-	gray      = lipgloss.AdaptiveColor{Dark: "#7d8590"}
-	white     = lipgloss.AdaptiveColor{Dark: "#e6edf3"}
-	borderCol = lipgloss.AdaptiveColor{Dark: "#30363d"}
-	darkBg    = lipgloss.AdaptiveColor{Dark: "#121214"}
-
-	appTitle   = lipgloss.NewStyle().Bold(true).Foreground(accent)
-	labelStyle = lipgloss.NewStyle().Foreground(gray)
-	valueStyle = lipgloss.NewStyle().Foreground(white).Bold(true)
-	okStyle    = lipgloss.NewStyle().Foreground(green).Bold(true)
-	errStyle   = lipgloss.NewStyle().Foreground(red).Bold(true)
-	warnStyle  = lipgloss.NewStyle().Foreground(yellow).Bold(true)
-	hintStyle  = lipgloss.NewStyle().Foreground(gray)
-
-	outputStyle = lipgloss.NewStyle().
-			Background(darkBg).
-			Foreground(white).
-			Padding(1, 2)
-
-	cardStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderCol).
-			Padding(1, 3)
-
-	dimLabel = lipgloss.NewStyle().Foreground(gray)
+	teal         = lipgloss.AdaptiveColor{Dark: "#55d6c2", Light: "#087f73"}
+	amber        = lipgloss.AdaptiveColor{Dark: "#f2bd62", Light: "#a05b00"}
+	charcoal     = lipgloss.AdaptiveColor{Dark: "#111719", Light: "#f1f4f2"}
+	muted        = lipgloss.AdaptiveColor{Dark: "#80918f", Light: "#536260"}
+	ink          = lipgloss.AdaptiveColor{Dark: "#e8f0ed", Light: "#182220"}
+	danger       = lipgloss.AdaptiveColor{Dark: "#ef8278", Light: "#a52f2b"}
+	line         = lipgloss.AdaptiveColor{Dark: "#29403e", Light: "#c7d4d0"}
+	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(teal)
+	mutedStyle   = lipgloss.NewStyle().Foreground(muted)
+	card         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(line).Padding(1, 2)
+	selectedCard = card.BorderForeground(teal)
 )
 
-// ═══════════════════════════════════════════════════════════════
-//  Config
-// ═══════════════════════════════════════════════════════════════
-
-type Config struct {
-	DriveFolderID string
-	DesktopPath   string
-	LinkName      string
-	RcloneRemote  string
-}
+type Config struct{ DriveFolderID, DesktopPath, LinkName, RcloneRemote string }
 
 func loadConfig() Config {
 	home, _ := os.UserHomeDir()
-	cfg := Config{
-		DesktopPath:  filepath.Join(home, "Desktop"),
-		LinkName:     "DesktopArchive",
-		RcloneRemote: "gdrive",
-	}
-
-	if v := os.Getenv("PKARCHIVES_DRIVE_FOLDER_ID"); v != "" {
-		cfg.DriveFolderID = v
-	}
-	if v := os.Getenv("PKARCHIVES_DESKTOP_PATH"); v != "" {
-		cfg.DesktopPath = v
-	}
-	if v := os.Getenv("PKARCHIVES_DESKTOP_LINK_NAME"); v != "" {
-		cfg.LinkName = v
-	}
-	if v := os.Getenv("PKARCHIVES_RCLONE_REMOTE"); v != "" {
-		cfg.RcloneRemote = v
-	}
-
-	for _, p := range []string{
-		filepath.Join(home, ".pkarchives.conf"),
-		filepath.Join(home, ".config", "pkarchives", "pkarchives.conf"),
+	cfg := Config{DesktopPath: filepath.Join(home, "Desktop"), LinkName: "DesktopArchive", RcloneRemote: "gdrive"}
+	for k, dst := range map[string]*string{
+		"PKARCHIVES_DRIVE_FOLDER_ID": &cfg.DriveFolderID, "PKARCHIVES_DESKTOP_PATH": &cfg.DesktopPath,
+		"PKARCHIVES_DESKTOP_LINK_NAME": &cfg.LinkName, "PKARCHIVES_RCLONE_REMOTE": &cfg.RcloneRemote,
 	} {
-		data, err := os.ReadFile(p)
+		if v := os.Getenv(k); v != "" {
+			*dst = v
+		}
+	}
+	for _, path := range []string{filepath.Join(home, ".pkarchives.conf"), filepath.Join(home, ".config", "pkarchives", "pkarchives.conf")} {
+		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
 		}
-		for _, line := range strings.Split(string(data), "\n") {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "#") || line == "" {
+		for _, raw := range strings.Split(string(data), "\n") {
+			p := strings.SplitN(strings.TrimSpace(raw), "=", 2)
+			if len(p) != 2 {
 				continue
 			}
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) != 2 {
+			key, val := p[0], strings.Trim(strings.TrimSpace(p[1]), `"'`)
+			if val == "" {
 				continue
 			}
-			key := strings.TrimSpace(parts[0])
-			val := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
 			switch key {
 			case "PKARCHIVES_DRIVE_FOLDER_ID":
 				if cfg.DriveFolderID == "" {
 					cfg.DriveFolderID = val
 				}
 			case "PKARCHIVES_DESKTOP_PATH":
-				if val != "" {
-					cfg.DesktopPath = val
-				}
+				cfg.DesktopPath = val
 			case "PKARCHIVES_DESKTOP_LINK_NAME":
-				if val != "" {
-					cfg.LinkName = val
-				}
+				cfg.LinkName = val
 			case "PKARCHIVES_RCLONE_REMOTE":
-				if val != "" {
-					cfg.RcloneRemote = val
-				}
+				cfg.RcloneRemote = val
 			}
 		}
 	}
 	return cfg
 }
 
+func saveConfig(cfg Config) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	data := fmt.Sprintf("PKARCHIVES_DRIVE_FOLDER_ID=\"%s\"\nPKARCHIVES_DESKTOP_PATH=\"%s\"\nPKARCHIVES_DESKTOP_LINK_NAME=\"%s\"\nPKARCHIVES_RCLONE_REMOTE=\"%s\"\n", cfg.DriveFolderID, cfg.DesktopPath, cfg.LinkName, cfg.RcloneRemote)
+	return os.WriteFile(filepath.Join(home, ".pkarchives.conf"), []byte(data), 0600)
+}
+
 func driveURL(cfg Config) string {
 	if cfg.DriveFolderID == "" {
 		return "https://drive.google.com"
 	}
-	return fmt.Sprintf("https://drive.google.com/drive/folders/%s", cfg.DriveFolderID)
+	return "https://drive.google.com/drive/folders/" + cfg.DriveFolderID
 }
-
-func archiveRemote(cfg Config) string {
-	return fmt.Sprintf("%s:", cfg.RcloneRemote)
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  Archive logic
-// ═══════════════════════════════════════════════════════════════
+func archiveRemote(cfg Config) string { return cfg.RcloneRemote + ":" }
 
 type fileItem struct {
-	Path  string
-	Name  string
-	IsDir bool
-	Size  int64
+	Path, Name string
+	IsDir      bool
+	Size       int64
 }
 
 func hasBureauTag(path string) bool {
@@ -154,122 +103,49 @@ func hasBureauTag(path string) bool {
 		return false
 	}
 	out, err := exec.Command("mdls", "-name", "kMDItemUserTags", "-raw", path).Output()
-	if err != nil {
-		return false
-	}
-	return strings.Contains(string(out), "Bureau")
+	return err == nil && strings.Contains(string(out), "Bureau")
 }
-
 func scanDesktop(cfg Config, mode string) ([]fileItem, error) {
 	entries, err := os.ReadDir(cfg.DesktopPath)
 	if err != nil {
 		return nil, err
 	}
-
 	var files, dirs []fileItem
 	for _, e := range entries {
 		name := e.Name()
-		// Skip hidden, link, DS_Store
 		if strings.HasPrefix(name, ".") || name == cfg.LinkName {
 			continue
 		}
-
-		fullPath := filepath.Join(cfg.DesktopPath, name)
-
-		// Skip files tagged "Bureau" (macOS tag)
-		if hasBureauTag(fullPath) {
+		path := filepath.Join(cfg.DesktopPath, name)
+		if hasBureauTag(path) {
 			continue
 		}
-
 		info, err := e.Info()
 		if err != nil {
 			continue
 		}
-
 		if e.IsDir() {
-			if mode == "files" {
-				continue
+			if mode != "files" {
+				dirs = append(dirs, fileItem{path, name, true, info.Size()})
 			}
-			dirs = append(dirs, fileItem{Path: fullPath, Name: name, IsDir: true, Size: info.Size()})
 		} else {
-			files = append(files, fileItem{Path: fullPath, Name: name, IsDir: false, Size: info.Size()})
+			files = append(files, fileItem{path, name, false, info.Size()})
 		}
 	}
-
 	sort.Slice(files, func(i, j int) bool { return files[i].Size < files[j].Size })
 	return append(files, dirs...), nil
 }
 
-func rcloneUpload(ctx context.Context, cfg Config, filePath, rcloneDir string) error {
-	cmd := exec.CommandContext(ctx, "rclone", "copy", filePath, rcloneDir+"/",
-		"--drive-root-folder-id", cfg.DriveFolderID,
-		"--drive-chunk-size", "32M",
-		"--buffer-size", "32M",
-		"--drive-upload-cutoff", "32M",
-		"--drive-pacer-min-sleep", "10ms",
-		"--drive-pacer-burst", "200",
-		"--quiet",
-	)
-	return cmd.Run()
+func rcloneUpload(ctx context.Context, cfg Config, path, destination string) error {
+	return exec.CommandContext(ctx, "rclone", "copy", path, destination+"/", "--drive-root-folder-id", cfg.DriveFolderID, "--drive-chunk-size", "32M", "--buffer-size", "32M", "--drive-upload-cutoff", "32M", "--drive-pacer-min-sleep", "10ms", "--drive-pacer-burst", "200", "--quiet").Run()
 }
-
-// ═══════════════════════════════════════════════════════════════
-//  Messages
-// ═══════════════════════════════════════════════════════════════
-
-type logMsg struct{ text string }
-
-type scanDoneMsg struct {
-	items []fileItem
-	err   error
-}
-
-type dirScannedMsg struct {
-	parentIdx int
-	subFiles  []string
-	subNames  []string
-}
-
-type subFileDoneMsg struct {
-	parentIdx int
-	subIdx    int
-	subTotal  int
-	subName   string
-}
-
-type itemDoneMsg struct {
-	index int
-	name  string
-	isDir bool
-}
-
-type allDoneMsg struct {
-	success int
-	total   int
-}
-
-type deleteDoneMsg struct {
-	index int
-	total int
-	name  string
-}
-
-type mountDoneMsg struct {
-	mountPath string
-	err       error
-}
-
-type errMsg struct{ err error }
-
-// ═══════════════════════════════════════════════════════════════
-//  Phases
-// ═══════════════════════════════════════════════════════════════
 
 type phase int
 
 const (
 	phaseMain phase = iota
 	phaseSettings
+	phaseHistory
 	phaseScanning
 	phaseUploading
 	phaseDeleting
@@ -279,778 +155,559 @@ const (
 	phaseEmpty
 )
 
-type modeChoice int
-
-const (
-	modeFiles modeChoice = iota
-	modeAll
-)
-
-type focusArea int
-
-const (
-	focusNone focusArea = iota
-	focusModePicker
-	focusArchiveBtn
-	focusDriveBtn
-	focusSettingsBtn
-	focusCancelBtn
-	focusInput
-)
-
-// ═══════════════════════════════════════════════════════════════
-//  Model
-// ═══════════════════════════════════════════════════════════════
+type scanDoneMsg struct {
+	items []fileItem
+	err   error
+}
+type dirScannedMsg struct {
+	parentIdx    int
+	paths, names []string
+}
+type subFileDoneMsg struct {
+	parentIdx, subIdx, subTotal int
+	name                        string
+	err                         error
+}
+type itemDoneMsg struct {
+	index int
+	name  string
+	isDir bool
+	err   error
+}
+type deleteDoneMsg struct {
+	index, total int
+	err          error
+}
+type mountDoneMsg struct {
+	mountPath string
+	err       error
+}
 
 type model struct {
-	width   int
-	height  int
-	phase   phase
-	spinner spinner.Model
-	cfg     Config
-
-	// Main screen
-	mode       modeChoice
-	focus      focusArea
-	output     string
-	status     string
-	isRunning  bool
-	items      []fileItem
-	currentIdx int
-	success    int
-
-	// Directory upload tracking
-	subFiles   []string
-	subNames   []string
-	subIdx     int
-	subTotal   int
-
-	// Delete phase
-	deletedIdx  int
-	deletedTotal int
-
-	// Settings
-	settingsFocus focusArea
-	inputs        []textinput.Model
-	inputFocus    int
-
-	// System info
-	osName     string
-	arch       string
-	macOS      string
-	shellName  string
-	rcloneVer  string
+	width, height                               int
+	phase                                       phase
+	cfg                                         Config
+	spinner                                     spinner.Model
+	menu, inputFocus                            int
+	inputs                                      []textinput.Model
+	items                                       []fileItem
+	current, success, deleted, subIdx, subTotal int
+	subPaths, subNames                          []string
+	status, output                              string
+	running                                     bool
+	started                                     time.Time
+	sessionBytes                                int64
+	lastMount                                   string
+	histories                                   []historyEntry
 }
 
 func initialModel() model {
 	cfg := loadConfig()
+	fields := []struct{ placeholder, value string }{{"Drive Folder ID", cfg.DriveFolderID}, {"Desktop path", cfg.DesktopPath}, {"rclone remote", cfg.RcloneRemote}, {"Link name", cfg.LinkName}}
+	inputs := make([]textinput.Model, len(fields))
+	for i, f := range fields {
+		inputs[i] = textinput.New()
+		inputs[i].Placeholder = f.placeholder
+		inputs[i].SetValue(f.value)
+	}
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-
-	shell := filepath.Base(os.Getenv("SHELL"))
-	if shell == "" {
-		shell = "bash"
-	}
-
-	macOS := "N/A"
-	if runtime.GOOS == "darwin" {
-		if out, err := exec.Command("sw_vers", "-productVersion").Output(); err == nil {
-			macOS = strings.TrimSpace(string(out))
-		}
-	} else {
-		macOS = runtime.GOOS
-	}
-
-	rcloneVer := "not found"
-	if out, err := exec.Command("rclone", "version").Output(); err == nil {
-		lines := strings.Split(string(out), "\n")
-		if len(lines) > 0 {
-			parts := strings.Fields(lines[0])
-			if len(parts) >= 2 {
-				rcloneVer = parts[1]
-			}
-		}
-	}
-
-	// Settings inputs
-	driveInput := textinput.New()
-	driveInput.Placeholder = "Drive Folder ID"
-	driveInput.SetValue(cfg.DriveFolderID)
-
-	desktopInput := textinput.New()
-	desktopInput.Placeholder = "Desktop path"
-	desktopInput.SetValue(cfg.DesktopPath)
-
-	remoteInput := textinput.New()
-	remoteInput.Placeholder = "rclone remote"
-	remoteInput.SetValue(cfg.RcloneRemote)
-
-	return model{
-		phase:       phaseMain,
-		spinner:     s,
-		cfg:         cfg,
-		mode:        modeFiles,
-		focus:       focusArchiveBtn,
-		status:      "Ready",
-		settingsFocus: focusInput,
-		inputs:      []textinput.Model{driveInput, desktopInput, remoteInput},
-		osName:      runtime.GOOS,
-		arch:        runtime.GOARCH,
-		macOS:       macOS,
-		shellName:   shell,
-		rcloneVer:   rcloneVer,
-	}
+	return model{cfg: cfg, phase: phaseMain, spinner: s, status: "Ready", inputs: inputs, histories: loadHistory()}
 }
-
 func (m model) Init() tea.Cmd { return nil }
-
-// ═══════════════════════════════════════════════════════════════
-//  Update
-// ═══════════════════════════════════════════════════════════════
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		return m, nil
-
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			if m.phase == phaseSettings {
-				m.phase = phaseMain
-				return m, nil
-			}
-			if m.isRunning {
-				return m, nil // Don't quit during upload
-			}
-			return m, tea.Quit
-
-		case "esc":
-			if m.phase == phaseSettings {
-				m.phase = phaseMain
-				m.inputs[m.inputFocus].Blur()
-				return m, nil
-			}
-			if m.isRunning {
-				m.isRunning = false
-				m.phase = phaseMain
-				m.status = "Cancelled"
-				m.output += "\n🛑 Cancelled.\n"
-				return m, nil
-			}
-
-		case "tab", "shift+tab":
-			return m.handleTab()
-
-		case "enter":
-			return m.handleEnter()
-
-		case "left", "right", "h", "l":
-			if m.phase == phaseMain && m.focus == focusModePicker {
-				if msg.String() == "left" || msg.String() == "h" {
-					m.mode = modeFiles
-				} else {
-					m.mode = modeAll
-				}
-				return m, nil
-			}
-		}
-
+		m.width, m.height = msg.Width, msg.Height
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
-		if m.isRunning || m.phase == phaseScanning || m.phase == phaseUploading || m.phase == phaseDeleting {
+		if m.running {
 			return m, cmd
 		}
-		return m, nil
-
-	case logMsg:
-		m.output += msg.text
-		return m, nil
-
+	case tea.KeyMsg:
+		key := msg.String()
+		if key == "ctrl+c" || key == "q" {
+			if m.running {
+				return m, nil
+			}
+			return m, tea.Quit
+		}
+		if key == "esc" {
+			if m.running {
+				m.running = false
+				m.phase = phaseMain
+				m.status = "Cancelled"
+				return m, nil
+			}
+			if m.phase != phaseMain {
+				m.phase = phaseMain
+				m.blurInput()
+				return m, nil
+			}
+		}
+		if m.phase == phaseSettings {
+			if key == "tab" || key == "shift+tab" {
+				m.moveInput(key == "shift+tab")
+				return m, nil
+			}
+			if key == "enter" {
+				return m.saveSettings()
+			}
+			var cmd tea.Cmd
+			m.inputs[m.inputFocus], cmd = m.inputs[m.inputFocus].Update(msg)
+			return m, cmd
+		}
+		if m.running {
+			return m, nil
+		}
+		if m.phase == phaseMain {
+			if key == "d" || key == "o" {
+				openURL(driveURL(m.cfg))
+				return m, nil
+			}
+			if key >= "1" && key <= "5" {
+				m.menu = int(key[0] - '1')
+				return m, nil
+			}
+			if key == "tab" || key == "down" {
+				m.menu = (m.menu + 1) % 5
+				return m, nil
+			}
+			if key == "shift+tab" || key == "up" {
+				m.menu = (m.menu + 4) % 5
+				return m, nil
+			}
+			if key == "enter" {
+				return m.activateMenu()
+			}
+		}
+		if (m.phase == phaseHistory) && (key == "up" || key == "down") {
+			return m, nil
+		}
 	case scanDoneMsg:
 		if msg.err != nil {
-			m.phase = phaseFailed
-			m.status = fmt.Sprintf("Error: %v", msg.err)
-			return m, nil
+			return m.fail(msg.err)
 		}
 		m.items = msg.items
 		if len(msg.items) == 0 {
-			m.phase = phaseEmpty
-			m.status = "Nothing to archive"
+			m.phase, m.status = phaseEmpty, "Nothing to archive"
+			m.running = false
 			return m, nil
 		}
-		m.phase = phaseUploading
-		m.isRunning = true
-		m.currentIdx = 0
-		m.success = 0
-		m.output += fmt.Sprintf("\n📦 %d item(s) to archive\n", len(m.items))
-		m.output += "🚀 Upload first, delete after\n\n"
+		m.phase, m.current, m.success = phaseUploading, 0, 0
+		m.output = ""
 		return m, tea.Batch(m.spinner.Tick, startUploadCmd(m.cfg, m.items, 0))
-
 	case dirScannedMsg:
-		m.subFiles = msg.subFiles
-		m.subNames = msg.subNames
-		m.subIdx = 0
-		m.subTotal = len(msg.subFiles)
+		m.subPaths, m.subNames, m.subIdx, m.subTotal = msg.paths, msg.names, 0, len(msg.paths)
 		if m.subTotal == 0 {
-			return m, tea.Cmd(itemDoneCmd(m.currentIdx, m.items[m.currentIdx].Name, true))
+			return m, itemDoneCmd(m.current, m.items[m.current].Name, true, nil)
 		}
-		return m, uploadSubFileCmd(m.cfg, msg.parentIdx, msg.subFiles, msg.subNames, 0)
-
+		return m, uploadSubFileCmd(m.cfg, msg.parentIdx, m.subPaths, m.subNames, 0)
 	case subFileDoneMsg:
+		if msg.err != nil {
+			return m.fail(msg.err)
+		}
 		m.subIdx = msg.subIdx + 1
 		if m.subIdx >= m.subTotal {
-			m.output += fmt.Sprintf("  ✓ %s/ (%d files)\n\n", m.items[m.currentIdx].Name, m.subTotal)
-			return m, itemDoneCmd(m.currentIdx, m.items[m.currentIdx].Name, true)
+			return m, itemDoneCmd(m.current, m.items[m.current].Name, true, nil)
 		}
-		m.output += fmt.Sprintf("  📄 %s\n", m.subNames[msg.subIdx])
-		return m, uploadSubFileCmd(m.cfg, msg.parentIdx, m.subFiles, m.subNames, m.subIdx)
-
+		return m, uploadSubFileCmd(m.cfg, msg.parentIdx, m.subPaths, m.subNames, m.subIdx)
 	case itemDoneMsg:
-		if !msg.isDir {
-			m.output += fmt.Sprintf("📄 [%d/%d] %s\n  ✓ uploaded\n\n", msg.index+1, len(m.items), msg.name)
+		if msg.err != nil {
+			return m.fail(msg.err)
+		}
+		if msg.index < len(m.items) {
+			m.sessionBytes += itemBytes(m.items[msg.index].Path)
 		}
 		m.success++
-		next := msg.index + 1
-		if next >= len(m.items) {
-			// Phase delete
-			m.phase = phaseDeleting
-			m.deletedIdx = 0
-			m.deletedTotal = m.success
-			m.output += "\n🧹 Cleaning up Desktop...\n"
-			return m, tea.Batch(m.spinner.Tick, deleteItemCmd(m.items, 0, m.success))
+		m.current = msg.index + 1
+		if m.current < len(m.items) {
+			return m, startUploadCmd(m.cfg, m.items, m.current)
 		}
-		m.currentIdx = next
-		return m, startUploadCmd(m.cfg, m.items, next)
-
+		m.phase, m.deleted = phaseDeleting, 0
+		return m, tea.Batch(m.spinner.Tick, deleteItemCmd(m.items, 0, m.success))
 	case deleteDoneMsg:
-		m.deletedIdx = msg.index + 1
-		if msg.index+1 >= msg.total {
-			// Phase mount — monter le Drive et créer le symlink
-			m.phase = phaseMounting
-			m.output += "\n📁 Mounting Google Drive...\n"
-			m.status = "Mounting..."
-			return m, tea.Batch(m.spinner.Tick, mountDriveCmd(m.cfg))
-		}
-		return m, deleteItemCmd(m.items, msg.index+1, msg.total)
-
-	case mountDoneMsg:
 		if msg.err != nil {
-			m.output += fmt.Sprintf("  ⚠ mount failed: %v\n", msg.err)
+			return m.fail(msg.err)
+		}
+		m.deleted = msg.index + 1
+		if m.deleted < msg.total {
+			return m, deleteItemCmd(m.items, m.deleted, msg.total)
+		}
+		m.phase = phaseMounting
+		return m, tea.Batch(m.spinner.Tick, mountDriveCmd(m.cfg))
+	case mountDoneMsg:
+		m.lastMount = msg.mountPath
+		m.running = false
+		if msg.err != nil {
+			m.status = "Archived; mount unavailable"
 		} else {
-			m.output += fmt.Sprintf("  ✓ Mounted → %s\n", msg.mountPath)
-			m.output += fmt.Sprintf("  ✓ Symlink → ~/Desktop/%s\n", m.cfg.LinkName)
+			m.status = "Archive complete"
 		}
 		m.phase = phaseDone
-		m.isRunning = false
-		m.status = "Done"
-		m.output += fmt.Sprintf("\n✅ %d/%d archived + deleted\n", m.success, len(m.items))
-			m.output += "📁 Google Drive archive folder\n"
-		return m, nil
-
-	case errMsg:
-		m.phase = phaseFailed
-		m.status = fmt.Sprintf("Error: %v", msg.err)
-		m.isRunning = false
+		record := historyEntry{Date: time.Now(), Mode: modeName(m.items), Items: len(m.items), Success: m.success, Bytes: m.sessionBytes, MountOK: msg.err == nil}
+		m.histories = append([]historyEntry{record}, m.histories...)
+		saveHistory(m.histories)
 		return m, nil
 	}
-
-	// Handle text input updates in settings
-	if m.phase == phaseSettings {
-		var cmd tea.Cmd
-		m.inputs[m.inputFocus], cmd = m.inputs[m.inputFocus].Update(msg)
-		return m, cmd
-	}
-
 	return m, nil
 }
 
-func (m model) handleTab() (tea.Model, tea.Cmd) {
-	if m.phase == phaseMain {
-		focusOrder := []focusArea{focusModePicker, focusArchiveBtn, focusDriveBtn, focusSettingsBtn}
-		for i, f := range focusOrder {
-			if m.focus == f {
-				m.focus = focusOrder[(i+1)%len(focusOrder)]
-				break
-			}
-		}
+func (m model) fail(err error) (tea.Model, tea.Cmd) {
+	m.phase, m.running, m.status = phaseFailed, false, err.Error()
+	return m, nil
+}
+func (m *model) blurInput() {
+	for i := range m.inputs {
+		m.inputs[i].Blur()
 	}
-	if m.phase == phaseSettings {
-		m.inputs[m.inputFocus].Blur()
+}
+func (m *model) moveInput(reverse bool) {
+	m.inputs[m.inputFocus].Blur()
+	if reverse {
+		m.inputFocus = (m.inputFocus + len(m.inputs) - 1) % len(m.inputs)
+	} else {
 		m.inputFocus = (m.inputFocus + 1) % len(m.inputs)
-		m.inputs[m.inputFocus].Focus()
 	}
-	return m, nil
+	m.inputs[m.inputFocus].Focus()
 }
-
-func (m model) handleEnter() (tea.Model, tea.Cmd) {
-	switch m.phase {
-	case phaseMain:
-		switch m.focus {
-		case focusArchiveBtn:
-			return m.startArchive()
-		case focusDriveBtn:
-			openURL(driveURL(m.cfg))
-			return m, nil
-		case focusSettingsBtn:
-			m.phase = phaseSettings
-			m.inputFocus = 0
-			m.inputs[0].Focus()
-			return m, textinput.Blink
-		}
-	case phaseSettings:
-		// Save config
-		m.cfg.DriveFolderID = m.inputs[0].Value()
-		if m.inputs[1].Value() != "" {
-			m.cfg.DesktopPath = m.inputs[1].Value()
-		}
-		if m.inputs[2].Value() != "" {
-			m.cfg.RcloneRemote = m.inputs[2].Value()
-		}
-		saveConfig(m.cfg)
-		m.inputs[m.inputFocus].Blur()
-		m.phase = phaseMain
-		m.status = "Settings saved"
+func (m model) activateMenu() (tea.Model, tea.Cmd) {
+	switch m.menu {
+	case 0, 1:
+		return m.startArchive(m.menu == 1)
+	case 2:
+		m.phase = phaseHistory
 		return m, nil
-	case phaseDone, phaseFailed, phaseEmpty:
+	case 3:
+		m.phase = phaseSettings
+		m.inputFocus = 0
+		m.inputs[0].Focus()
+		return m, textinput.Blink
+	default:
 		return m, tea.Quit
 	}
+}
+func (m model) saveSettings() (tea.Model, tea.Cmd) {
+	m.cfg.DriveFolderID, m.cfg.DesktopPath, m.cfg.RcloneRemote, m.cfg.LinkName = m.inputs[0].Value(), m.inputs[1].Value(), m.inputs[2].Value(), m.inputs[3].Value()
+	if m.cfg.LinkName == "" {
+		m.cfg.LinkName = "DesktopArchive"
+	}
+	if err := saveConfig(m.cfg); err != nil {
+		m.status = err.Error()
+	} else {
+		m.status = "Settings saved"
+	}
+	m.blurInput()
+	m.phase = phaseMain
 	return m, nil
 }
-
-func (m model) startArchive() (tea.Model, tea.Cmd) {
+func (m model) startArchive(all bool) (tea.Model, tea.Cmd) {
 	if m.cfg.DriveFolderID == "" {
-		m.status = "❌ Drive Folder ID not set — open Settings"
+		m.status = "Drive Folder ID required in Settings"
 		return m, nil
 	}
-	modeStr := "files"
-	if m.mode == modeAll {
-		modeStr = "all"
+	m.phase, m.running, m.started, m.sessionBytes = phaseScanning, true, time.Now(), 0
+	mode := "files"
+	if all {
+		mode = "all"
 	}
-	m.phase = phaseScanning
-	m.isRunning = true
-	m.output = ""
-	m.status = "Scanning..."
-	return m, tea.Batch(m.spinner.Tick, scanCmd(m.cfg, modeStr))
+	return m, tea.Batch(m.spinner.Tick, scanCmd(m.cfg, mode))
 }
-
-func saveConfig(cfg Config) {
-	home, _ := os.UserHomeDir()
-	confPath := filepath.Join(home, ".pkarchives.conf")
-	content := fmt.Sprintf(`PKARCHIVES_DRIVE_FOLDER_ID="%s"
-PKARCHIVES_DESKTOP_PATH="%s"
-PKARCHIVES_RCLONE_REMOTE="%s"
-`, cfg.DriveFolderID, cfg.DesktopPath, cfg.RcloneRemote)
-	os.WriteFile(confPath, []byte(content), 0600)
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  Commands
-// ═══════════════════════════════════════════════════════════════
 
 func scanCmd(cfg Config, mode string) tea.Cmd {
-	return func() tea.Msg {
-		items, err := scanDesktop(cfg, mode)
-		return scanDoneMsg{items: items, err: err}
-	}
+	return func() tea.Msg { items, err := scanDesktop(cfg, mode); return scanDoneMsg{items, err} }
 }
-
 func startUploadCmd(cfg Config, items []fileItem, idx int) tea.Cmd {
 	return func() tea.Msg {
 		item := items[idx]
-		rcloneDir := archiveRemote(cfg)
-
 		if item.IsDir {
-			// Scan directory for sub-files
-			var subFiles []string
-			var subNames []string
+			var paths, names []string
 			filepath.Walk(item.Path, func(path string, info os.FileInfo, err error) error {
-				if err != nil || info.IsDir() || strings.HasPrefix(info.Name(), ".") {
+				if err != nil || info == nil || info.IsDir() || strings.HasPrefix(info.Name(), ".") || hasBureauTag(path) {
 					return nil
 				}
-				subFiles = append(subFiles, path)
-				subNames = append(subNames, strings.TrimPrefix(path, item.Path+"/"))
+				paths = append(paths, path)
+				names = append(names, strings.TrimPrefix(path, item.Path+string(os.PathSeparator)))
 				return nil
 			})
-			return dirScannedMsg{parentIdx: idx, subFiles: subFiles, subNames: subNames}
+			return dirScannedMsg{idx, paths, names}
 		}
-
-		// Single file
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
-		rcloneUpload(ctx, cfg, item.Path, rcloneDir)
-		return itemDoneMsg{index: idx, name: item.Name, isDir: false}
+		err := rcloneUpload(ctx, cfg, item.Path, archiveRemote(cfg))
+		return itemDoneMsg{idx, item.Name, false, err}
 	}
 }
-
-func uploadSubFileCmd(cfg Config, parentIdx int, subFiles, subNames []string, subIdx int) tea.Cmd {
+func uploadSubFileCmd(cfg Config, parent int, paths, names []string, idx int) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
-
-		rcloneDir := archiveRemote(cfg)
-		rcloneUpload(ctx, cfg, subFiles[subIdx], rcloneDir)
-
-		return subFileDoneMsg{
-			parentIdx: parentIdx,
-			subIdx:    subIdx,
-			subTotal:  len(subFiles),
-			subName:   subNames[subIdx],
-		}
+		err := rcloneUpload(ctx, cfg, paths[idx], archiveRemote(cfg))
+		return subFileDoneMsg{parent, idx, len(paths), names[idx], err}
 	}
 }
-
-func itemDoneCmd(idx int, name string, isDir bool) tea.Cmd {
-	return func() tea.Msg {
-		return itemDoneMsg{index: idx, name: name, isDir: isDir}
-	}
+func itemDoneCmd(idx int, name string, dir bool, err error) tea.Cmd {
+	return func() tea.Msg { return itemDoneMsg{idx, name, dir, err} }
 }
-
 func deleteItemCmd(items []fileItem, idx, total int) tea.Cmd {
 	return func() tea.Msg {
-		if idx < total && idx < len(items) {
-			os.RemoveAll(items[idx].Path)
-		}
-		name := ""
+		var err error
 		if idx < len(items) {
-			name = items[idx].Name
+			err = os.RemoveAll(items[idx].Path)
 		}
-		return deleteDoneMsg{index: idx, total: total, name: name}
+		return deleteDoneMsg{idx, total, err}
 	}
 }
-
 func mountDriveCmd(cfg Config) tea.Cmd {
 	return func() tea.Msg {
 		home, _ := os.UserHomeDir()
-
-		// Point de montage stable
-		mountPath := filepath.Join(home, ".local", "share", "pkarchives", "mount")
-		os.MkdirAll(mountPath, 0755)
-
-		// Vérifier si déjà monté
-		if isMountActive(mountPath) {
-			// Créer le symlink quand même
-			symlinkPath := filepath.Join(cfg.DesktopPath, cfg.LinkName)
-			os.Remove(symlinkPath)
-			os.Symlink(mountPath, symlinkPath)
-			return mountDoneMsg{mountPath: mountPath, err: nil}
-		}
-
-		// Monter avec rclone mount --daemon
-		cmd := exec.Command("rclone", "mount",
-			fmt.Sprintf("%s:", cfg.RcloneRemote),
-			mountPath,
-			"--drive-root-folder-id", cfg.DriveFolderID,
-			"--daemon",
-			"--vfs-cache-mode", "minimal",
-			"--volname", "PKarchives",
-		)
-		err := cmd.Run()
-
-		// Attendre que le mount soit actif (max 5s)
-		if err == nil {
-			for i := 0; i < 10; i++ {
-				time.Sleep(500 * time.Millisecond)
-				if isMountActive(mountPath) {
-					break
+		mount := filepath.Join(home, ".local", "share", "pkarchives", "mount")
+		os.MkdirAll(mount, 0755)
+		var err error
+		if !isMountActive(mount) {
+			err = exec.Command("rclone", "mount", archiveRemote(cfg), mount, "--drive-root-folder-id", cfg.DriveFolderID, "--daemon", "--vfs-cache-mode", "minimal", "--volname", "PKarchives").Run()
+			if err == nil {
+				for i := 0; i < 10 && !isMountActive(mount); i++ {
+					time.Sleep(500 * time.Millisecond)
 				}
 			}
 		}
-
-		// Créer le symlink sur le Bureau
-		symlinkPath := filepath.Join(cfg.DesktopPath, cfg.LinkName)
-		os.Remove(symlinkPath)
-		symlinkErr := os.Symlink(mountPath, symlinkPath)
-		if symlinkErr != nil {
-			return mountDoneMsg{mountPath: mountPath, err: fmt.Errorf("symlink: %w", symlinkErr)}
+		link := filepath.Join(cfg.DesktopPath, cfg.LinkName)
+		os.Remove(link)
+		if linkErr := os.Symlink(mount, link); linkErr != nil && err == nil {
+			err = linkErr
 		}
-
-		return mountDoneMsg{mountPath: mountPath, err: err}
+		return mountDoneMsg{mount, err}
 	}
 }
-
 func isMountActive(path string) bool {
-	// Sur macOS/Linux: vérifier si le path est un mount point
 	entries, err := os.ReadDir(path)
-	if err != nil || len(entries) == 0 {
-		return false
+	return err == nil && len(entries) > 0
+}
+func modeName(items []fileItem) string {
+	for _, item := range items {
+		if item.IsDir {
+			return "files + folders"
+		}
 	}
-	return true
+	return "files"
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  Views
-// ═══════════════════════════════════════════════════════════════
+func itemBytes(path string) int64 {
+	var total int64
+	_ = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err == nil && info != nil && !info.IsDir() {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total
+}
 
 func (m model) View() string {
-	var body string
+	if m.width > 0 && m.width < 58 {
+		return m.compactView()
+	}
 	switch m.phase {
-	case phaseMain:
-		body = m.mainView()
 	case phaseSettings:
-		body = m.settingsView()
-	case phaseScanning:
-		body = m.mainView()
-	case phaseUploading:
-		body = m.mainView()
-	case phaseDeleting:
-		body = m.mainView()
-	case phaseMounting:
-		m.status = "📁 Mounting Google Drive..."
-		body = m.mainView()
-	case phaseDone:
-		body = m.mainView()
-	case phaseFailed:
-		body = m.mainView()
-	case phaseEmpty:
-		body = m.mainView()
+		return m.settingsView()
+	case phaseHistory:
+		return m.historyView()
 	default:
-		body = m.mainView()
+		return m.dashboardView()
 	}
-
-	return body
 }
-
-// ── Main view (reproduit l'app Swift) ─────────────────────────
-
-func (m model) mainView() string {
+func (m model) header() string {
+	return titleStyle.Render("PKarchives") + "  " + mutedStyle.Render("RIPTIDE / archive console") + "\n" + mutedStyle.Render(strings.Repeat("-", clamp(m.width, 44, 96)))
+}
+func (m model) dashboardView() string {
 	var b strings.Builder
-
-	// Header
-	b.WriteString(m.headerView())
-	b.WriteString("\n")
-
-	// Output area
-	b.WriteString(m.outputAreaView())
-	b.WriteString("\n")
-
-	// Status bar
-	b.WriteString(m.statusBarView())
-	b.WriteString("\n")
-
-	// Controls
-	b.WriteString(m.controlsView())
-
+	b.WriteString(m.header() + "\n\n")
+	b.WriteString(titleStyle.Render("Archive dashboard") + "\n\n")
+	b.WriteString(m.cards() + "\n\n")
+	b.WriteString(m.stats() + "\n\n")
+	if m.phase != phaseMain || m.output != "" {
+		b.WriteString(m.progressView() + "\n\n")
+	} else {
+		b.WriteString(mutedStyle.Render("Select a mode, then press Enter. Hidden files and Bureau-tagged items are excluded.") + "\n\n")
+	}
+	b.WriteString(mutedStyle.Render("1/2 mode  3 history  4 settings  5 quit  Tab move  Enter select  Esc back  q quit"))
 	return b.String()
 }
-
-func (m model) headerView() string {
-	var b strings.Builder
-	b.WriteString(appTitle.Render("📦 PKarchives"))
-
-	if m.isRunning {
-		b.WriteString("  " + m.spinner.View())
-	}
-
-	b.WriteString(strings.Repeat(" ", max(1, m.width-30)))
-	b.WriteString(dimLabel.Render(fmt.Sprintf("macOS %s · rclone %s", m.macOS, m.rcloneVer)))
-
-	return b.String()
-}
-
-func (m model) outputAreaView() string {
-	width := m.width - 4
-	if width < 40 {
-		width = 40
-	}
-	height := m.height - 12
-	if height < 8 {
-		height = 8
-	}
-
-	output := m.output
-	if output == "" {
-		output = faint("Ready. Press Tab to navigate, Enter to archive.")
-	}
-
-	// Truncate to visible lines
-	lines := strings.Split(output, "\n")
-	if len(lines) > height {
-		lines = lines[len(lines)-height:]
-	}
-
-	// Truncate wide lines
-	for i, line := range lines {
-		if len(line) > width {
-			lines[i] = line[:width-3] + "..."
+func (m model) cards() string {
+	labels := []string{"ARCHIVE FILES", "FILES + FOLDERS", "HISTORY", "SETTINGS", "QUIT"}
+	var out []string
+	for i, label := range labels {
+		text := fmt.Sprintf("%d  %s", i+1, label)
+		if i == m.menu {
+			out = append(out, selectedCard.Width(16).Render(lipgloss.NewStyle().Bold(true).Foreground(teal).Render(text)))
+		} else {
+			out = append(out, card.Width(16).Render(text))
 		}
 	}
-
-	truncated := strings.Join(lines, "\n")
-
-	styled := outputStyle.Width(width).Height(height)
-	return styled.Render(truncated)
+	if m.width < 90 {
+		return lipgloss.JoinVertical(lipgloss.Left, out...)
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, out...)
 }
-
-func (m model) statusBarView() string {
-	icon := "✓"
-	iconColor := green
-	if m.isRunning {
-		icon = "↑"
-		iconColor = orange
+func (m model) stats() string {
+	last := "No runs yet"
+	if len(m.histories) > 0 {
+		h := m.histories[0]
+		last = fmt.Sprintf("%s / %d items", h.Date.Local().Format("02 Jan 15:04"), h.Items)
 	}
-	if strings.Contains(m.status, "Error") || strings.Contains(m.status, "❌") {
-		icon = "✗"
-		iconColor = red
+	mount := "offline"
+	if m.lastMount != "" && isMountActive(m.lastMount) {
+		mount = "mounted"
 	}
-
-	statusText := m.status
-	if m.isRunning && m.phase == phaseUploading && m.currentIdx < len(m.items) {
-		item := m.items[m.currentIdx]
+	parts := []string{fmt.Sprintf("LAST SESSION\n%s", last), fmt.Sprintf("SUCCESS\n%d", m.lastSuccess()), fmt.Sprintf("SPACE EST. FREED\n%s", formatBytes(m.lastBytes())), fmt.Sprintf("MOUNT\n%s", short(mount, 24))}
+	var cards []string
+	for _, p := range parts {
+		cards = append(cards, card.Width(20).Render(p))
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, cards...)
+}
+func (m model) lastSuccess() int {
+	if len(m.histories) > 0 {
+		return m.histories[0].Success
+	}
+	return 0
+}
+func (m model) lastBytes() int64 {
+	if len(m.histories) > 0 {
+		return m.histories[0].Bytes
+	}
+	return 0
+}
+func (m model) progressView() string {
+	status := m.status
+	if m.phase == phaseScanning {
+		status = m.spinner.View() + " scanning Desktop"
+	}
+	if m.phase == phaseUploading && m.current < len(m.items) {
+		status = fmt.Sprintf("%s uploading %d/%d: %s", m.spinner.View(), m.current+1, len(m.items), m.items[m.current].Name)
 		if m.subTotal > 0 {
-			statusText = fmt.Sprintf("📁 [%d/%d] %s/ — %d/%d — %s",
-				m.currentIdx+1, len(m.items), item.Name, m.subIdx+1, m.subTotal, m.subNames[m.subIdx])
-		} else {
-			statusText = fmt.Sprintf("📄 [%d/%d] %s", m.currentIdx+1, len(m.items), item.Name)
+			status += fmt.Sprintf("  sub-file %d/%d", m.subIdx+1, m.subTotal)
 		}
 	}
 	if m.phase == phaseDeleting {
-		statusText = fmt.Sprintf("🧹 Deleting %d/%d", m.deletedIdx+1, m.deletedTotal)
+		status = fmt.Sprintf("%s deleting %d/%d", m.spinner.View(), m.deleted+1, m.success)
 	}
-
-	statusStyle := lipgloss.NewStyle().Foreground(iconColor)
-	return fmt.Sprintf("%s %s",
-		statusStyle.Render(icon),
-		dimLabel.Render(statusText))
-}
-
-func (m model) controlsView() string {
-	var b strings.Builder
-
-	// Mode picker
-	filesLabel := "Files"
-	allLabel := "Files + Dirs"
-	if m.mode == modeFiles {
-		filesLabel = "[" + filesLabel + "]"
-	} else {
-		allLabel = "[" + allLabel + "]"
+	if m.phase == phaseMounting {
+		status = m.spinner.View() + " mounting Drive and linking DesktopArchive"
 	}
-
-	modeFocus := ""
-	if m.focus == focusModePicker {
-		modeFocus = "▶ "
+	if m.phase == phaseDone {
+		status = fmt.Sprintf("%s %d/%d archived and deleted", ok("OK"), m.success, len(m.items))
 	}
-
-	modeStyle := lipgloss.NewStyle().Foreground(gray)
-	if m.focus == focusModePicker {
-		modeStyle = lipgloss.NewStyle().Foreground(accent).Bold(true)
+	if m.phase == phaseFailed {
+		status = dangerStyle(m.status)
 	}
-	b.WriteString(modeStyle.Render(fmt.Sprintf("%s← %s | %s →", modeFocus, filesLabel, allLabel)))
-
-	b.WriteString(strings.Repeat(" ", max(1, m.width-70)))
-
-	// Buttons
-	buttons := []struct {
-		label  string
-		focus  bool
-		color  lipgloss.AdaptiveColor
-	}{
-		{"⚙ Settings", m.focus == focusSettingsBtn, gray},
-		{"📁 Drive", m.focus == focusDriveBtn, accent},
+	if m.phase == phaseEmpty {
+		status = mutedStyle.Render("Nothing to archive")
 	}
-
-	if m.isRunning {
-		buttons = append(buttons, struct {
-			label  string
-			focus  bool
-			color  lipgloss.AdaptiveColor
-		}{"🛑 Cancel", m.focus == focusCancelBtn, red})
-	} else {
-		buttons = append(buttons, struct {
-			label  string
-			focus  bool
-			color  lipgloss.AdaptiveColor
-		}{"📦 Archive", m.focus == focusArchiveBtn, green})
-	}
-
-	for _, btn := range buttons {
-		style := lipgloss.NewStyle().Foreground(btn.color)
-		if btn.focus {
-			style = style.Bold(true)
-			b.WriteString(style.Render("[" + btn.label + "]"))
-		} else {
-			b.WriteString(style.Render(" " + btn.label + " "))
+	progress := 0
+	total := len(m.items)
+	if total > 0 {
+		progress = m.current
+		if m.phase == phaseDone {
+			progress = total
 		}
-		b.WriteString("  ")
 	}
-
-	return b.String()
+	return card.Width(clamp(m.width-4, 40, 96)).Render(status + "\n\n" + sparkline(progress, total, 34) + "\n" + mutedStyle.Render(strings.TrimSpace(m.output)))
 }
-
-// ── Settings view ─────────────────────────────────────────────
-
 func (m model) settingsView() string {
 	var b strings.Builder
-
-	b.WriteString(appTitle.Render("📦 PKarchives") + "  " + warnStyle.Render("⚙ Settings"))
-	b.WriteString("\n\n")
-
-	// System info card
-	content := fmt.Sprintf(
-		"%s %s/%s\n%s %s\n%s %s\n%s %s",
-		labelStyle.Render("System:    "), valueStyle.Render(fmt.Sprintf("%s/%s", m.osName, m.arch)),
-		"",
-		labelStyle.Render("macOS:     "), valueStyle.Render(m.macOS),
-		"",
-		labelStyle.Render("rclone:    "), valueStyle.Render(m.rcloneVer),
-		"",
-	)
-	_ = content
-
-	// Settings inputs
-	labels := []string{"Drive Folder ID", "Desktop Path", "rclone Remote"}
+	b.WriteString(m.header() + "\n\n" + titleStyle.Render("Settings") + "\n\n")
+	labels := []string{"Drive Folder ID", "Desktop path", "rclone remote", "Desktop link name"}
 	for i, input := range m.inputs {
-		focusMark := "  "
+		mark := "  "
 		if i == m.inputFocus {
-			focusMark = "▶ "
+			mark = "> "
 		}
-		b.WriteString(fmt.Sprintf("%s%s ", focusMark, labelStyle.Render(labels[i]+":")))
-		b.WriteString(input.View())
-		b.WriteString("\n\n")
+		b.WriteString(mark + labels[i] + "\n" + card.Width(clamp(m.width-8, 32, 82)).Render(input.View()) + "\n")
 	}
-
-	b.WriteString(hintStyle.Render("Enter: save · Tab: next field · Esc: cancel"))
-	b.WriteString("\n")
-	b.WriteString(hintStyle.Render(fmt.Sprintf("Config: ~/.pkarchives.conf")))
-
-	return cardStyle.Render(b.String())
+	b.WriteString("\n" + mutedStyle.Render("Enter save  Tab next field  Esc cancel") + "\n" + mutedStyle.Render("Config: ~/.pkarchives.conf"))
+	return b.String()
+}
+func (m model) historyView() string {
+	var b strings.Builder
+	b.WriteString(m.header() + "\n\n" + titleStyle.Render("Archive history") + "\n\n")
+	if len(m.histories) == 0 {
+		b.WriteString(card.Render("No archive runs recorded yet.\nHistory is stored in ~/.config/pkarchives/history.json"))
+	} else {
+		for _, h := range m.histories {
+			state := "OK"
+			if !h.MountOK {
+				state = "MOUNT WARN"
+			}
+			b.WriteString(card.Width(clamp(m.width-4, 42, 96)).Render(fmt.Sprintf("%s  %-11s  %d/%d items  %8s freed  %s", h.Date.Local().Format("2006-01-02 15:04"), state, h.Success, h.Items, formatBytes(h.Bytes), h.Mode)) + "\n")
+		}
+	}
+	b.WriteString("\n" + mutedStyle.Render("Esc back  q quit"))
+	return b.String()
+}
+func (m model) compactView() string {
+	return titleStyle.Render("PKarchives") + "\n\n" + fmt.Sprintf("[%d/5] %s\n\n", m.menu+1, []string{"Archive files", "Files + folders", "History", "Settings", "Quit"}[m.menu]) + mutedStyle.Render("1-5 select  Tab move  Enter  Esc  q") + "\n" + m.status
 }
 
-// ── Helpers ───────────────────────────────────────────────────
-
-func faint(s string) string {
-	return lipgloss.NewStyle().Foreground(gray).Render(s)
+func sparkline(value, total, width int) string {
+	if total <= 0 {
+		return mutedStyle.Render(strings.Repeat(".", width))
+	}
+	n := value * width / total
+	return lipgloss.NewStyle().Foreground(teal).Render(strings.Repeat("#", n)) + mutedStyle.Render(strings.Repeat(".", width-n))
 }
-
+func formatBytes(n int64) string {
+	if n < 1024 {
+		return fmt.Sprintf("%d B", n)
+	}
+	units := []string{"KB", "MB", "GB", "TB"}
+	v := float64(n)
+	i := 0
+	for v >= 1024 && i < len(units)-1 {
+		v /= 1024
+		i++
+	}
+	return fmt.Sprintf("%.1f %s", v, units[i])
+}
+func short(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n-3] + "..."
+}
+func clamp(v, min, max int) int {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}
+func ok(s string) string          { return lipgloss.NewStyle().Foreground(teal).Bold(true).Render(s) }
+func dangerStyle(s string) string { return lipgloss.NewStyle().Foreground(danger).Render(s) }
 func openURL(url string) {
+	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		exec.Command("open", url).Start()
+		cmd = exec.Command("open", url)
 	case "linux":
-		exec.Command("xdg-open", url).Start()
+		cmd = exec.Command("xdg-open", url)
 	case "windows":
-		exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	}
+	if cmd != nil {
+		_ = cmd.Start()
 	}
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  Main
-// ═══════════════════════════════════════════════════════════════
 
 func main() {
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
 }

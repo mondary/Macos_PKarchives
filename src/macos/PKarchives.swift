@@ -1,4 +1,44 @@
 import SwiftUI
+import Charts
+
+struct ArchiveRun: Codable, Identifiable {
+    let date: Date
+    let mode: String
+    let items: Int
+    let success: Int
+    let bytesFreed: Int64
+    let mountOK: Bool
+
+    var id: String { "\(date.timeIntervalSince1970)-\(mode)" }
+
+    enum CodingKeys: String, CodingKey {
+        case date, mode, items, success
+        case bytesFreed = "bytes_freed"
+        case mountOK = "mount_ok"
+    }
+}
+
+func historyURL() -> URL {
+    let base = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".config/pkarchives", isDirectory: true)
+    try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+    return base.appendingPathComponent("history.json")
+}
+
+func loadHistory() -> [ArchiveRun] {
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    guard let data = try? Data(contentsOf: historyURL()),
+          let runs = try? decoder.decode([ArchiveRun].self, from: data) else { return [] }
+    return runs
+}
+
+func saveHistory(_ runs: [ArchiveRun]) {
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .iso8601
+    guard let data = try? encoder.encode(Array(runs.prefix(50))) else { return }
+    try? data.write(to: historyURL(), options: .atomic)
+}
 
 func loadEnv(_ key: String) -> String? {
     // 1. Env var directe
@@ -108,102 +148,173 @@ struct ContentView: View {
     @State private var selectedMode = "files"
     @State private var process: Process?
     @State private var timer: Timer?
+    @State private var history = loadHistory()
+    @State private var showingSettings = false
+    @State private var driveFolderID = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
+    @State private var desktopPath = loadEnv("PKARCHIVES_DESKTOP_PATH") ?? ""
+    @State private var rcloneRemote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
+    @State private var linkName = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME") ?? "DesktopArchive"
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("📦 PKarchives")
-                    .font(.system(size: 16, weight: .bold))
-                Spacer()
-                if isRunning {
-                    ProgressView()
-                        .scaleEffect(0.5)
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    statsRow
+                    dashboardChart
+                    liveConsole
+                    historyList
+                    actionBar
                 }
+                .padding(22)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.windowBackgroundColor))
-
-            Divider()
-
-            // Output
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    Text(output)
-                        .font(.system(size: 12, weight: .regular, design: .monospaced))
-                        .foregroundStyle(.white)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .id("bottom")
-                }
-                .background(Color(red: 0.07, green: 0.07, blue: 0.09))
-                .onChange(of: output) {
-                    withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
-                }
-            }
-
-            Divider()
-
-            // Status bar
-            HStack {
-                Image(systemName: isRunning ? "arrow.up.circle.fill" : "checkmark.circle.fill")
-                    .foregroundColor(isRunning ? .orange : .green)
-                    .font(.system(size: 11))
-                Text(status)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .background(Color(NSColor.controlBackgroundColor))
-
-            Divider()
-
-            // Controls
-            HStack(spacing: 10) {
-                Picker("", selection: $selectedMode) {
-                    Text("Fichiers").tag("files")
-                    Text("Fichiers + Dossiers").tag("all")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 160)
-                .disabled(isRunning)
-
-                Spacer()
-
-                Button(action: openDrive) {
-                    Label("Google Drive", systemImage: "folder.fill")
-                }
-                .buttonStyle(.bordered)
-                .tint(.cyan)
-
-                if isRunning {
-                    Button("Annuler") { cancelRun() }
-                        .buttonStyle(.bordered)
-                        .tint(.red)
-                } else {
-                    Button(action: { startArchive(mode: selectedMode) }) {
-                        Label("Archiver", systemImage: "arrow.up.circle.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.blue)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(width: 780, height: 520)
+        .frame(width: 900, height: 680)
         .preferredColorScheme(.dark)
         .onReceive(NotificationCenter.default.publisher(for: .startArchive)) { notification in
             if let mode = notification.userInfo?["mode"] as? String, !isRunning {
                 startArchive(mode: mode)
             }
         }
+        .sheet(isPresented: $showingSettings) { settingsView }
+    }
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("PKarchives").font(.system(size: 22, weight: .bold, design: .rounded))
+                Text("Desktop archive / Google Drive").font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Label(isRunning ? status : "Ready", systemImage: isRunning ? "arrow.up.right" : "checkmark.circle.fill")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(isRunning ? .orange : .green)
+            Button { showingSettings = true } label: { Image(systemName: "slider.horizontal.3") }
+                .buttonStyle(.borderless)
+                .help("Settings")
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
+        .background(Color(red: 0.07, green: 0.09, blue: 0.10))
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: 12) {
+            statCard("Runs", value: "\(history.count)", icon: "clock.arrow.circlepath", color: .cyan)
+            statCard("Archived", value: "\(history.reduce(0) { $0 + $1.success })", icon: "archivebox.fill", color: .orange)
+            statCard("Freed", value: ByteCountFormatter.string(fromByteCount: history.reduce(0) { $0 + $1.bytesFreed }, countStyle: .file), icon: "internaldrive.fill", color: .green)
+            statCard("Mount", value: "DesktopArchive", icon: "externaldrive.fill", color: .purple)
+        }
+    }
+
+    private func statCard(_ title: String, value: String, icon: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: icon).foregroundStyle(color)
+            Text(title.uppercased()).font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundStyle(.secondary)
+            Text(value).font(.system(size: 17, weight: .semibold, design: .rounded)).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var dashboardChart: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Archive activity").font(.headline)
+                Spacer()
+                Text("last 10 runs").font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+            }
+            if history.isEmpty {
+                ContentUnavailableView("No archive history", systemImage: "chart.xyaxis.line", description: Text("Your next archive will appear here."))
+                    .frame(height: 130)
+            } else {
+                Chart(Array(history.prefix(10).reversed())) { run in
+                    BarMark(x: .value("Run", run.date, unit: .day), y: .value("Items", run.success))
+                        .foregroundStyle(.cyan.gradient)
+                        .cornerRadius(4)
+                }
+                .chartYAxis { AxisMarks(position: .leading) }
+                .frame(height: 150)
+            }
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var liveConsole: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack { Text("Live output").font(.headline); Spacer(); Text(status).font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary) }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    Text(output.isEmpty ? "Ready. Choose a mode and start an archive." : output)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.86))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                        .id("bottom")
+                }
+                .frame(height: 130)
+                .onChange(of: output) { withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
+            }
+        }
+        .padding(16)
+        .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var historyList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Recent runs").font(.headline)
+            if history.isEmpty {
+                Text("No runs yet").foregroundStyle(.secondary).font(.system(size: 12, design: .monospaced))
+            } else {
+                ForEach(Array(history.prefix(4))) { run in
+                    HStack {
+                        Image(systemName: run.mountOK ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(run.mountOK ? .green : .orange)
+                        Text(run.date, style: .date).font(.system(size: 11, design: .monospaced))
+                        Text(run.mode == "all" ? "Files + folders" : "Files").foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(run.success)/\(run.items)").font(.system(.body, design: .monospaced))
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var actionBar: some View {
+        HStack(spacing: 12) {
+            Picker("Mode", selection: $selectedMode) { Text("Files").tag("files"); Text("Files + folders").tag("all") }
+                .pickerStyle(.segmented).frame(width: 190).disabled(isRunning)
+            Spacer()
+            Button("Google Drive", systemImage: "folder.fill", action: openDrive).buttonStyle(.bordered)
+            if isRunning { Button("Cancel", action: cancelRun).buttonStyle(.bordered).tint(.red) }
+            else { Button("Archive", systemImage: "arrow.up.circle.fill") { startArchive(mode: selectedMode) }.buttonStyle(.borderedProminent).tint(.cyan) }
+        }
+    }
+
+    private var settingsView: some View {
+        Form {
+            Section("Storage") {
+                TextField("Google Drive folder ID", text: $driveFolderID)
+                TextField("Desktop path", text: $desktopPath)
+                TextField("rclone remote", text: $rcloneRemote)
+                TextField("Desktop link name", text: $linkName)
+            }
+            Section { Button("Save settings") { saveSettings(); showingSettings = false } }
+        }
+        .padding(20)
+        .frame(width: 440)
+    }
+
+    private func saveSettings() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let path = "\(home)/.config/pkarchives/pkarchives.conf"
+        try? FileManager.default.createDirectory(atPath: "\(home)/.config/pkarchives", withIntermediateDirectories: true)
+        let content = "PKARCHIVES_DRIVE_FOLDER_ID=\"\(driveFolderID)\"\nPKARCHIVES_DESKTOP_PATH=\"\(desktopPath)\"\nPKARCHIVES_RCLONE_REMOTE=\"\(rcloneRemote)\"\nPKARCHIVES_DESKTOP_LINK_NAME=\"\(linkName)\"\n"
+        try? content.write(toFile: path, atomically: true, encoding: .utf8)
     }
 
     func openDrive() { if let url = URL(string: driveURL) { NSWorkspace.shared.open(url) } }
@@ -320,6 +431,11 @@ struct ContentView: View {
                 self.status = "Terminé"
                 if process.terminationStatus == 0 {
                     self.mountDrive()
+                    let run = ArchiveRun(date: Date(), mode: self.selectedMode,
+                                         items: self.output.isEmpty ? 0 : 1, success: self.output.isEmpty ? 0 : 1,
+                                         bytesFreed: 0, mountOK: true)
+                    self.history.insert(run, at: 0)
+                    saveHistory(self.history)
                 }
                 try? FileManager.default.removeItem(atPath: statusFile)
             }

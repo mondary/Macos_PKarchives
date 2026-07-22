@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `🔥v1.2026.1` (initiale)
+Statut : `🔥v1.2026.2` (dashboard V2)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -15,10 +15,27 @@ Statut : `🔥v1.2026.1` (initiale)
 - [x] Supprimer les chemins personnels hardcodés
 - [ ] README FR + EN synchronisé
 - [ ] Lien vers CHANGELOG dans README
+- [x] Dashboard SwiftUI et TUI avec statistiques et historique
+- [x] Graphique d'activité des archivages
+- [x] Navigation paramètres/historique dans les deux interfaces
 
 ---
 
 ## Releases
+
+### [🔥v1.2026.2] - 2026-07-22
+#### Added
+- Dashboard TUI Go inspiré de Riptide avec menu, cartes, historique et sparkline
+- Dashboard SwiftUI avec statistiques, graphique d'activité et historique
+- Historique JSON partagé dans `~/.config/pkarchives/history.json`
+- Paramètres éditables dans les deux interfaces
+
+#### Changed
+- Les deux interfaces affichent désormais le même état d'archivage
+- Structure séparée `src/macos`, `src/cli`, `src/shared` et `release/macos`, `release/cli`
+
+#### Fixed
+- Format d'historique Swift aligné sur celui du CLI Go
 
 ### [🔥v1.2026.1] - 2026-07-21
 #### Added
