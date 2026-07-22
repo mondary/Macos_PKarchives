@@ -157,6 +157,7 @@ struct ContentView: View {
     @State private var selectedMode = "files"
     @State private var process: Process?
     @State private var timer: Timer?
+    @State private var uploadProgress = 0.0
     @State private var history = loadHistory()
     @State private var page = "dashboard"
     @State private var driveFolderID = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
@@ -220,6 +221,7 @@ struct ContentView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 statsRow
+                if isRunning { transferProgress }
                 liveConsole
                 actionBar
             }
@@ -290,6 +292,26 @@ struct ContentView: View {
         }
         .padding(16)
         .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var transferProgress: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Text("Transfer progress").font(.headline)
+                Spacer()
+                Text("\(Int(uploadProgress * 100))%")
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.cyan)
+            }
+            ProgressView(value: uploadProgress)
+                .tint(.cyan)
+            Text(status)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(16)
+        .background(Color.cyan.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var historyList: some View {
@@ -466,6 +488,7 @@ struct ContentView: View {
         isRunning = true
         output = ""
         status = "Préparation..."
+        uploadProgress = 0
 
         let home = FileManager.default.homeDirectoryForCurrentUser.path
 
@@ -511,8 +534,12 @@ struct ContentView: View {
         timer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
             if let data = try? Data(contentsOf: URL(fileURLWithPath: statusFile)),
                let s = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !s.isEmpty {
+                !s.isEmpty {
                 self.status = s
+                if let match = s.range(of: "\\b[0-9]{1,3}%", options: .regularExpression) {
+                    let percentage = s[match].dropLast()
+                    self.uploadProgress = min(1, max(0, (Double(percentage) ?? 0) / 100))
+                }
             }
         }
 
@@ -522,6 +549,7 @@ struct ContentView: View {
                 self.process = nil
                 self.timer?.invalidate()
                 self.status = "Terminé"
+                self.uploadProgress = 1
                 if process.terminationStatus == 0 {
                     self.mountDrive()
                     let run = ArchiveRun(date: Date(), mode: self.selectedMode,

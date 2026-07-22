@@ -109,15 +109,21 @@ failed_items=()
 
 upload_file() {
   local file="$1"
-  local bn
-  bn="$(basename "${file}")"
+  local status_prefix="$2"
 
   "${rclone_bin}" copy "${file}" "${rclone_dir}/" \
     --drive-root-folder-id "${DRIVE_FOLDER_ID}" \
     --drive-chunk-size 32M --buffer-size 32M \
     --drive-upload-cutoff 32M \
     --drive-pacer-min-sleep 10ms --drive-pacer-burst 200 \
-    --quiet 2>&1
+    --stats 1s --stats-one-line --stats-log-level NOTICE 2>&1 |
+    while IFS= read -r line; do
+      if [[ "${line}" =~ ([0-9]{1,3})% ]]; then
+        set_status "${status_prefix} — ${BASH_REMATCH[1]}%"
+      fi
+      [[ -n "${line}" ]] && printf '%s\n' "${line}"
+    done
+  return ${PIPESTATUS[0]}
 }
 
 for item in "${files_to_process[@]}"; do
@@ -128,7 +134,7 @@ for item in "${files_to_process[@]}"; do
     sz=$(ls -lh "${item}" | awk '{print $5}')
     echo -e "${BOLD}[${num}/${count}]${NC} 📄 ${bn} (${sz})"
     set_status "📄 [${num}/${count}] ${bn}"
-    if ! upload_file "${item}"; then
+    if ! upload_file "${item}" "📄 [${num}/${count}] ${bn}"; then
       failed_items+=("${item}")
       echo -e "  ${RED}❌ Upload échoué, fichier conservé${NC}"
       echo ""
@@ -165,7 +171,7 @@ for item in "${files_to_process[@]}"; do
       sub_sz=$(ls -lh "${sub_file}" | awk '{print $5}')
       echo -e "  📄 ${sub_bn} (${sub_sz})"
       set_status "📁 [${num}/${count}] ${bn}/ — ${sub_ok}/${sub_count} — ${sub_bn}"
-      if upload_file "${sub_file}"; then
+      if upload_file "${sub_file}" "📁 [${num}/${count}] ${bn}/ — ${sub_ok}/${sub_count} — ${sub_bn}"; then
         sub_ok=$((sub_ok + 1))
         echo -e "  ${GREEN}✅ OK${NC}"
       else
