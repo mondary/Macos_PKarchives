@@ -2,24 +2,25 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_DIR="${DIR}/release/PKarchives.app/Contents"
+MACOS_APP_DIR="${DIR}/release/macos/PKarchives.app/Contents"
+CLI_RELEASE_DIR="${DIR}/release/cli"
 
 echo "🔨 Compilation..."
 
-swiftc "${DIR}/src/PKarchives.swift" \
+swiftc "${DIR}/src/macos/PKarchives.swift" \
   -parse-as-library \
   -o PKarchives \
   -framework SwiftUI \
   -framework AppKit
 
-mkdir -p "${APP_DIR}/MacOS" "${APP_DIR}/Resources"
+mkdir -p "${MACOS_APP_DIR}/MacOS" "${MACOS_APP_DIR}/Resources" "${CLI_RELEASE_DIR}"
 
-cp PKarchives "${APP_DIR}/MacOS/"
-cp "${DIR}/src/archive.sh" "${APP_DIR}/MacOS/"
-cp "${DIR}/src/archive.sh" "${APP_DIR}/Resources/"
-chmod +x "${APP_DIR}/MacOS/"*
+cp PKarchives "${MACOS_APP_DIR}/MacOS/"
+cp "${DIR}/src/shared/archive.sh" "${MACOS_APP_DIR}/MacOS/"
+cp "${DIR}/src/shared/archive.sh" "${MACOS_APP_DIR}/Resources/"
+chmod +x "${MACOS_APP_DIR}/MacOS/"*
 
-cat > "${APP_DIR}/Info.plist" << 'EOF'
+cat > "${MACOS_APP_DIR}/Info.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -48,5 +49,10 @@ cat > "${APP_DIR}/Info.plist" << 'EOF'
 </plist>
 EOF
 
+if command -v go >/dev/null 2>&1; then
+  echo "🔨 Compilation CLI..."
+  (cd "${DIR}/src/cli" && go build -o "${CLI_RELEASE_DIR}/pkarchives" .)
+fi
+
 rm -f PKarchives
-echo "✅ ${DIR}/release/PKarchives.app"
+echo "✅ ${DIR}/release/macos/PKarchives.app"

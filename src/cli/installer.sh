@@ -164,7 +164,7 @@ step "Building PKarchives (compiling Go TUI…)"
 export GOFLAGS=-mod=mod
 export GOPATH="${GOPATH:-$HOME/go}"
 
-if ! ( cd "$INSTDIR/src2" && "$GO_CMD" mod tidy >>"$LOGFILE" 2>&1 && "$GO_CMD" build -o "$HOME/go/bin/pkarchives" . >>"$LOGFILE" 2>&1 ); then
+if ! ( cd "$INSTDIR/src/cli" && "$GO_CMD" mod tidy >>"$LOGFILE" 2>&1 && "$GO_CMD" build -o "$HOME/go/bin/pkarchives" . >>"$LOGFILE" 2>&1 ); then
   fail "Build failed"
   tail -n 20 "$LOGFILE" >&2
   cleanup_and_fail

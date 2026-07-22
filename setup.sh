@@ -6,10 +6,53 @@
 #         ./setup.sh
 # ═══════════════════════════════════════════════════════════
 
+# Re-exec sous bash (curl|sh passe par sh, pas bash)
+if [ -z "${BASH_VERSION:-}" ]; then
+  if [ -f "$0" ] && [ -t 0 ]; then
+    exec bash "$0" "$@"
+  else
+    _pkarch_reexec="$(mktemp "${TMPDIR:-/tmp}/pkarchives-install.XXXXXX.sh")"
+    cat > "$_pkarch_reexec"
+    export _pkarch_reexec
+    exec bash "$_pkarch_reexec" "$@"
+  fi
+fi
+
 set -uo pipefail
 
+# Déterminer le répertoire : soit le repo cloné, soit un download standalone
 DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
 [ -z "$DIR" ] && DIR="$(pwd)"
+
+# En mode curl|sh (_pkarch_reexec est défini), on clone le repo
+if [ -n "${_pkarch_reexec:-}" ]; then
+  _INSTALL_DIR="${TMPDIR:-/tmp}/pkarchives-install-$$"
+  rm -rf "$_INSTALL_DIR"
+
+  # URL du repo — à adapter quand le repo est publié
+  REPO_URL="https://github.com/clm/PKarchives.git"
+
+  # Tenter git clone
+  if command -v git >/dev/null 2>&1; then
+    if git clone --quiet "$REPO_URL" "$_INSTALL_DIR" 2>/dev/null; then
+      DIR="$_INSTALL_DIR"
+    fi
+  fi
+
+  # Fallback : télécharger le tarball
+  if [ ! -f "$DIR/src/macos/PKarchives.swift" ] && command -v curl >/dev/null 2>&1; then
+    if curl -fsSL "${REPO_URL%.git}/archive/refs/heads/main.tar.gz" -o "/tmp/pkarch-$$.tgz" 2>/dev/null; then
+      mkdir -p "$_INSTALL_DIR"
+      tar -xzf "/tmp/pkarch-$$.tgz" -C "$_INSTALL_DIR" --strip-components=1 2>/dev/null
+      rm -f "/tmp/pkarch-$$.tgz"
+      DIR="$_INSTALL_DIR"
+    fi
+  fi
+
+  # Nettoyer le temp file du re-exec
+  rm -f "$_pkarch_reexec" 2>/dev/null
+fi
+
 SECRETS_DIR="${DIR}/secrets"
 ENV_FILE="${SECRETS_DIR}/.env"
 
@@ -296,7 +339,7 @@ printf '%b║%b  %b✓  Installation complete!%b                %b║%b\n' "$GRE
 printf '%b╚══════════════════════════════════════════╝%b\n' "$GREEN" "$RST"
 println
 printf '  %bLaunch the app:%b\n' "$GRAY" "$RST"
-printf '    %bopen release/PKarchives.app%b\n' "$CYAN" "$RST"
+printf '    %bopen release/macos/PKarchives.app%b\n' "$CYAN" "$RST"
 println
 printf '  %bEdit config later:%b\n' "$GRAY" "$RST"
 printf '    %b%s%b\n' "$CYAN" "$ENV_FILE" "$RST"
