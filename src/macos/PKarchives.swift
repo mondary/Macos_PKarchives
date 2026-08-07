@@ -46,11 +46,12 @@ func loadEnv(_ key: String) -> String? {
     // 2. Fichier secrets/.env à côté du script ou du bundle
     let appDir = Bundle.main.resourcePath ?? ""
     let home = FileManager.default.homeDirectoryForCurrentUser.path
-    let envPaths = [
-        "\(appDir)/../Resources/secrets/.env",
-        "\(home)/Documents/GitHub/PROJECTS/PKarchives/secrets/.env",
-        "\(home)/.config/pkarchives/secrets/.env"
-    ]
+        let envPaths = [
+            "\(appDir)/../Resources/secrets/.env",
+            "\(home)/Documents/GitHub/PROJECTS/PKarchives/secrets/.env",
+            "\(home)/.config/pkarchives/secrets/.env",
+            "\(home)/.config/pkarchives/pkarchives.conf"
+        ]
     for path in envPaths {
         guard let data = FileManager.default.contents(atPath: path),
               let content = String(data: data, encoding: .utf8) else { continue }
@@ -164,6 +165,7 @@ struct ContentView: View {
     @State private var desktopPath = loadEnv("PKARCHIVES_DESKTOP_PATH") ?? ""
     @State private var rcloneRemote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
     @State private var linkName = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME") ?? "DesktopArchive"
+    @State private var permanentDelete = (loadEnv("PKARCHIVES_DELETE_MODE") ?? "trash") == "delete"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -218,14 +220,18 @@ struct ContentView: View {
     }
 
     private var dashboardPage: some View {
-        ScrollView {
+        VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 16) {
                 statsRow
                 if isRunning { transferProgress }
                 liveConsole
-                actionBar
             }
             .padding(22)
+            Divider().opacity(0.4)
+            actionBar
+                .padding(.horizontal, 22)
+                .padding(.vertical, 14)
+                .background(Color(red: 0.07, green: 0.09, blue: 0.10))
         }
     }
 
@@ -286,11 +292,12 @@ struct ContentView: View {
                         .textSelection(.enabled)
                         .id("bottom")
                 }
-                .frame(height: 130)
+                .frame(maxHeight: .infinity)
                 .onChange(of: output) { withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
             }
         }
         .padding(16)
+        .frame(maxHeight: .infinity)
         .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 14))
     }
 
@@ -305,10 +312,11 @@ struct ContentView: View {
             }
             ProgressView(value: uploadProgress)
                 .tint(.cyan)
-            Text(status)
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            Text(status.isEmpty ? "En cours…" : status)
+                .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
         }
         .padding(16)
         .background(Color.cyan.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
@@ -339,7 +347,7 @@ struct ContentView: View {
     private var actionBar: some View {
         HStack(spacing: 12) {
             Picker("Mode", selection: $selectedMode) { Text("Files").tag("files"); Text("Files + folders").tag("all") }
-                .pickerStyle(.segmented).frame(width: 190).disabled(isRunning)
+                .pickerStyle(.segmented).labelsHidden().frame(width: 260).disabled(isRunning)
             Spacer()
             Button("Google Drive", systemImage: "folder.fill", action: openDrive).buttonStyle(.bordered)
             if isRunning { Button("Cancel", action: cancelRun).buttonStyle(.bordered).tint(.red) }
@@ -366,6 +374,15 @@ struct ContentView: View {
                 Text("Drive mount").font(.headline)
                 Text("PKarchives mounts the Drive directly on DesktopArchive after a successful archive. No symlink is created if the mount fails.")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
+                Divider().padding(.vertical, 4)
+                Text("Deletion").font(.headline)
+                Toggle("Suppression définitive", isOn: $permanentDelete)
+                    .font(.system(size: 12, weight: .semibold))
+                    .tint(permanentDelete ? .red : .green)
+                Text(permanentDelete
+                     ? "Les fichiers archivés sont supprimés définitivement (irréversible)."
+                     : "Les fichiers archivés vont dans la Corbeille (récupérable). Recommandé.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
             }
             .padding(28)
         }
@@ -384,7 +401,7 @@ struct ContentView: View {
         let path = "\(home)/.config/pkarchives/pkarchives.conf"
         try? FileManager.default.createDirectory(atPath: "\(home)/.config/pkarchives", withIntermediateDirectories: true)
         rcloneRemote = rcloneRemote.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
-        let content = "PKARCHIVES_DRIVE_FOLDER_ID=\"\(driveFolderID)\"\nPKARCHIVES_DESKTOP_PATH=\"\(desktopPath)\"\nPKARCHIVES_RCLONE_REMOTE=\"\(rcloneRemote)\"\nPKARCHIVES_DESKTOP_LINK_NAME=\"\(linkName)\"\n"
+        let content = "PKARCHIVES_DRIVE_FOLDER_ID=\"\(driveFolderID)\"\nPKARCHIVES_DESKTOP_PATH=\"\(desktopPath)\"\nPKARCHIVES_RCLONE_REMOTE=\"\(rcloneRemote)\"\nPKARCHIVES_DESKTOP_LINK_NAME=\"\(linkName)\"\nPKARCHIVES_DELETE_MODE=\"\(permanentDelete ? "delete" : "trash")\"\n"
         try? content.write(toFile: path, atomically: true, encoding: .utf8)
     }
 
@@ -522,6 +539,7 @@ struct ContentView: View {
         if let v = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME"), !v.isEmpty { env["PKARCHIVES_DESKTOP_LINK_NAME"] = v }
         if let v = loadEnv("PKARCHIVES_RCLONE_REMOTE"), !v.isEmpty { env["PKARCHIVES_RCLONE_REMOTE"] = v }
         env["PKARCHIVES_RCLONE_BINARY"] = rcloneBinary()
+        env["PKARCHIVES_DELETE_MODE"] = permanentDelete ? "delete" : "trash"
         proc.environment = env
 
         let outPipe = Pipe()

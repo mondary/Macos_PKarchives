@@ -37,6 +37,28 @@ rclone_remote="${rclone_remote%:}"
 rclone_bin="${PKARCHIVES_RCLONE_BINARY:-${HOME}/.local/share/pkarchives/bin/rclone}"
 [[ -x "${rclone_bin}" ]] || rclone_bin="rclone"
 
+# Mode de suppression : "trash" (Corbeille, défaut sûr) ou "delete" (définitif).
+delete_mode="$(load_env "PKARCHIVES_DELETE_MODE" "trash")"
+del_label="→ Corbeille"
+[[ "${delete_mode}" == "delete" ]] && del_label="supprimé (définitif)"
+
+# Corbeille (récupérable) via Finder.
+trash_item() {
+  local p="$1"
+  p="${p//\\/\\\\}"
+  p="${p//\"/\\\"}"
+  osascript -e "tell application \"Finder\" to delete (POSIX file \"${p}\" as alias)" >/dev/null 2>&1
+}
+
+# Suppression selon le mode configuré.
+delete_item() {
+  if [[ "${delete_mode}" == "delete" ]]; then
+    rm -rf "$1"
+  else
+    trash_item "$1"
+  fi
+}
+
 current_month_year="$(LC_TIME=fr_FR.UTF-8 date +%Y_%m_%B)"
 
 MODE="${1:-files}"
@@ -147,9 +169,12 @@ for item in "${files_to_process[@]}"; do
     fi
     success=$((success + 1))
     echo -e "  ${GREEN}✅ Uploadé${NC}"
-    set_status "🧹 Suppression ${num}/${count} — ${bn}"
-    rm -f "${item}"
-    echo -e "  🗑️  ${bn} supprimé"
+    set_status "🗑️ ${num}/${count} — ${bn}"
+    if delete_item "${item}"; then
+      echo -e "  🗑️  ${bn} ${del_label}"
+    else
+      echo -e "  ${YELLOW}⚠️  ${bn} : suppression impossible (conservé)${NC}"
+    fi
     echo ""
 
   elif [[ -d "${item}" ]]; then
@@ -183,9 +208,12 @@ for item in "${files_to_process[@]}"; do
 
     if [[ ${sub_fail} -eq 0 ]]; then
       success=$((success + 1))
-      set_status "🧹 Suppression ${num}/${count} — ${bn}"
-      rm -rf "${item}"
-      echo -e "  ${GREEN}📁 Dossier '${bn}' uploadé + supprimé (${sub_ok}/${sub_count})${NC}"
+      set_status "🗑️ ${num}/${count} — ${bn}"
+      if delete_item "${item}"; then
+        echo -e "  ${GREEN}📁 Dossier '${bn}' uploadé — ${del_label} (${sub_ok}/${sub_count})${NC}"
+      else
+        echo -e "  ${YELLOW}⚠️  Dossier '${bn}' : suppression impossible (conservé)${NC}"
+      fi
     else
       failed_items+=("${item}")
       echo -e "  ${YELLOW}⚠️  Dossier '${bn}' conservé (${sub_fail} échec(s))${NC}"
@@ -196,7 +224,7 @@ done
 
 echo ""
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✅ ${success}/${count} élément(s) archivé(s) + supprimé(s)${NC}"
+echo -e "${GREEN}✅ ${success}/${count} élément(s) archivé(s) → Corbeille${NC}"
 echo -e "${BLUE}📁 Google Drive archive folder${NC}"
 echo -e "${CYAN}🔗 https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}${NC}"
 if [[ ${#failed_items[@]} -gt 0 ]]; then
