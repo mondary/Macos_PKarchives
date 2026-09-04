@@ -6,6 +6,10 @@
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
+![Main view: Desktop archived to Google Drive](store/screenshots/01-vue-principale.png)
+
+![Yearly archiving history](store/screenshots/02-historique-annuel.png)
+
 ## Structure
 
 ```text

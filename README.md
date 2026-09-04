@@ -6,6 +6,10 @@
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
+![Vue principale : le Bureau archivé vers Google Drive](store/screenshots/01-vue-principale.png)
+
+![Historique annuel des archivages](store/screenshots/02-historique-annuel.png)
+
 ## Structure
 
 ```text
