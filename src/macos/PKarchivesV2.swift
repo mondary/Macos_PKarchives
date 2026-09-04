@@ -356,6 +356,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     @objc func quickFiles() { showWindow(); DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.js("window.__pkStart && __pkStart('files')") } }
     @objc func quickAll() { showWindow(); DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.js("window.__pkStart && __pkStart('all')") } }
     @objc func openDrive() { if let url = URL(string: driveFolderURL()) { NSWorkspace.shared.open(url) } }
+    @objc func openFinder() { NSWorkspace.shared.open(URL(fileURLWithPath: desktopPath())) }
     @objc func quitApp() { NSApp.terminate(nil) }
 
     // MARK: pont JS
@@ -389,6 +390,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             process?.terminate()
         case "openDrive":
             openDrive()
+        case "openFinder":
+            openFinder()
         case "chooseDesktop":
             chooseDesktop()
         case "rescan":

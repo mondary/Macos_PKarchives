@@ -49,6 +49,8 @@ $("mFiles").onclick=function(){setMode("files")};$("mAll").onclick=function(){se
 $("archive").onclick=function(){if(running)return;running=true;$("archive").disabled=true;$("cancel").style.display="inline-block";setStatus("Préparation…","busy");send("archive",{mode:mode})};$("cancel").onclick=function(){send("cancel")};
 $("chooseDesktop").onclick=function(){send("chooseDesktop")};$("gear").onclick=function(){send("settingsReq");$("drawer").classList.add("open")};$("close").onclick=function(){$("drawer").classList.remove("open")};$("save").onclick=function(){send("saveSettings",{folderId:$("folder").value,desktop:$("desktop").value,remote:$("remote").value,permanent:false});$("drawer").classList.remove("open")};$("logButton").onclick=function(){var h=$("history");h.classList.toggle("open");if(h.classList.contains("open"))send("historyReq")};
  $("destination").parentElement.onclick=function(){send("openDrive")};
+ $("openFinder").onclick=function(){send("openFinder")};
+ $("openDriveBtn").onclick=function(){send("openDrive")};
  $("drawer").onclick=function(e){if(e.target===$("drawer"))$("drawer").classList.remove("open")};
   document.addEventListener("click",function(){if(running)return;clearTimeout(refreshTimer);refreshTimer=setTimeout(function(){send("rescan",{mode:mode})},250)});
   send("ready");
