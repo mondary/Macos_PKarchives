@@ -75,6 +75,10 @@ STATUS_FILE="${PKARCHIVES_STATUS_FILE:-${TMPDIR:-/tmp}/pkarchives_$$_status}"
 set_status() { echo "$1" > "${STATUS_FILE}"; }
 trap 'rm -f "${STATUS_FILE}"' EXIT
 
+# Journal d'événements append-only (interface v2) : type|nom[|détail]
+EVENT_FILE="${PKARCHIVES_EVENT_FILE:-}"
+emit_event() { [[ -n "${EVENT_FILE}" ]] && printf '%s\n' "$*" >> "${EVENT_FILE}"; }
+
 shopt -s nullglob
 
 # Collecte et tri : fichiers d'abord (du plus petit au plus gros), puis dossiers
@@ -122,6 +126,8 @@ if [[ ${count} -eq 0 ]]; then
   exit 0
 fi
 
+emit_event "total|${count}"
+
 echo -e "${BLUE}📦 ${count} élément(s) à archiver${NC}"
 echo -e "${CYAN}🚀 Upload puis suppression immédiate après vérification${NC}"
 echo ""
@@ -143,6 +149,7 @@ upload_file() {
     while IFS= read -r line; do
       if [[ "${line}" =~ ([0-9]{1,3})% ]]; then
         set_status "${status_prefix} — ${BASH_REMATCH[1]}%"
+        emit_event "progress|$(basename "${file}")|${BASH_REMATCH[1]}"
       fi
       [[ -n "${line}" ]] && printf '%s\n' "${line}"
     done
@@ -157,8 +164,10 @@ for item in "${files_to_process[@]}"; do
     sz=$(ls -lh "${item}" | awk '{print $5}')
     echo -e "${BOLD}[${num}/${count}]${NC} 📄 ${bn} (${sz})"
     set_status "📄 [${num}/${count}] ${bn}"
+    emit_event "upload|${bn}"
     if ! upload_file "${item}" "📄 [${num}/${count}] ${bn}"; then
       failed_items+=("${item}")
+      emit_event "failed|${bn}"
       echo -e "  ${RED}❌ Upload échoué, fichier conservé${NC}"
       echo ""
       continue
@@ -169,8 +178,10 @@ for item in "${files_to_process[@]}"; do
     fi
     success=$((success + 1))
     echo -e "  ${GREEN}✅ Uploadé${NC}"
+    emit_event "ok|${bn}"
     set_status "🗑️ ${num}/${count} — ${bn}"
     if delete_item "${item}"; then
+      emit_event "deleted|${bn}"
       echo -e "  🗑️  ${bn} ${del_label}"
     else
       echo -e "  ${YELLOW}⚠️  ${bn} : suppression impossible (conservé)${NC}"
@@ -188,6 +199,7 @@ for item in "${files_to_process[@]}"; do
     sub_count=${#sub_files[@]}
     echo -e "${BOLD}[${num}/${count}]${NC} 📁 ${bn}/ (${sub_count} fichiers)"
     set_status "📁 [${num}/${count}] ${bn}/ — 0/${sub_count}"
+    emit_event "upload|${bn}"
     echo ""
 
     sub_ok=0
@@ -199,6 +211,7 @@ for item in "${files_to_process[@]}"; do
       set_status "📁 [${num}/${count}] ${bn}/ — ${sub_ok}/${sub_count} — ${sub_bn}"
       if upload_file "${sub_file}" "📁 [${num}/${count}] ${bn}/ — ${sub_ok}/${sub_count} — ${sub_bn}"; then
         sub_ok=$((sub_ok + 1))
+        emit_event "progress|${bn}|${sub_ok}/${sub_count}"
         echo -e "  ${GREEN}✅ OK${NC}"
       else
         sub_fail=$((sub_fail + 1))
@@ -208,14 +221,17 @@ for item in "${files_to_process[@]}"; do
 
     if [[ ${sub_fail} -eq 0 ]]; then
       success=$((success + 1))
+      emit_event "ok|${bn}"
       set_status "🗑️ ${num}/${count} — ${bn}"
       if delete_item "${item}"; then
+        emit_event "deleted|${bn}"
         echo -e "  ${GREEN}📁 Dossier '${bn}' uploadé — ${del_label} (${sub_ok}/${sub_count})${NC}"
       else
         echo -e "  ${YELLOW}⚠️  Dossier '${bn}' : suppression impossible (conservé)${NC}"
       fi
     else
       failed_items+=("${item}")
+      emit_event "failed|${bn}"
       echo -e "  ${YELLOW}⚠️  Dossier '${bn}' conservé (${sub_fail} échec(s))${NC}"
     fi
     echo ""

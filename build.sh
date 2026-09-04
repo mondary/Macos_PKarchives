@@ -70,3 +70,59 @@ fi
 
 rm -f PKarchives
 echo "✅ ${DIR}/release/macos/PKarchives.app"
+
+# --- v2 : interface moderne WKWebView ---
+echo "🔨 Compilation v2 (WKWebView)..."
+swiftc "${DIR}/src/macos/PKarchivesV2.swift" \
+  -parse-as-library \
+  -o PKarchives2 \
+  -framework SwiftUI \
+  -framework AppKit \
+  -framework WebKit \
+  -framework QuickLookThumbnailing
+
+V2_APP_DIR="${DIR}/release/macos/PKarchives2.app/Contents"
+mkdir -p "${V2_APP_DIR}/MacOS" "${V2_APP_DIR}/Resources/web"
+cp PKarchives2 "${V2_APP_DIR}/MacOS/PKarchives"
+cp "${DIR}/src/shared/archive.sh" "${V2_APP_DIR}/MacOS/"
+cp "${DIR}/src/shared/archive.sh" "${V2_APP_DIR}/Resources/"
+cp "${DIR}/src/macos/v2/web/index.html" "${DIR}/src/macos/v2/web/app.js" "${V2_APP_DIR}/Resources/web/"
+chmod +x "${V2_APP_DIR}/MacOS/"*
+
+cat > "${V2_APP_DIR}/Info.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>PKarchives</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.pkarchives.app2</string>
+    <key>CFBundleName</key>
+    <string>PKarchives2</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(cat "${DIR}/VERSION")</string>
+    <key>CFBundleVersion</key>
+    <string>$(cat "${DIR}/VERSION")</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSSupportsAutomaticTermination</key>
+    <true/>
+    <key>NSSupportsSuddenTermination</key>
+    <true/>
+</dict>
+</plist>
+EOF
+
+if [[ -f "${MACOS_APP_DIR}/Resources/AppIcon.icns" ]]; then
+  cp "${MACOS_APP_DIR}/Resources/AppIcon.icns" "${V2_APP_DIR}/Resources/AppIcon.icns"
+fi
+
+rm -f PKarchives2
+echo "✅ ${DIR}/release/macos/PKarchives2.app"
