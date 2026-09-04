@@ -184,10 +184,20 @@ func fileThumb(_ url: URL) -> String? {
 }
 
 func hasBureauTag(_ url: URL) -> Bool {
-    // kMDItemUserTags = "com.apple.metadata:kMDItemUserTags" (constant non exposée en Swift)
-    guard let item = MDItemCreateWithURL(kCFAllocatorDefault, url as CFURL),
-          let tags = MDItemCopyAttribute(item, "com.apple.metadata:kMDItemUserTags" as CFString) as? [String] else { return false }
-    return tags.contains { $0.hasPrefix("Bureau") }
+    let pipe = Pipe()
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/mdls")
+    process.arguments = ["-name", "kMDItemUserTags", "-raw", url.path]
+    process.standardOutput = pipe
+    process.standardError = FileHandle.nullDevice
+    do {
+        try process.run()
+        process.waitUntilExit()
+        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return output.range(of: "Bureau", options: .caseInsensitive) != nil
+    } catch {
+        return false
+    }
 }
 
 func dirStats(_ url: URL) -> (count: Int, bytes: Int64) {
@@ -204,16 +214,16 @@ func dirStats(_ url: URL) -> (count: Int, bytes: Int64) {
     return (count, bytes)
 }
 
-func scanDesktop(mode: String = "files") -> [DeskItem] {
+func scanDesktop(mode: String = "files") throws -> [DeskItem] {
     let home = FileManager.default.homeDirectoryForCurrentUser.path
     let desktop = desktopPath()
     let linkName = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME") ?? "DesktopArchive"
     var files: [(String, Int64, URL)] = []
     var dirs: [(String, Int, Int64, URL)] = []
     let fm = FileManager.default
-    guard let entries = try? fm.contentsOfDirectory(atPath: desktop) else { return [] }
+    let entries = try fm.contentsOfDirectory(atPath: desktop)
     for name in entries.sorted() {
-        if name == linkName || name == ".DS_Store" { continue }
+        if name.hasPrefix(".") || name == linkName { continue }
         let full = "\(desktop)/\(name)"
         let url = URL(fileURLWithPath: full)
         var isDir: ObjCBool = false
@@ -372,6 +382,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             process?.terminate()
         case "openDrive":
             openDrive()
+        case "chooseDesktop":
+            chooseDesktop()
         case "rescan":
             refreshItems(mode: body["mode"] as? String ?? "files")
         case "settingsReq":
@@ -408,20 +420,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     func sendSettings() {
         sendEV(["type": "settings",
                 "folderId": loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? "",
-                "desktop": loadEnv("PKARCHIVES_DESKTOP_PATH") ?? "",
+                "desktop": desktopPath(),
                 "remote": (loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive").trimmingCharacters(in: CharacterSet(charactersIn: ":")),
                 "permanent": (loadEnv("PKARCHIVES_DELETE_MODE") ?? "trash") == "delete"])
     }
 
     func refreshItems(mode: String = "files") {
         DispatchQueue.global(qos: .userInitiated).async {
-            let items = scanDesktop(mode: mode)
+            let items: [DeskItem]
+            do {
+                items = try scanDesktop(mode: mode)
+            } catch {
+                DispatchQueue.main.async {
+                    self.sendEV(["type": "scanError", "path": desktopPath(), "message": error.localizedDescription])
+                }
+                return
+            }
             DispatchQueue.main.async {
                 self.currentItems = items
                 self.sizeByName = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.size) })
                 let payload: [[String: Any]] = items.map {
                     ["name": $0.name,
                      "kind": $0.isDir ? "folder" : "file",
+                     "ext": URL(fileURLWithPath: $0.name).pathExtension.lowercased(),
                      "sizeTxt": $0.isDir ? "\($0.size) fichier(s)" : humanSize($0.size),
                      "thumb": $0.thumb ?? NSNull(),
                      "textPreview": $0.textPreview ?? NSNull()]
@@ -441,6 +462,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         let cleanRemote = remote.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
         let content = "PKARCHIVES_DRIVE_FOLDER_ID=\"\(folderId)\"\nPKARCHIVES_DESKTOP_PATH=\"\(desktop)\"\nPKARCHIVES_RCLONE_REMOTE=\"\(cleanRemote)\"\nPKARCHIVES_DESKTOP_LINK_NAME=\"\(loadEnv("PKARCHIVES_DESKTOP_LINK_NAME") ?? "DesktopArchive")\"\nPKARCHIVES_DELETE_MODE=\"\(permanent ? "delete" : "trash")\"\n"
         try? content.write(toFile: path, atomically: true, encoding: .utf8)
+    }
+
+    func chooseDesktop() {
+        let panel = NSOpenPanel()
+        panel.title = "Choisir le dossier source"
+        panel.message = "Sélectionnez le dossier à analyser et archiver."
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: desktopPath())
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        sendEV(["type": "desktopChosen", "path": url.path])
     }
 
     // MARK: run archive.sh
