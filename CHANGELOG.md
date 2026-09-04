@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.02` (dashboard V2)
+Statut : `2026.09.03` (dashboard V2)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,10 @@ Statut : `2026.09.02` (dashboard V2)
 ---
 
 ## Releases
+
+### [2026.09.03] - 2026-09-04
+#### Fixed
+- Clic gauche sur l'icône menu ouvre l'application, clic droit affiche le menu contextuel.
 
 ### [2026.09.02] - 2026-09-04
 #### Added
