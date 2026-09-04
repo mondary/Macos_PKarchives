@@ -388,6 +388,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             refreshItems(mode: body["mode"] as? String ?? "files")
         case "settingsReq":
             sendSettings()
+        case "historyReq":
+            sendHistory()
         case "saveSettings":
             saveSettings(folderId: body["folderId"] as? String ?? "",
                          desktop: body["desktop"] as? String ?? "",
@@ -408,6 +410,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     func bootPayload() {
         sendDest()
         sendSettings()
+        sendHistory()
         refreshItems()
     }
 
@@ -423,6 +426,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                 "desktop": desktopPath(),
                 "remote": (loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive").trimmingCharacters(in: CharacterSet(charactersIn: ":")),
                 "permanent": (loadEnv("PKARCHIVES_DELETE_MODE") ?? "trash") == "delete"])
+    }
+
+    func sendHistory() {
+        let runs = loadHistory()
+        let calendar = Calendar.current
+        let now = Date()
+        let monthRuns = runs.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
+        let formatter = ISO8601DateFormatter()
+        let payload: [[String: Any]] = monthRuns.map {
+            ["date": formatter.string(from: $0.date), "items": $0.items,
+             "success": $0.success, "bytes": $0.bytesFreed]
+        }
+        sendEV(["type": "history", "runs": payload,
+                "total": monthRuns.reduce(0) { $0 + $1.success },
+                "bytes": monthRuns.reduce(0) { $0 + $1.bytesFreed }])
     }
 
     func refreshItems(mode: String = "files") {

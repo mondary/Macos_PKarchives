@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `🔥v1.2026.2` (dashboard V2)
+Statut : `2026.09.02` (dashboard V2)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,17 @@ Statut : `🔥v1.2026.2` (dashboard V2)
 ---
 
 ## Releases
+
+### [2026.09.02] - 2026-09-04
+#### Added
+- Journal mensuel v2 avec statistiques et histogramme des archivages.
+- Rafraîchissement automatique du scan après interaction dans l’application.
+
+#### Changed
+- Version affichée au format `YYYY.MM.PATCH`.
+
+#### Fixed
+- Détection des exclusions Finder et des fichiers cachés alignée sur `archive.sh`.
 
 ### [🔥v1.2026.2] - 2026-07-22
 #### Added
