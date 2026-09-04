@@ -271,6 +271,7 @@ func scanDesktop(mode: String = "files") throws -> [DeskItem] {
 
 class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate {
     var statusItem: NSStatusItem?
+    var statusMenu: NSMenu?
     var window: NSWindow?
     var webView: WKWebView?
 
@@ -291,6 +292,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         if let button = statusItem?.button {
             button.title = "📦"
             button.action = #selector(statusClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Ouvrir PKarchives", action: #selector(showWindow), keyEquivalent: ""))
@@ -300,7 +302,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         menu.addItem(NSMenuItem(title: "Ouvrir Google Drive", action: #selector(openDrive), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quitter", action: #selector(quitApp), keyEquivalent: "q"))
-        statusItem?.menu = menu
+        statusMenu = menu
         showWindow()
 
         // Test/e2e : PKARCHIVES_AUTOSTART=files|all lance l'archivage au démarrage
@@ -312,7 +314,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     }
 
     @objc func statusClicked() {
-        if let w = window, w.isVisible { w.orderOut(nil) } else { showWindow() }
+        guard let event = NSApp.currentEvent else { showWindow(); return }
+        if event.type == .rightMouseUp, let button = statusItem?.button {
+            statusMenu?.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height), in: button)
+        } else {
+            showWindow()
+        }
     }
 
     @objc func showWindow() {
