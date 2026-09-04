@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.03` (dashboard V2)
+Statut : `2026.09.04` (dashboard V2)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,14 @@ Statut : `2026.09.03` (dashboard V2)
 ---
 
 ## Releases
+
+### [2026.09.04] - 2026-09-04
+#### Added
+- Historique annuel avec sélecteur d'année, histogramme mensuel et libellés des mois.
+- Cartes de route avec icônes Finder/Drive, logo dans l'en-tête et numéro de version injecté depuis `VERSION` au build.
+
+#### Changed
+- L'historique complet est transmis à l'interface, le filtrage par période se fait côté interface.
 
 ### [2026.09.03] - 2026-09-04
 #### Fixed

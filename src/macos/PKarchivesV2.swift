@@ -442,15 +442,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         let runs = loadHistory()
         let calendar = Calendar.current
         let now = Date()
-        let monthRuns = runs.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
         let formatter = ISO8601DateFormatter()
-        let payload: [[String: Any]] = monthRuns.map {
+        let payload: [[String: Any]] = runs.map {
             ["date": formatter.string(from: $0.date), "items": $0.items,
              "success": $0.success, "bytes": $0.bytesFreed]
         }
         sendEV(["type": "history", "runs": payload,
-                "total": monthRuns.reduce(0) { $0 + $1.success },
-                "bytes": monthRuns.reduce(0) { $0 + $1.bytesFreed }])
+                "total": runs.reduce(0) { $0 + $1.success },
+                "bytes": runs.reduce(0) { $0 + $1.bytesFreed }])
     }
 
     func refreshItems(mode: String = "files") {
