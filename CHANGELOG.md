@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.04` (dashboard V2)
+Statut : `2026.09.05` (dashboard V2)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,15 @@ Statut : `2026.09.04` (dashboard V2)
 ---
 
 ## Releases
+
+### [2026.09.05] - 2026-09-04
+#### Added
+- La vignette se remplit du bas vers le haut pendant l'upload, comme un verre (remplace la micro-barre de progression).
+- Dossier `store/` : laius de présentation FR/EN et captures d'écran, intégrées aux README.
+
+#### Fixed
+- Panneau Historique restait vide : le JS référençait un élément supprimé du HTML.
+- Espace libéré formaté en Ko/Mo/Go au lieu de Ko bruts.
 
 ### [2026.09.04] - 2026-09-04
 #### Added
