@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.05` (dashboard V2)
+Statut : `2026.09.06` (dashboard V2)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,10 @@ Statut : `2026.09.05` (dashboard V2)
 ---
 
 ## Releases
+
+### [2026.09.06] - 2026-09-04
+#### Fixed
+- Remplissage de la vignette visible même pour les fichiers rapides : départ à 10 % dès le début de l'upload, complétion à 100 % à l'archivage.
 
 ### [2026.09.05] - 2026-09-04
 #### Added
