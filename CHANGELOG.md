@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.09` (dashboard V2)
+Statut : `2026.09.10` (dashboard V2)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,12 @@ Statut : `2026.09.09` (dashboard V2)
 ---
 
 ## Releases
+
+### [2026.09.10] - 2026-09-05
+#### Added
+- L'aperçu du fichier (miniature/extrait) atterrit dans le panneau « Archivé vers Drive » après l'upload : la carte archivée y reste visible avec son visuel, bordure verte et coche.
+#### Changed
+- Vraie icône Finder macOS (macosicons.com) à la place du SVG dessiné.
 
 ### [2026.09.09] - 2026-09-05
 #### Changed
