@@ -696,7 +696,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             sendEV(["type": "log", "line": "⚠️ Drive Folder ID absent, montage ignoré", "cls": "warn"])
             return
         }
-        let mountPath = "\(desktop)/\(linkName)"
+        // ponytail: montage hors du dossier Bureau (rm -rf du Bureau ne doit jamais traverser vers le Drive)
+        let mountPath = "\(NSHomeDirectory())/DesktopArchive"
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let fm = FileManager.default
             if isMounted(at: mountPath) {
@@ -735,7 +736,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                 return
             }
             if isMounted(at: mountPath) {
-                self?.sendEV(["type": "log", "line": "📁 Google Drive monté dans Finder : \(mountPath)", "cls": "ok"])
+                self?.sendEV(["type": "log", "line": "📁 Google Drive monté : \(mountPath)", "cls": "ok"])
+                let linkPath = "\(desktop)/\(linkName)"
+                try? fm.removeItem(atPath: linkPath)
+                do { try fm.createSymbolicLink(atPath: linkPath, withDestinationPath: mountPath) } catch {
+                    self?.sendEV(["type": "log", "line": "⚠️ Lien \(linkName) non créé: \(error.localizedDescription)", "cls": "warn"])
+                }
             } else {
                 try? fm.removeItem(atPath: mountPath)
                 self?.sendEV(["type": "log", "line": "⚠️ Google Drive non monté (voir log rclone / FUSE-T)", "cls": "warn"])

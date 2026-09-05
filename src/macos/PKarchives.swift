@@ -426,7 +426,8 @@ struct ContentView: View {
             return
         }
 
-        let mountPath = "\(desktop)/\(linkName)"
+        // ponytail: montage hors du dossier Bureau (rm -rf du Bureau ne doit jamais traverser vers le Drive)
+        let mountPath = "\(home)/DesktopArchive"
         DispatchQueue.global(qos: .userInitiated).async {
             let fileManager = FileManager.default
             if isMounted(at: mountPath) {
@@ -482,8 +483,11 @@ struct ContentView: View {
 
             if isMounted(at: mountPath) {
                 DispatchQueue.main.async {
-                    self.output += "\n📁 Google Drive monté dans Finder : \(mountPath)\n"
+                    self.output += "\n📁 Google Drive monté : \(mountPath)\n"
                 }
+                let linkPath = "\(desktop)/\(linkName)"
+                try? fileManager.removeItem(atPath: linkPath)
+                try? fileManager.createSymbolicLink(atPath: linkPath, withDestinationPath: mountPath)
             } else {
                 try? fileManager.removeItem(atPath: mountPath)
                 let log = (try? String(contentsOfFile: logPath, encoding: .utf8)) ?? ""
