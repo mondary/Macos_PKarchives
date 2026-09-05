@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.08` (dashboard V2)
+Statut : `2026.09.09` (dashboard V2)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,13 @@ Statut : `2026.09.08` (dashboard V2)
 ---
 
 ## Releases
+
+### [2026.09.09] - 2026-09-05
+#### Changed
+- Vraies icônes Finder et Google Drive (assets SVG embarqués) dans les cartes de route et les boutons.
+- Les deux CTA « Ouvrir dans Finder » et « Ouvrir Drive » passent en couleur (bleu Finder, vert Google).
+- Panneau Réglages réorganisé en sections (pattern des autres projets PK) : en-tête avec ✕, champs groupés, note de configuration et bouton Enregistrer en pied de panneau.
+- Captures du store régénérées.
 
 ### [2026.09.08] - 2026-09-05
 #### Changed
