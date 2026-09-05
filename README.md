@@ -80,7 +80,7 @@ La configuration est générée automatiquement par `setup.sh` dans `secrets/.en
 | `PKARCHIVES_DESKTOP_LINK_NAME` | `DesktopArchive` | Symlink à exclure |
 | `PKARCHIVES_RCLONE_REMOTE` | `gdrive` | Nom du remote rclone |
 
-Après l'archivage, Google Drive est monté dans Finder et le symlink `DesktopArchive` est créé sur le Bureau.
+Après l'archivage, Google Drive est monté dans `~/DesktopArchive` et un lien `DesktopArchive` est créé sur le Bureau vers ce dossier.
 
 ## 🧾 Prérequis
 

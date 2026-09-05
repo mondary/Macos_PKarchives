@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.06` (dashboard V2)
+Statut : `2026.09.08` (dashboard V2)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,18 @@ Statut : `2026.09.06` (dashboard V2)
 ---
 
 ## Releases
+
+### [2026.09.08] - 2026-09-05
+#### Changed
+- Google Drive est monté dans `~/DesktopArchive` (visible dans le home) au lieu d'être monté dans le dossier Bureau ; le Bureau ne contient plus qu'un lien symbolique vers ce dossier — un nettoyage du Bureau ne peut plus affecter le Drive.
+- README FR/EN synchronisés sur ce comportement.
+
+### [2026.09.07] - 2026-09-05
+#### Fixed
+- Ligne en pointillés qui traversait tout l'écran au niveau du panneau cloud.
+#### Changed
+- Le panneau cloud devient une vraie destination : en-tête « Archivé vers Drive », compteur contextuel, et chaque fichier archivé y arrive comme une carte pendant que le fantôme vole du Bureau vers le panneau.
+- Captures du store régénérées.
 
 ### [2026.09.06] - 2026-09-04
 #### Fixed
