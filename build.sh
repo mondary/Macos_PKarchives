@@ -86,7 +86,7 @@ mkdir -p "${V2_APP_DIR}/MacOS" "${V2_APP_DIR}/Resources/web"
 cp PKarchives2 "${V2_APP_DIR}/MacOS/PKarchives"
 cp "${DIR}/src/shared/archive.sh" "${V2_APP_DIR}/MacOS/"
 cp "${DIR}/src/shared/archive.sh" "${V2_APP_DIR}/Resources/"
-cp "${DIR}/src/macos/v2/web/index.html" "${DIR}/src/macos/v2/web/app.js" "${DIR}/icon.png" "${DIR}/src/macos/v2/web/logo-drive.svg" "${DIR}/src/macos/v2/web/logo-finder.svg" "${V2_APP_DIR}/Resources/web/"
+cp "${DIR}/src/macos/v2/web/index.html" "${DIR}/src/macos/v2/web/app.js" "${DIR}/icon.png" "${DIR}/src/macos/v2/web/logo-drive.svg" "${DIR}/src/macos/v2/web/logo-finder.png" "${V2_APP_DIR}/Resources/web/"
 V2_VERSION="$(tr -d '\n' < "${DIR}/VERSION")"
 sed -i '' "s/__VERSION__/${V2_VERSION}/g" "${V2_APP_DIR}/Resources/web/index.html"
 chmod +x "${V2_APP_DIR}/MacOS/"*
