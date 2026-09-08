@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.10` (dashboard V2)
+Statut : `2026.09.11` (vesper theme + drive links)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,15 @@ Statut : `2026.09.10` (dashboard V2)
 ---
 
 ## Releases
+
+### [2026.09.11] - 2026-09-08
+#### Added
+- Clic sur un fichier archivé dans le panneau Drive ouvre directement son lien Google Drive (URL transmise du script shell vers Swift vers JS).
+#### Changed
+- Thème Vesper appliqué à l'interface : fond sombre monochrome, typhographie SF Pro, ombres et contrastes adaptés.
+- Bannière store (`store/assets/banner-1544x500.png`) en en-tête des README FR/EN.
+- Nouvelles captures promo et gifs d'animation dans `store/`.
+- Store landing page (`store/site/`) et media-kit ajoutés.
 
 ### [2026.09.10] - 2026-09-05
 #### Added

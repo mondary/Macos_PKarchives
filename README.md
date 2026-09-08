@@ -1,14 +1,16 @@
 # PKarchives
 
-![Project icon](icon.png)
+![PKarchives — Un Bureau toujours net](store/assets/banner-1544x500.png)
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
-![Vue principale : le Bureau archivé vers Google Drive](store/screenshots/01-vue-principale.png)
+![Vue principale : le Bureau archivé vers Google Drive](store/screenshots/01-promo-vue-principale.png)
 
-![Historique annuel des archivages](store/screenshots/02-historique-annuel.png)
+![Historique annuel des archivages](store/screenshots/02-promo-historique-annuel.png)
+
+![Démonstration animée de PKarchives](store/gifs/apple-style/03-interface-dynamic.gif)
 
 ## Structure
 

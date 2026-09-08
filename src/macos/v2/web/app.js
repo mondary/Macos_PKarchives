@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 var pk=window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.pk;
- var mode="files",running=false,total=0,finished=0,items=[],refreshTimer;
+ var mode="files",running=false,total=0,finished=0,items=[],refreshTimer,urls={};
 function send(cmd,data){if(pk)try{pk.postMessage(Object.assign({cmd:cmd},data||{}));}catch(e){}}
 function $(id){return document.getElementById(id)}
 function setStatus(text,kind){$("status").textContent=text;$("state").className="state "+(kind||"")}
@@ -38,7 +38,8 @@ function handle(ev){
     case"log":log(ev.line||"",ev.cls==="ok");break;
     case"uploadStart":fly(ev.name);break;
     case"progress":{var c=findCard(ev.name);if(c){c.classList.add("uploading");var f=c.querySelector(".fill");if(f)f.style.height=Math.max(0,Math.min(100,ev.pct||0))+"%"}break}
-    case"uploaded":{var uploaded=findCard(ev.name);var ds=$("driveStack"),empty=ds.querySelector(".empty");if(empty)empty.remove();var cloud=uploaded?uploaded.cloneNode(true):null;if(cloud){cloud.classList.remove("uploading");cloud.classList.add("done","archived");cloud.removeAttribute("data-name");var cf=cloud.querySelector(".fill");if(cf)cf.remove();cloud.querySelector(".file-state").textContent="archivé"}else{cloud=document.createElement("div");cloud.className="file done archived";cloud.innerHTML='<div class="thumb"></div><div class="file-name">'+escapeHTML(ev.name)+'</div><div class="file-meta"><span></span><span class="file-state">archivé</span></div><span class="check">✓</span>'}ds.appendChild(cloud);if(uploaded){uploaded.classList.remove("uploading");uploaded.classList.add("done");var pf=uploaded.querySelector(".fill");if(pf)pf.style.height="100%";uploaded.querySelector(".file-state").textContent="archivé"}finished++;$("archiveCount").textContent=finished;break}
+    case"fileUrl":{urls[ev.name]=ev.url;var cs=document.querySelectorAll("#driveStack .file");for(var i=0;i<cs.length;i++){if(cs[i].dataset.name===ev.name)cs[i].dataset.url=ev.url}break}
+    case"uploaded":{var uploaded=findCard(ev.name);var ds=$("driveStack"),empty=ds.querySelector(".empty");if(empty)empty.remove();var cloud=uploaded?uploaded.cloneNode(true):null;if(cloud){cloud.classList.remove("uploading");cloud.classList.add("done","archived");cloud.dataset.name=ev.name;var cu=urls[ev.name];if(cu)cloud.dataset.url=cu;var cf=cloud.querySelector(".fill");if(cf)cf.remove();cloud.querySelector(".file-state").textContent="archivé"}else{cloud=document.createElement("div");cloud.className="file done archived";cloud.innerHTML='<div class="thumb"></div><div class="file-name">'+escapeHTML(ev.name)+'</div><div class="file-meta"><span></span><span class="file-state">archivé</span></div><span class="check">✓</span>'}ds.appendChild(cloud);if(uploaded){uploaded.classList.remove("uploading");uploaded.classList.add("done");var pf=uploaded.querySelector(".fill");if(pf)pf.style.height="100%";uploaded.querySelector(".file-state").textContent="archivé"}finished++;$("archiveCount").textContent=finished;break}
     case"deleted":{var deleted=findCard(ev.name);if(deleted){deleted.style.opacity="0";deleted.style.transform="translateY(8px)";setTimeout(function(){deleted.remove();$("sourceCount").textContent=document.querySelectorAll("#sourceStack .file").length},260)}break}
     case"failed":{var failed=findCard(ev.name);if(failed){failed.classList.remove("uploading");failed.classList.add("failed");var ff=failed.querySelector(".fill");if(ff)ff.style.height="0%"}break}
     case"runDone":running=false;$("archive").disabled=!document.querySelector("#sourceStack .file");$("cancel").style.display="none";setStatus(ev.ok?"Terminé · "+(ev.success||0)+" archivé(s)":"Échec",""+(ev.ok?"":"error"));log(ev.ok?"Archivage terminé":"Archivage interrompu",ev.ok);break;
@@ -56,6 +57,7 @@ $("chooseDesktop").onclick=function(){send("chooseDesktop")};$("gear").onclick=f
  $("logButton").addEventListener("click",function(e){e.preventDefault();e.stopPropagation();var h=$("history"),open=h.classList.toggle("open");h.style.display=open?"block":"none";if(open)send("historyReq")},true);
  $("closeHistory").onclick=function(e){e.preventDefault();e.stopPropagation();$("history").classList.remove("open");$("history").style.display="none"};
  $("historyYear").onchange=function(){send("historyReq")};
+ $("driveStack").addEventListener("click",function(e){var c=e.target.closest(".file");if(c&&c.dataset.url){e.stopPropagation();send("openUrl",{url:c.dataset.url})}});
   document.addEventListener("click",function(){if(running)return;clearTimeout(refreshTimer);refreshTimer=setTimeout(function(){send("rescan",{mode:mode})},250)});
   send("ready");
 })();

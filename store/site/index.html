@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PKarchives archive votre Bureau vers Google Drive en un clic.">
+  <title>PKarchives — Un Bureau toujours net.</title>
+  <link rel="icon" href="../../icon.png">
+  <style>
+    :root{--paper:#f5f5f7;--white:#fff;--ink:#0b0b0d;--soft:#6e6e73;--line:#d2d2d7;--blue:#0071e3;--green:#1f9d61;--radius:32px;--max:1180px}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;background:var(--paper)}
+    body{margin:0;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;background:var(--paper);overflow-x:hidden}
+    a{color:inherit;text-decoration:none}
+    button{font:inherit}
+    img,video{display:block;max-width:100%}
+    .nav{position:fixed;z-index:50;top:0;left:0;right:0;height:52px;background:#0b0b0de8;color:white;border-bottom:1px solid #ffffff12;backdrop-filter:saturate(180%) blur(18px)}
+    .nav-inner{max-width:var(--max);height:100%;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
+    .brand{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:650}
+    .brand img{width:27px;height:27px;border-radius:7px}
+    .links{display:flex;align-items:center;gap:28px;font-size:12px;color:#b8b8bd}
+    .download{display:inline-flex;align-items:center;justify-content:center;padding:8px 15px;border-radius:999px;background:var(--blue);color:white;font-weight:600}
+    main{padding-top:52px}
+    .hero{min-height:100svh;padding:92px 24px 70px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;background:#0b0b0d;color:white}
+    .eyebrow{margin:0 0 20px;color:var(--blue);font-size:18px;font-weight:650}
+    h1{max-width:1000px;margin:0;font-size:clamp(56px,9vw,112px);line-height:.92;font-weight:720;letter-spacing:-.065em;text-wrap:balance}
+    .lede{max-width:720px;margin:30px auto 0;color:#a1a1a6;font-size:clamp(21px,2.5vw,30px);line-height:1.25;font-weight:500;text-wrap:pretty}
+    .hero-actions{display:flex;align-items:center;gap:24px;margin-top:32px;font-size:17px}
+    .hero-actions a:last-child{color:var(--blue)}
+    .hero-actions a:last-child::after{content:" ›"}
+    .orb{position:absolute;width:680px;height:680px;border-radius:50%;background:#10284a;filter:blur(1px);opacity:.72;z-index:0;transform:translate3d(0,140px,0)}
+    .hero>*:not(.orb){position:relative;z-index:1}.hero h1 span{color:#73aefd}
+    .stage{width:min(1050px,94vw);margin-top:80px;perspective:1600px;transform-style:preserve-3d}
+    .mac{position:relative;transform:rotateX(7deg) rotateY(-2deg);transform-style:preserve-3d;filter:drop-shadow(0 42px 42px #0003)}
+    .lid{padding:12px;border-radius:24px 24px 12px 12px;background:#18181b;border:1px solid #ffffff35}
+    .screen{aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#09090b}
+    .screen video{width:100%;height:100%;object-fit:cover}
+    .base{height:17px;margin:-1px -5% 0;border-radius:2px 2px 36px 36px;background:#c7c7cc;box-shadow:inset 0 2px 1px #fff,inset 0 -2px 3px #777}
+    .notch{position:absolute;left:50%;bottom:7px;width:18%;height:5px;border-radius:0 0 8px 8px;background:#8e8e93;transform:translateX(-50%)}
+    .section{max-width:var(--max);margin:auto;padding:150px 24px}
+    .section-head{max-width:840px;margin-bottom:72px}
+    .section-label{color:var(--soft);font-size:18px;font-weight:600;margin-bottom:14px}
+    h2{margin:0;font-size:clamp(46px,7vw,82px);line-height:.98;letter-spacing:-.055em;text-wrap:balance}
+    .section-copy{max-width:720px;margin:28px 0 0;color:var(--soft);font-size:24px;line-height:1.35;font-weight:500;text-wrap:pretty}
+    .section-copy strong{color:var(--ink)}
+    .story{min-height:240vh;position:relative;background:var(--ink);color:white}
+    .sticky{position:sticky;top:52px;height:calc(100svh - 52px);overflow:hidden;display:grid;place-items:center}
+    .story-copy{position:absolute;left:max(28px,calc((100vw - 1180px)/2));top:11%;z-index:5;max-width:460px}
+    .story-copy h2{font-size:clamp(42px,5vw,72px)}
+    .story-copy p{color:#a1a1a6;font-size:21px;line-height:1.4}
+    .story-mac{width:min(850px,72vw);margin-left:26vw;perspective:1600px;transform:translate3d(0,8%,0)}
+    .route-chip{position:absolute;z-index:8;padding:12px 18px;border:1px solid #ffffff25;border-radius:999px;background:#1d1d1fe8;color:#f5f5f7;font-size:14px;font-weight:600;box-shadow:0 15px 40px #0008;opacity:0}
+    .route-chip.source{left:10%;top:65%}.route-chip.target{right:8%;top:30%;color:#7ee2a8}
+    .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:24px}
+    .card{min-height:540px;border-radius:var(--radius);background:var(--white);padding:54px;overflow:hidden;position:relative}
+    .card.dark{background:#161617;color:white}
+    .card h3{max-width:520px;margin:0;font-size:clamp(35px,4vw,54px);line-height:1.02;letter-spacing:-.045em;text-wrap:balance}
+    .card p{max-width:500px;color:var(--soft);font-size:19px;line-height:1.45;text-wrap:pretty}
+    .card.dark p{color:#a1a1a6}
+    .card img{position:absolute;width:82%;left:9%;bottom:-5%;border-radius:18px;box-shadow:0 30px 60px #0002}
+    .stat{display:flex;flex-direction:column;justify-content:flex-end}
+    .stat-number{font-size:clamp(78px,10vw,134px);line-height:.8;font-weight:720;letter-spacing:-.07em;color:var(--blue)}
+    .stat small{margin-top:24px;color:#a1a1a6;font-size:20px}
+    .privacy{background:white}
+    .privacy-layout{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+    .shield{aspect-ratio:1;border-radius:50%;background:var(--ink);display:grid;place-items:center;color:white;font-size:clamp(80px,12vw,150px);transform:rotate(-5deg)}
+    .cta{padding:150px 24px 170px;text-align:center;background:white}
+    .cta img{width:96px;height:96px;border-radius:24px;margin:0 auto 30px;box-shadow:0 18px 38px #0002}
+    .cta h2{max-width:920px;margin:auto}
+    .cta p{color:var(--soft);font-size:22px}
+    .cta .download{margin-top:12px;padding:13px 24px;font-size:17px}
+    footer{background:white;border-top:1px solid var(--line);padding:26px 24px;color:var(--soft);font-size:12px}
+    .footer-inner{max-width:var(--max);margin:auto;display:flex;justify-content:space-between;gap:24px}
+    .reveal{opacity:0;transform:translate3d(0,34px,0);transition:opacity .8s ease-out,transform .8s ease-out}
+    .reveal.visible{opacity:1;transform:translate3d(0,0,0)}
+    a:focus-visible,button:focus-visible{outline:3px solid #64a8ff;outline-offset:3px}
+    @media(max-width:800px){.links a{display:none}.hero{padding-top:70px}.hero-actions{flex-direction:column;gap:18px}.stage{margin-top:58px}.section{padding:100px 22px}.story-copy{left:24px;right:24px;top:8%;max-width:none}.story-mac{width:92vw;margin:22vh 0 0}.route-chip.source{left:5%;top:74%}.route-chip.target{right:5%;top:48%}.grid,.privacy-layout{grid-template-columns:1fr}.card{min-height:490px;padding:38px}.privacy-layout{gap:48px}.footer-inner{flex-direction:column}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.reveal{opacity:1;transform:none;transition:none}.mac,.story-mac,.route-chip,.orb{transform:none!important}.screen video{animation:none}}
+  </style>
+</head>
+<body>
+  <nav class="nav" aria-label="Navigation principale">
+    <div class="nav-inner">
+      <a class="brand" href="#top"><img src="../../icon.png" alt="">PKarchives</a>
+      <div class="links"><a href="#experience">Découvrir</a><a href="#history">Historique</a><a href="https://github.com/mondary/Macos_PKarchives">Code source</a><a class="download" href="https://github.com/mondary/Macos_PKarchives/releases">Télécharger</a></div>
+    </div>
+  </nav>
+  <main id="top">
+    <section class="hero">
+      <div class="orb" aria-hidden="true"></div>
+      <p class="eyebrow reveal">PKarchives pour macOS</p>
+      <h1 class="reveal">Un Bureau <span>toujours net.</span></h1>
+      <p class="lede reveal">Vos fichiers quittent le Bureau, rejoignent Drive et se rangent automatiquement. Un clic. Rien de plus.</p>
+      <div class="hero-actions reveal"><a class="download" href="https://github.com/mondary/Macos_PKarchives/releases">Télécharger gratuitement</a><a href="#experience">Voir comment ça marche</a></div>
+      <div class="stage reveal" aria-label="Démonstration vidéo de PKarchives">
+        <div class="mac hero-mac"><div class="lid"><div class="screen"><video src="../videos/dynamic-interface-demo.mp4" autoplay muted loop playsinline poster="../screenshots/01-promo-vue-principale.png"></video></div></div><div class="base"><i class="notch"></i></div></div>
+      </div>
+    </section>
+
+    <section class="story" id="experience">
+      <div class="sticky">
+        <div class="story-copy"><p class="section-label">Une seule action.</p><h2>Du Bureau à Drive. Sans détour.</h2><p>PKarchives identifie les éléments, montre exactement ce qui va partir, puis les classe dans le dossier du mois.</p></div>
+        <div class="story-mac"><div class="mac"><div class="lid"><div class="screen"><video src="../videos/dynamic-interface-demo.mp4" muted loop playsinline poster="../screenshots/01-promo-vue-principale.png"></video></div></div><div class="base"><i class="notch"></i></div></div></div>
+        <span class="route-chip source">Bureau · 4 éléments</span><span class="route-chip target">Drive · septembre 2026</span>
+      </div>
+    </section>
+
+    <section class="section" id="history">
+      <div class="section-head reveal"><p class="section-label">Tout reste lisible.</p><h2>Votre historique, sur toute l’année.</h2><p class="section-copy">Douze mois, y compris ceux à zéro. Voyez en un regard <strong>combien de fichiers sont partis</strong> et l’espace libéré.</p></div>
+      <div class="grid">
+        <article class="card reveal"><h3>Chaque mois raconte ce que vous avez libéré.</h3><p>Changez d’année, comparez les périodes et gardez une trace simple de chaque archivage.</p><img src="../screenshots/02-historique-annuel.png" alt="Historique annuel de PKarchives"></article>
+        <article class="card dark stat reveal"><div class="stat-number">12</div><small>mois visibles. Même quand il ne s’est rien passé.</small></article>
+      </div>
+    </section>
+
+    <section class="privacy">
+      <div class="section privacy-layout">
+        <div class="shield reveal" aria-hidden="true">⌁</div>
+        <div class="reveal"><p class="section-label">Vos fichiers. Vos règles.</p><h2>Local, transparent, open source.</h2><p class="section-copy">Les transferts passent par rclone. La configuration reste sur votre Mac. Vous choisissez entre la Corbeille et la suppression définitive.</p></div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <img class="reveal" src="../../icon.png" alt="Icône PKarchives">
+      <h2 class="reveal">Faites de la place. Gardez tout.</h2>
+      <p class="reveal">PKarchives est gratuit et open source.</p>
+      <a class="download reveal" href="https://github.com/mondary/Macos_PKarchives/releases">Télécharger pour macOS</a>
+    </section>
+  </main>
+  <footer><div class="footer-inner"><span>PKarchives · macOS 14 ou ultérieur</span><span>Propulsé par rclone · Code source ouvert</span></div></footer>
+  <script>
+    (()=>{
+      const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reveals=[...document.querySelectorAll('.reveal')];
+      const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');observer.unobserve(entry.target)}}),{threshold:.14});
+      reveals.forEach((el,i)=>{el.style.transitionDelay=`${Math.min(i%4,3)*70}ms`;observer.observe(el)});
+      const story=document.querySelector('.story'),storyMac=document.querySelector('.story-mac'),chips=[...document.querySelectorAll('.route-chip')],storyVideo=story.querySelector('video'),heroMac=document.querySelector('.hero-mac'),orb=document.querySelector('.orb');
+      let ticking=false;
+      function frame(){
+        ticking=false;if(reduced)return;
+        const y=scrollY,rect=story.getBoundingClientRect(),range=story.offsetHeight-innerHeight,p=Math.max(0,Math.min(1,-rect.top/range));
+        heroMac.style.transform=`rotateX(${7-y*.006}deg) rotateY(${-2+y*.002}deg) translate3d(0,${Math.min(y*.055,36)}px,0)`;
+        orb.style.transform=`translate3d(0,${140-y*.09}px,0)`;
+        storyMac.style.transform=`translate3d(0,${8-p*8}%,0) rotateY(${-7+p*12}deg) scale(${.9+p*.1})`;
+        chips.forEach((chip,i)=>{const local=Math.max(0,Math.min(1,(p-(.18+i*.17))/.22));chip.style.opacity=local;chip.style.transform=`translate3d(${(1-local)*(i?-50:50)}px,0,0)`});
+        if(rect.top<innerHeight&&rect.bottom>0){storyVideo.play().catch(()=>{})}else{storyVideo.pause()}
+      }
+      addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(frame);ticking=true}},{passive:true});frame();
+    })();
+  </script>
+</body>
+</html>

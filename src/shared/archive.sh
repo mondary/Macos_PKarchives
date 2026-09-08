@@ -175,6 +175,7 @@ for item in "${files_to_process[@]}"; do
     file_id=$("${rclone_bin}" lsjson "${rclone_dir}/${bn}" --drive-root-folder-id "${DRIVE_FOLDER_ID}" 2>/dev/null | grep -oE '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
     if [[ -n "${file_id}" ]]; then
       echo -e "  ${CYAN}🔗 https://drive.google.com/file/d/${file_id}/view${NC}"
+      emit_event "fileurl|${bn}|https://drive.google.com/file/d/${file_id}/view"
     fi
     success=$((success + 1))
     echo -e "  ${GREEN}✅ Uploadé${NC}"
@@ -221,6 +222,8 @@ for item in "${files_to_process[@]}"; do
 
     if [[ ${sub_fail} -eq 0 ]]; then
       success=$((success + 1))
+      folder_id=$("${rclone_bin}" lsjson "${rclone_dir}/${bn}" --drive-root-folder-id "${DRIVE_FOLDER_ID}" 2>/dev/null | grep -oE '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
+      [[ -n "${folder_id}" ]] && emit_event "fileurl|${bn}|https://drive.google.com/drive/folders/${folder_id}"
       emit_event "ok|${bn}"
       set_status "🗑️ ${num}/${count} — ${bn}"
       if delete_item "${item}"; then

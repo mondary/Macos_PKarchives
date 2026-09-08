@@ -1,14 +1,16 @@
 # PKarchives
 
-![Project icon](icon.png)
+![PKarchives — A consistently clean Desktop](store/assets/banner-1544x500.png)
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
-![Main view: Desktop archived to Google Drive](store/screenshots/01-vue-principale.png)
+![Main view: Desktop archived to Google Drive](store/screenshots/01-promo-vue-principale.png)
 
-![Yearly archiving history](store/screenshots/02-historique-annuel.png)
+![Yearly archiving history](store/screenshots/02-promo-historique-annuel.png)
+
+![Animated PKarchives demonstration](store/gifs/apple-style/03-interface-dynamic.gif)
 
 ## Structure
 

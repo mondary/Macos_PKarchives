@@ -86,5 +86,21 @@ La configuration (`secrets/.env`) et l'historique (`~/.config/pkarchives/history
 
 | Fichier | Sujet |
 |---------|-------|
-| `screenshots/01-vue-principale.png` | Vue principale : source Bureau → destination Drive, cartes de fichiers |
-| `screenshots/02-historique-annuel.png` | Panneau Historique annuel : stats + histogramme mensuel |
+| `screenshots/01-promo-vue-principale.png` | Vue principale éditorialisée : source Bureau → destination Drive |
+| `screenshots/02-promo-historique-annuel.png` | Historique annuel éditorialisé : stats + histogramme mensuel |
+| `gifs/apple-style/01-archivage-mockup.gif` | Démonstration animée claire dans un mockup macOS |
+| `gifs/apple-style/02-interface-dark.gif` | Démonstration animée compacte sur fond sombre |
+| `gifs/apple-style/03-interface-dynamic.gif` | Démonstration scénarisée de toutes les animations de l’interface |
+
+## Offre
+
+- **Modèle** : Open Source
+- **Prix** : Gratuit
+
+## Plateformes
+
+- GitHub Releases : https://github.com/mondary/Macos_PKarchives
+
+## Liens
+
+- **Repo** : https://github.com/mondary/Macos_PKarchives

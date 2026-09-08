@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PKarchives media renderer</title>
+  <style>
+    :root{--ink:#09090b;--paper:#f5f5f7;--blue:#0071e3;--muted:#86868b;--line:#d2d2d7}
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif}
+    .art{position:relative;width:100vw;height:100vh;overflow:hidden;background:var(--paper);color:var(--ink)}
+    .grain{position:absolute;inset:0;opacity:.025;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+    .copy{position:absolute;z-index:4}.brand{display:flex;align-items:center;gap:14px;font-size:20px;font-weight:650}.brand img{width:48px;height:48px;border-radius:13px;box-shadow:0 12px 26px #0002}
+    h1{margin:34px 0 18px;font-size:76px;line-height:.94;letter-spacing:-.06em;max-width:660px}.sub{max-width:580px;margin:0;color:var(--muted);font-size:25px;line-height:1.25;font-weight:500}.pill{display:inline-flex;margin-top:30px;padding:11px 18px;border-radius:999px;background:var(--blue);color:white;font-size:16px;font-weight:650}
+    .window{position:absolute;overflow:hidden;background:white;border:1px solid #0002;box-shadow:0 40px 90px #0003}.window img{width:100%;height:100%;object-fit:cover}.chrome{height:34px;background:#f7f7f8;border-bottom:1px solid #00000010;display:flex;align-items:center;gap:7px;padding-left:14px}.chrome i{width:10px;height:10px;border-radius:50%;background:#ff5f57}.chrome i:nth-child(2){background:#febc2e}.chrome i:nth-child(3){background:#28c840}.shot{height:calc(100% - 34px)}
+    .banner .copy{left:74px;top:62px}.banner h1{font-size:58px;margin:27px 0 14px}.banner .sub{font-size:21px;max-width:500px}.banner .window{width:760px;height:496px;right:-70px;top:54px;border-radius:22px;transform:rotate(-4deg)}
+    .card{background:var(--ink);color:white}.card .copy{left:74px;top:62px}.card h1{font-size:72px;max-width:640px}.card .sub{color:#a1a1a6}.card .window{width:540px;height:354px;right:-30px;bottom:-12px;border-radius:20px;transform:rotate(-5deg)}
+    .card .halo{position:absolute;width:520px;height:520px;border-radius:50%;background:#14243b;right:-70px;top:20px}
+    .feature{background:#e9eef5}.feature .copy{left:80px;top:72px}.feature h1{font-size:70px;max-width:760px}.feature .sub{font-size:24px}.feature .window{width:1050px;height:688px;right:-120px;bottom:-180px;border-radius:26px;transform:rotate(-3deg)}
+    .history{background:var(--ink);color:white}.history .copy{left:80px;top:70px}.history h1{font-size:68px;max-width:690px}.history .sub{color:#a1a1a6}.history .window{width:990px;height:648px;right:-70px;bottom:-180px;border-radius:26px;transform:rotate(3deg)}
+  </style>
+</head>
+<body>
+  <main class="art banner" id="art">
+    <div class="halo"></div><div class="grain"></div>
+    <section class="copy">
+      <div class="brand"><img src="../../icon.png" alt="">PKarchives</div>
+      <h1 id="title">Un Bureau toujours net.</h1>
+      <p class="sub" id="subtitle">Archivez vers Drive en un clic. Chaque fichier trouve automatiquement sa place.</p>
+      <span class="pill">Gratuit · Open source</span>
+    </section>
+    <div class="window"><div class="chrome"><i></i><i></i><i></i></div><div class="shot"><img id="screen" src="../screenshots/01-vue-principale.png" alt=""></div></div>
+  </main>
+  <script>
+    const p=new URLSearchParams(location.search),asset=p.get('asset')||'banner',art=document.querySelector('#art');
+    const variants={
+      banner:{title:'Un Bureau toujours net.',subtitle:'Archivez vers Drive en un clic. Chaque fichier trouve automatiquement sa place.',screen:'01-vue-principale.png'},
+      card:{title:'Du Bureau à Drive. Sans détour.',subtitle:'Prévisualisez. Archivez. Retrouvez tout dans le dossier du mois.',screen:'01-vue-principale.png'},
+      feature:{title:'Voyez exactement ce qui va partir.',subtitle:'Aperçus, destination et progression restent visibles du premier au dernier fichier.',screen:'01-vue-principale.png'},
+      history:{title:'Douze mois. Une vue claire.',subtitle:'Suivez les fichiers archivés et l’espace libéré sur toute l’année.',screen:'02-historique-annuel.png'}
+    };
+    const v=variants[asset]||variants.banner;art.className='art '+asset;document.querySelector('#title').textContent=v.title;document.querySelector('#subtitle').textContent=v.subtitle;document.querySelector('#screen').src='../screenshots/'+v.screen;
+  </script>
+</body>
+</html>

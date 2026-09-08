@@ -390,6 +390,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             process?.terminate()
         case "openDrive":
             openDrive()
+        case "openUrl":
+            if let u = URL(string: body["url"] as? String ?? ""), u.scheme == "https" { NSWorkspace.shared.open(u) }
         case "openFinder":
             openFinder()
         case "chooseDesktop":
@@ -664,6 +666,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             } else {
                 sendEV(["type": "progress", "name": name, "pct": Double(detail) ?? 0, "sub": ""])
             }
+        case "fileurl":
+            let fileUrl = parts.count > 2 ? parts[2] : ""
+            sendEV(["type": "fileUrl", "name": name, "url": fileUrl])
         case "ok":
             uploadedBytes += sizeByName[name] ?? 0
             sendEV(["type": "uploaded", "name": name])
