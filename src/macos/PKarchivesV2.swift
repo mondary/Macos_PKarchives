@@ -394,6 +394,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             if let u = URL(string: body["url"] as? String ?? ""), u.scheme == "https" { NSWorkspace.shared.open(u) }
         case "openFinder":
             openFinder()
+        case "mount":
+            mountDrive()
         case "chooseDesktop":
             chooseDesktop()
         case "rescan":
@@ -726,6 +728,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                 mount.arguments = ["mount", "\(remote):", mountPath,
                                    "--drive-root-folder-id", folderID,
                                    "--daemon", "--daemon-wait", "10s",
+                                   "--fast-list",
                                    "--vfs-cache-mode", "minimal", "--volname", "PKarchives",
                                    "--log-file", logPath, "--log-level", "INFO"]
             } else {
@@ -733,6 +736,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                 mount.arguments = ["rclone", "mount", "\(remote):", mountPath,
                                    "--drive-root-folder-id", folderID,
                                    "--daemon", "--daemon-wait", "10s",
+                                   "--fast-list",
                                    "--vfs-cache-mode", "minimal", "--volname", "PKarchives",
                                    "--log-file", logPath, "--log-level", "INFO"]
             }

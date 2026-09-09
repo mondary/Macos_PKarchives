@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.11` (vesper theme + drive links)
+Statut : `2026.09.12` (thème + montage manuel)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,13 @@ Statut : `2026.09.11` (vesper theme + drive links)
 ---
 
 ## Releases
+
+### [2026.09.12] - 2026-09-08
+#### Added
+- Bouton « Monter le Drive » : rclone mount déclenchable à la demande, sans attendre un archivage.
+#### Changed
+- Bascule clair/sombre (thème Vesper) via un bouton en en-tête, préférence persistée.
+- Le thème Vesper devient une feuille de style désactivable (`<style id="vesper">`) au lieu d'être appliquée en dur.
 
 ### [2026.09.11] - 2026-09-08
 #### Added

@@ -53,6 +53,11 @@ $("chooseDesktop").onclick=function(){send("chooseDesktop")};$("gear").onclick=f
  $("destination").parentElement.onclick=function(){send("openDrive")};
  $("openFinder").onclick=function(){send("openFinder")};
  $("openDriveBtn").onclick=function(){send("openDrive")};
+ $("mountBtn").onclick=function(e){e.stopPropagation();send("mount");setStatus("Montage du Drive…","busy")};
+ var vesper=document.getElementById("vesper");
+ function setTheme(dark){vesper.disabled=!dark;$("themeBtn").textContent=dark?"☀️":"🌙";try{localStorage.setItem("pkTheme",dark?"dark":"light")}catch(e){}}
+ $("themeBtn").onclick=function(){setTheme(vesper.disabled)};
+ setTheme((function(){try{return localStorage.getItem("pkTheme")!=="light"}catch(e){return true}})());
  $("drawer").onclick=function(e){if(e.target===$("drawer"))$("drawer").classList.remove("open")};
  $("logButton").addEventListener("click",function(e){e.preventDefault();e.stopPropagation();var h=$("history"),open=h.classList.toggle("open");h.style.display=open?"block":"none";if(open)send("historyReq")},true);
  $("closeHistory").onclick=function(e){e.preventDefault();e.stopPropagation();$("history").classList.remove("open");$("history").style.display="none"};
