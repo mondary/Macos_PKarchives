@@ -1,0 +1,97 @@
+# Publie une release Sparkle à chaque tag v* :
+#   - build de PKarchives2.app (build.sh télécharge Sparkle dans release/sparkle/)
+#   - signature EdDSA (clé privée = secret SPARKLE_PRIVATE_KEY, au format PEM)
+#   - mise à jour de appcast.xml sur main et création de la GitHub Release
+#
+# Récupérer la clé privée au format PEM :
+#   build/sparkle/bin/generate_keys -x private-key.pem   # exporte depuis le trousseau local
+#   gh secret set SPARKLE_PRIVATE_KEY < private-key.pem && rm private-key.pem
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Zip et signature
+        id: sign
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ZIP="PKarchives2-${VERSION}.zip"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > private-key.pem
+          OUT=$(release/sparkle/bin/sign_update -f private-key.pem "release/${ZIP}")
+          rm private-key.pem
+          SIG=$(echo "$OUT" | sed -E 's/.*edSignature="([^"]+)".*/\1/')
+          LEN=$(stat -f%z "release/${ZIP}")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "zip=${ZIP}" >> "$GITHUB_OUTPUT"
+          echo "sig=${SIG}" >> "$GITHUB_OUTPUT"
+          echo "len=${LEN}" >> "$GITHUB_OUTPUT"
+
+      - name: Génère appcast.xml
+        env:
+          VERSION: ${{ steps.sign.outputs.version }}
+          ZIP: ${{ steps.sign.outputs.zip }}
+          SIG: ${{ steps.sign.outputs.sig }}
+          LEN: ${{ steps.sign.outputs.len }}
+          REPO: ${{ github.repository }}
+        run: |
+          PUB_DATE=$(date -u '+%a, %d %b %Y %H:%M:%S %z')
+          cat > appcast.xml << EOF
+          <?xml version="1.0" standalone="yes"?>
+          <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+              <channel>
+                  <title>PKarchives</title>
+                  <link>https://raw.githubusercontent.com/${REPO}/main/appcast.xml</link>
+                  <description>Dernieres mises a jour de PKarchives</description>
+                  <language>fr</language>
+                  <item>
+                      <title>Version ${VERSION}</title>
+                      <pubDate>${PUB_DATE}</pubDate>
+                      <sparkle:version>${VERSION}</sparkle:version>
+                      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                      <enclosure
+                          url="https://github.com/${REPO}/releases/download/v${VERSION}/${ZIP}"
+                          sparkle:edSignature="${SIG}"
+                          length="${LEN}"
+                          type="application/octet-stream"
+                      />
+                  </item>
+              </channel>
+          </rss>
+          EOF
+
+      - name: Commit appcast sur main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git stash || true
+          git checkout main
+          git stash pop || true
+          git add appcast.xml
+          git commit -m "Release ${GITHUB_REF_NAME}" || true
+          git push origin main
+
+      - name: Crée la GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZIP: ${{ steps.sign.outputs.zip }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "PKarchives ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            "release/${ZIP}"

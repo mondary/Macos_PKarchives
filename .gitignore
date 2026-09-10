@@ -1,0 +1,60 @@
+# Build artifacts
+PKarchives
+*.o
+release/
+*.app/
+
+# Dependencies
+node_modules/
+dist/
+build/
+.venv/
+__pycache__/
+
+# Environment & secrets
+.env
+.env.*
+.env.local
+secrets/
+rclone.conf
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cert
+.pkarchives.conf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Logs
+*.log
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Agent config files
+.agent
+/AGENT.md
+/AGENTS.md
+/CLAUDE.md
+/CODEX.md
+/GEMINI.md
+/GLM.md
+/OPENCODE.md
+.*
+!.github/
+!.github/**
+!.gitignore

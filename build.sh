@@ -1,7 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
+
+
 DIR="$(cd "$(dirname "$0")" && pwd)"
+
+SPARKLE_VERSION="2.9.6"
+SPARKLE_SHA256="52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192"
+SPARKLE_DIR="${DIR}/release/sparkle"
+
+if [[ ! -f "${SPARKLE_DIR}/Sparkle.framework/Sparkle" || ! -x "${SPARKLE_DIR}/bin/sign_update" ]]; then
+  echo "⬇️  Téléchargement Sparkle ${SPARKLE_VERSION}..."
+  mkdir -p "${SPARKLE_DIR}"
+  curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" \
+    -o "${SPARKLE_DIR}/Sparkle.tar.xz"
+  echo "${SPARKLE_SHA256}  ${SPARKLE_DIR}/Sparkle.tar.xz" | shasum -a 256 -c - >/dev/null
+  tar xf "${SPARKLE_DIR}/Sparkle.tar.xz" -C "${SPARKLE_DIR}" ./Sparkle.framework ./bin
+  rm -f "${SPARKLE_DIR}/Sparkle.tar.xz"
+fi
+
 MACOS_APP_DIR="${DIR}/release/macos/PKarchives.app/Contents"
 CLI_RELEASE_DIR="${DIR}/release/cli"
 
@@ -72,14 +89,17 @@ rm -f PKarchives
 echo "✅ ${DIR}/release/macos/PKarchives.app"
 
 # --- v2 : interface moderne WKWebView ---
-echo "🔨 Compilation v2 (WKWebView)..."
+echo "🔨 Compilation v2 (WKWebView + Sparkle)..."
 swiftc "${DIR}/src/macos/PKarchivesV2.swift" \
+  -F "${SPARKLE_DIR}" \
   -parse-as-library \
   -o PKarchives2 \
   -framework SwiftUI \
   -framework AppKit \
   -framework WebKit \
-  -framework QuickLookThumbnailing
+  -framework QuickLookThumbnailing \
+  -framework Sparkle \
+  -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
 
 V2_APP_DIR="${DIR}/release/macos/PKarchives2.app/Contents"
 mkdir -p "${V2_APP_DIR}/MacOS" "${V2_APP_DIR}/Resources/web"
@@ -90,6 +110,8 @@ cp "${DIR}/src/macos/v2/web/index.html" "${DIR}/src/macos/v2/web/app.js" "${DIR}
 V2_VERSION="$(tr -d '\n' < "${DIR}/VERSION")"
 sed -i '' "s/__VERSION__/${V2_VERSION}/g" "${V2_APP_DIR}/Resources/web/index.html"
 chmod +x "${V2_APP_DIR}/MacOS/"*
+mkdir -p "${V2_APP_DIR}/Frameworks"
+cp -R "${SPARKLE_DIR}/Sparkle.framework" "${V2_APP_DIR}/Frameworks/"
 
 cat > "${V2_APP_DIR}/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -106,6 +128,12 @@ cat > "${V2_APP_DIR}/Info.plist" << EOF
     <string>PKarchives2</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>SUFeedURL</key>
+    <string>https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>t9Zzlc7LZD17hLCepinDvSRHk51hAWGbkFc2yVjbAYs=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
     <key>CFBundleShortVersionString</key>
     <string>$(cat "${DIR}/VERSION")</string>
     <key>CFBundleVersion</key>
@@ -126,5 +154,6 @@ if [[ -f "${MACOS_APP_DIR}/Resources/AppIcon.icns" ]]; then
   cp "${MACOS_APP_DIR}/Resources/AppIcon.icns" "${V2_APP_DIR}/Resources/AppIcon.icns"
 fi
 
+codesign --force --deep --sign - "${DIR}/release/macos/PKarchives2.app"
 rm -f PKarchives2
 echo "✅ ${DIR}/release/macos/PKarchives2.app"

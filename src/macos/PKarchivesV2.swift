@@ -6,6 +6,7 @@ import AppKit
 import WebKit
 import QuickLookThumbnailing
 import CoreServices
+import Sparkle
 
 // MARK: - Config / historique (identique v1, app séparée)
 
@@ -286,9 +287,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     var eventOffset = 0
     var sizeByName: [String: Int64] = [:]
     var currentItems: [DeskItem] = []
+    // Sparkle : détection automatique des mises à jour (appcast GitHub)
+    var updaterController: SPUStandardUpdaterController?
+
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        setupUpdater()
         if let button = statusItem?.button {
             button.title = "📦"
             button.action = #selector(statusClicked)
@@ -301,6 +305,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Ouvrir Google Drive", action: #selector(openDrive), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Rechercher les mises à jour…", action: #selector(checkForUpdates), keyEquivalent: "u"))
         menu.addItem(NSMenuItem(title: "Quitter", action: #selector(quitApp), keyEquivalent: "q"))
         statusMenu = menu
         showWindow()
@@ -311,6 +316,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                 self?.startArchive(mode: auto)
             }
         }
+    }
+    @objc func checkForUpdates() {
+        updaterController?.checkForUpdates(nil)
+    }
+
+    private func setupUpdater() {
+        guard Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else { return } // désactivé hors release
+        let ctrl = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        updaterController = ctrl
     }
 
     @objc func statusClicked() {

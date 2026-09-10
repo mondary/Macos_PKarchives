@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.12` (thème + montage manuel)
+Statut : `2026.09.13` (mise à jour automatique Sparkle)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,14 @@ Statut : `2026.09.12` (thème + montage manuel)
 ---
 
 ## Releases
+
+### [2026.09.13] - 2026-09-10
+#### Added
+- Mise à jour automatique de l’application macOS avec Sparkle et appcast GitHub.
+- Workflow GitHub Actions pour signer et publier les releases taguées.
+
+#### Changed
+- Le script de build télécharge et embarque Sparkle dans l’application.
 
 ### [2026.09.12] - 2026-09-08
 #### Added
