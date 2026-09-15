@@ -710,7 +710,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     // MARK: montage Drive (identique v1)
 
     func mountDrive() {
-        let desktop = desktopPath()
         let linkName = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME") ?? "DesktopArchive"
         let remote = (loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive").trimmingCharacters(in: CharacterSet(charactersIn: ":"))
         guard let folderID = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID"), !folderID.isEmpty else {
@@ -760,11 +759,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             }
             if isMounted(at: mountPath) {
                 self?.sendEV(["type": "log", "line": "📁 Google Drive monté : \(mountPath)", "cls": "ok"])
-                let linkPath = "\(desktop)/\(linkName)"
-                try? fm.removeItem(atPath: linkPath)
-                do { try fm.createSymbolicLink(atPath: linkPath, withDestinationPath: mountPath) } catch {
-                    self?.sendEV(["type": "log", "line": "⚠️ Lien \(linkName) non créé: \(error.localizedDescription)", "cls": "warn"])
-                }
             } else {
                 try? fm.removeItem(atPath: mountPath)
                 self?.sendEV(["type": "log", "line": "⚠️ Google Drive non monté (voir log rclone / FUSE-T)", "cls": "warn"])
