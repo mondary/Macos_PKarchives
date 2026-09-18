@@ -69,6 +69,16 @@ func rcloneUpload(ctx context.Context, cfg Config, path, destination string) err
 	).Run()
 }
 
+// archivePathForFile keeps a file's path below its original Desktop folder.
+func archivePathForFile(monthDestination, rootName, relativePath string) string {
+	destination := strings.TrimSuffix(monthDestination, "/") + "/" + rootName
+	relativeDir := filepath.ToSlash(filepath.Dir(relativePath))
+	if relativeDir != "." && relativeDir != "" {
+		destination += "/" + strings.Trim(relativeDir, "/")
+	}
+	return destination
+}
+
 func itemBytes(path string) int64 {
 	var total int64
 	_ = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {

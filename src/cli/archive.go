@@ -141,7 +141,7 @@ func (a *archiveModel) update(msg tea.Msg) (archiveModel, tea.Cmd) {
 			return *a, itemDoneCmd(a.current, a.items[a.current].Name, true, nil)
 		}
 		a.fileStart = time.Now()
-		return *a, uploadSubFileCmd(a.cfg, msg.parentIdx, a.subPaths, a.subNames, 0)
+		return *a, uploadSubFileCmd(a.cfg, msg.parentIdx, msg.rootName, a.subPaths, a.subNames, 0)
 
 	case subFileDoneMsg:
 		if msg.err != nil {
@@ -160,7 +160,7 @@ func (a *archiveModel) update(msg tea.Msg) (archiveModel, tea.Cmd) {
 			return *a, itemDoneCmd(a.current, a.items[a.current].Name, true, nil)
 		}
 		a.fileStart = time.Now()
-		return *a, uploadSubFileCmd(a.cfg, msg.parentIdx, a.subPaths, a.subNames, a.subIdx)
+		return *a, uploadSubFileCmd(a.cfg, msg.parentIdx, a.items[msg.parentIdx].Name, a.subPaths, a.subNames, a.subIdx)
 
 	case itemDoneMsg:
 		if msg.err != nil {
@@ -247,6 +247,7 @@ type scanDoneMsg struct {
 }
 type dirScannedMsg struct {
 	parentIdx    int
+	rootName     string
 	paths, names []string
 }
 type subFileDoneMsg struct {
@@ -281,7 +282,7 @@ func startUploadCmd(cfg Config, items []fileItem, idx int) tea.Cmd {
 		item := items[idx]
 		if item.IsDir {
 			paths, names := walkDir(item.Path)
-			return dirScannedMsg{idx, paths, names}
+			return dirScannedMsg{idx, item.Name, paths, names}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
@@ -290,11 +291,12 @@ func startUploadCmd(cfg Config, items []fileItem, idx int) tea.Cmd {
 	}
 }
 
-func uploadSubFileCmd(cfg Config, parent int, paths, names []string, idx int) tea.Cmd {
+func uploadSubFileCmd(cfg Config, parent int, rootName string, paths, names []string, idx int) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
-		err := rcloneUpload(ctx, cfg, paths[idx], archiveDestination(cfg))
+		destination := archivePathForFile(archiveDestination(cfg), rootName, names[idx])
+		err := rcloneUpload(ctx, cfg, paths[idx], destination)
 		return subFileDoneMsg{parent, idx, len(paths), names[idx], err}
 	}
 }
@@ -532,5 +534,3 @@ func ternary(cond bool, a, b string) string {
 	}
 	return b
 }
-
-

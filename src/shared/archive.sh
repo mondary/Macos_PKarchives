@@ -138,9 +138,10 @@ failed_items=()
 
 upload_file() {
   local file="$1"
-  local status_prefix="$2"
+  local destination="$2"
+  local status_prefix="$3"
 
-  "${rclone_bin}" copy "${file}" "${rclone_dir}/" \
+  "${rclone_bin}" copy "${file}" "${destination}/" \
     --drive-root-folder-id "${DRIVE_FOLDER_ID}" \
     --drive-chunk-size 32M --buffer-size 32M \
     --drive-upload-cutoff 32M \
@@ -165,7 +166,7 @@ for item in "${files_to_process[@]}"; do
     echo -e "${BOLD}[${num}/${count}]${NC} 📄 ${bn} (${sz})"
     set_status "📄 [${num}/${count}] ${bn}"
     emit_event "upload|${bn}"
-    if ! upload_file "${item}" "📄 [${num}/${count}] ${bn}"; then
+    if ! upload_file "${item}" "${rclone_dir}" "📄 [${num}/${count}] ${bn}"; then
       failed_items+=("${item}")
       emit_event "failed|${bn}"
       echo -e "  ${RED}❌ Upload échoué, fichier conservé${NC}"
@@ -207,10 +208,19 @@ for item in "${files_to_process[@]}"; do
     sub_fail=0
     for sub_file in "${sub_files[@]}"; do
       sub_bn="${sub_file#"${item}/"}"
+      if [[ "${sub_bn}" == */* ]]; then
+        sub_dir="${sub_bn%/*}"
+      else
+        sub_dir="."
+      fi
+      destination_dir="${rclone_dir}/${bn}"
+      if [[ "${sub_dir}" != "." ]]; then
+        destination_dir+="/${sub_dir}"
+      fi
       sub_sz=$(ls -lh "${sub_file}" | awk '{print $5}')
       echo -e "  📄 ${sub_bn} (${sub_sz})"
       set_status "📁 [${num}/${count}] ${bn}/ — ${sub_ok}/${sub_count} — ${sub_bn}"
-      if upload_file "${sub_file}" "📁 [${num}/${count}] ${bn}/ — ${sub_ok}/${sub_count} — ${sub_bn}"; then
+      if upload_file "${sub_file}" "${destination_dir}" "📁 [${num}/${count}] ${bn}/ — ${sub_ok}/${sub_count} — ${sub_bn}"; then
         sub_ok=$((sub_ok + 1))
         emit_event "progress|${bn}|${sub_ok}/${sub_count}"
         echo -e "  ${GREEN}✅ OK${NC}"
