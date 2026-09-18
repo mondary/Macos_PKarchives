@@ -117,20 +117,24 @@ button,input{font:inherit}button{cursor:pointer;border:0;background:none;color:i
 .cancel{border:1px solid #f3cbc5;background:#fff6f5;color:var(--red);border-radius:999px;padding:10px 16px;font-size:12px;font-weight:600;display:none}
 
 /* Journal + historique */
-.log{margin-top:14px;color:var(--muted);font:11px var(--mono);min-height:18px}
-.log b{color:#069a4b;font-weight:600}
+.log{margin:-16px 0 18px;color:var(--muted);font:600 12.5px var(--mono);min-height:18px}
+.log.ok{color:#069a4b}.log.warn{color:#c96a00}.log.err{color:var(--red)}
 .history{display:none;margin-top:14px;padding:16px 18px;border:1px solid #fff;border-radius:20px;background:#fff;box-shadow:var(--shadow)}
 .history.open{display:block!important;position:fixed;inset:auto 0 0;width:100%;height:min(390px,82vh);margin:0;padding:24px max(24px,calc((100vw - 1112px)/2));z-index:30;border:0;border-top:1px solid var(--line);border-radius:24px 24px 0 0;box-shadow:0 -18px 50px rgba(0,0,0,.16);background:#fff;overflow:auto}
 .history-head{display:flex;justify-content:space-between;font-size:13px;font-weight:700}
 .history-head button{border:0;background:transparent;color:var(--muted);font-size:20px;line-height:1;padding:0 0 4px 12px;cursor:pointer}
 .history-head button:hover{color:var(--ink)}
-.history-stats{display:flex;gap:22px;margin:12px 0;color:var(--muted);font-size:11px}
-.history-stats b{display:block;font-family:var(--display);font-weight:900;color:var(--ink);font-size:21px;letter-spacing:-.5px}
-.bars{height:82px;display:flex;align-items:end;gap:4px;border-bottom:1px solid var(--line)}
-.bar{flex:1;min-width:4px;background:var(--accent);border-radius:5px 5px 0 0;opacity:.85}
-.history-months{display:flex;gap:4px;color:var(--muted-2);font:9px var(--mono);margin-top:6px}
+.history-stats{display:flex;gap:22px;margin:12px 0;color:var(--muted);font-size:12px;font-weight:600}
+.history-stats b{display:block;font-family:var(--display);font-weight:900;color:var(--ink);font-size:24px;letter-spacing:-.5px}
+.history-legend{color:#5a5a5a;font-size:11.5px;font-weight:650;margin-bottom:8px}
+.history-legend b{color:var(--ink)}
+.bars-wrap{position:relative;padding-left:34px}
+.axis-y{position:absolute;left:0;top:0;font:700 10.5px var(--mono);color:#5a5a5a}
+.bars{height:110px;display:flex;align-items:end;gap:4px;border-bottom:2px solid #c9c9c9;background:repeating-linear-gradient(to top,transparent 0 21px,rgba(0,0,0,.055) 21px 22px)}
+.bar{flex:1;min-width:4px;background:linear-gradient(180deg,#ffab53,var(--accent));border-radius:5px 5px 0 0;box-shadow:0 1px 3px rgba(245,121,12,.25)}
+.history-months{display:flex;gap:4px;color:#4a4a4a;font:700 10.5px var(--mono);margin:6px 0 0 34px}
 .history-months span{flex:1;text-align:center}
-.history-empty{color:var(--muted);font-size:11px;margin-top:12px}
+.history-empty{color:#4a4a4a;font-size:12px;font-weight:600;margin-top:12px}
 .history-year{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);font-size:11px}
 
 /* Drawer réglages */
@@ -182,7 +186,8 @@ body{background:radial-gradient(ellipse at 50% -20%,#2a2521 0%,#1a1714 45%,#1412
 .gear{background:rgba(255,255,255,.05);border-color:var(--line);color:var(--muted)}
 .gear:hover{background:rgba(255,255,255,.1)}
 .brand h1 small{background:var(--accent-soft);color:var(--accent)}
-.route-card,.panel,.history{background:rgba(30,26,22,.85);border-color:var(--line);box-shadow:var(--shadow);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.route-card,.panel,.history{background:rgba(30,26,22,.85);border-color:var(--line);box-shadow:var(--shadow);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:var(--ink)}
+.history.open{background:#1d1a17}
 .route-card:hover{box-shadow:0 22px 60px rgba(0,0,0,.5)}
 .eyebrow,.panel-head span,.arrow small{color:var(--muted-2)}
 .place-icon{background:#241f1b;border-color:var(--line)}
@@ -220,7 +225,10 @@ body{background:radial-gradient(ellipse at 50% -20%,#2a2521 0%,#1a1714 45%,#1412
 .hint,.mfoot span{color:var(--muted-2)}
 .mfoot b{color:var(--muted)}
 .history-year{background:#241f1b;border-color:var(--line);color:var(--ink)}
-.bars{border-color:var(--line)}
+.history-stats,.history-empty{color:var(--muted)}
+.history-legend,.axis-y,.history-months{color:#b5ada1}
+.history-legend b,.history-stats b{color:var(--ink)}
+.bars{border-color:#5a5148;background:repeating-linear-gradient(to top,transparent 0 21px,rgba(255,255,255,.06) 21px 22px)}
 .history-stats{color:var(--muted)}
 @media(max-width:760px){#app{padding-top:22px}}
 </style>
@@ -228,10 +236,11 @@ body{background:radial-gradient(ellipse at 50% -20%,#2a2521 0%,#1a1714 45%,#1412
 <body>
 <main id="app">
   <header class="top"><div class="brand"><img class="logo" src="icon.png" alt="" /><div><h1>PKarchives <small id="appVersion">__VERSION__</small></h1><div class="state" id="state"><i class="led"></i><span id="status">Prêt</span></div></div></div><div class="header-context"><button class="gear" id="themeBtn" aria-label="Basculer thème clair/sombre">☀️</button><button class="gear" id="gear" aria-label="Réglages">⚙</button></div></header>
+  <div class="log" id="log"></div>
   <section class="route"><div class="side route-card"><div class="eyebrow">Depuis</div><div class="location"><span class="place-icon"><img src="logo-finder.png" alt=""></span><h2>Bureau</h2><span class="badge" id="sourceCount">0</span></div><div class="path"><span id="sourcePath">~/Desktop</span><button class="link-btn finder-btn" id="openFinder" title="Ouvrir dans Finder"><img class="bico" src="logo-finder.png" alt="">Ouvrir dans Finder</button></div></div><div class="arrow"><div class="line"></div><small>ARCHIVER</small></div><div class="side right route-card"><div class="eyebrow">Vers</div><div class="location"><span class="place-icon"><img src="logo-drive.svg" alt=""></span><h2 id="destinationShort">Dossier cloud</h2><span class="badge" id="archiveCount">0</span></div><div class="path"><span id="destination">Google Drive</span><button class="link-btn drive-btn" id="openDriveBtn" title="Ouvrir Google Drive"><img class="bico" src="logo-drive.svg" alt="">Ouvrir Drive</button><button class="link-btn mount-btn" id="mountBtn" title="Monter le Drive localement"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Monter le Drive</button></div></div></section>
   <section class="workspace"><article class="panel"><div class="panel-head"><strong>En attente sur le Bureau</strong><span id="sourceHint">éléments archivables</span></div><div class="stack" id="sourceStack"><div class="empty"><div><strong>Scan du Bureau…</strong><span>Les éléments ignorés ne sont pas comptés.</span></div></div></div></article><article class="panel transfer"><div class="panel-head"><strong>Archivé vers Drive</strong><span id="transferLabel">prêt à archiver</span></div><div class="stack" id="driveStack"><div class="empty"><div><strong>Aucun fichier archivé</strong><span>Les fichiers arrivent ici pendant un archivage.</span></div></div></div></article></section>
   <footer class="bottom"><div class="modes"><button id="mFiles" class="on">Fichiers</button><button id="mAll">Fichiers + dossiers</button></div><div class="actions"><button class="secondary" id="logButton">Historique</button><button class="cancel" id="cancel">Annuler</button><button class="primary" id="archive">Archiver les éléments</button></div></footer>
-   <div class="log" id="log"></div><section class="history" id="history"><div class="history-head"><span>Historique annuel</span><span><select class="history-year" id="historyYear" aria-label="Année de l’historique"></select><button id="closeHistory" aria-label="Fermer l’historique">×</button></span></div><div class="history-stats"><div><b id="historyTotal">0</b>fichiers archivés</div><div><b id="historyBytes">0</b>libérés</div></div><div class="bars" id="historyBars"></div><div class="history-months" id="historyMonths"></div><div class="history-empty" id="historyEmpty">Aucun archivage cette année.</div></section>
+<section class="history" id="history"><div class="history-head"><span>Historique annuel</span><span><select class="history-year" id="historyYear" aria-label="Année de l’historique"></select><button id="closeHistory" aria-label="Fermer l’historique">×</button></span></div><div class="history-stats"><div><b id="historyTotal">0</b>fichiers archivés</div><div><b id="historyBytes">0</b>libérés</div></div><div class="history-legend">Fichiers archivés par mois · échelle max <b id="historyMax">0</b></div><div class="bars-wrap"><span class="axis-y" id="historyAxisMax">0</span><div class="bars" id="historyBars"></div></div><div class="history-months" id="historyMonths"></div><div class="history-empty" id="historyEmpty">Aucun archivage cette année.</div></section>
 </main>
 <aside class="drawer" id="drawer"><div class="drawer-card"><div class="dhead"><span>Réglages</span><button id="close" aria-label="Fermer">✕</button></div><div class="msec"><div class="mlab">Dossier Google Drive</div><input id="folder" type="text" placeholder="ID du dossier de destination"><div class="hint">L'ID du dossier Drive où sont créés les dossiers mensuels.</div></div><div class="msec"><div class="mlab">Dossier à archiver</div><div class="input-row"><input id="desktop" type="text"><button class="choose" id="chooseDesktop">Choisir…</button></div></div><div class="msec"><div class="mlab">Remote rclone</div><input id="remote" type="text" placeholder="gdrive"></div><div class="mfoot"><span>Configuration partagée avec la CLI · <b>~/.config/pkarchives</b></span><button class="save" id="save">Enregistrer</button></div></div></aside>
 <script src="app.js"></script>
