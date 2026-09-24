@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.18` (appcast publié, onglet Soutenir, icône Ko-fi robuste)
+Statut : `2026.09.19` (icône Ko-fi cuite en raster dans le menu)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,10 @@ Statut : `2026.09.18` (appcast publié, onglet Soutenir, icône Ko-fi robuste)
 ---
 
 ## Releases
+
+### [2026.09.19] - 2026-09-24
+#### Fixed
+- L'icône Ko-fi du menu clic droit est cuite en raster 18×18 (`isTemplate = false`) au lieu d'un simple redimensionnement, avec repli sur le symbole système `cup.and.saucer.fill` : elle s'affiche désormais à gauche du libellé « Soutenir sur Ko-fi ».
 
 ### [2026.09.18] - 2026-09-24
 #### Added

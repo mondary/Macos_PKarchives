@@ -312,11 +312,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Ouvrir Google Drive", action: #selector(openDrive), keyEquivalent: ""))
         let kofiItem = NSMenuItem(title: "Soutenir sur Ko-fi", action: #selector(openKofi), keyEquivalent: "")
-        let kofiImage = NSImage(named: "kofi-logo")
-            ?? Bundle.main.resourcePath.flatMap { NSImage(contentsOfFile: $0 + "/kofi-logo.png") }
-        if let kofi = kofiImage {
-            kofi.size = NSSize(width: 16, height: 16)
-            kofiItem.image = kofi
+        if let src = Bundle.main.resourcePath.flatMap({ NSImage(contentsOfFile: $0 + "/kofi-logo.png") }) {
+            let baked = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+                src.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+                return true
+            }
+            baked.size = NSSize(width: 18, height: 18)
+            baked.isTemplate = false
+            kofiItem.image = baked
+        } else {
+            kofiItem.image = NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Ko-fi")
         }
         menu.addItem(kofiItem)
         menu.addItem(NSMenuItem.separator())
