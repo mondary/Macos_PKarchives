@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.22` (menu du status item attaché nativement)
+Statut : `2026.09.23` (icône Ko-fi cuite en bitmap 16pt)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,11 @@ Statut : `2026.09.22` (menu du status item attaché nativement)
 ---
 
 ## Releases
+
+### [2026.09.23] - 2026-09-24
+#### Fixed
+- L'icône Ko-fi est cuite dans un bitmap 32×32px à taille logique 16pt (au lieu d'un `size` fixé sur l'image décodée, ignoré au rendu du menu) : elle tient dans la ligne, nets sur écrans Retina.
+- La copie du PNG dans les ressources de l'app est retirée du build : le logo vit uniquement en base64 dans le binaire.
 
 ### [2026.09.22] - 2026-09-24
 #### Changed

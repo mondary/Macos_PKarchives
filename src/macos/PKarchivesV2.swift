@@ -313,7 +313,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         // Ko-fi : item standard avec image (rendu correct via l'attachement natif du menu)
         let kofiItem = NSMenuItem(title: "Soutenir sur Ko-fi", action: #selector(openKofi), keyEquivalent: "")
         if let data = Data(base64Encoded: kofiLogoBase64, options: .ignoreUnknownCharacters),
-           var kofi = NSImage(data: data) {
+           let src = NSImage(data: data),
+           let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 32, pixelsHigh: 32, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
+            rep.size = NSSize(width: 16, height: 16)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            src.draw(in: NSRect(x: 0, y: 0, width: 16, height: 16), from: .zero, operation: .sourceOver, fraction: 1)
+            NSGraphicsContext.restoreGraphicsState()
+            let kofi = NSImage()
+            kofi.addRepresentation(rep)
             kofi.size = NSSize(width: 16, height: 16)
             kofi.isTemplate = false
             kofiItem.image = kofi
