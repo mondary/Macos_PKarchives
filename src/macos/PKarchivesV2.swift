@@ -270,44 +270,6 @@ func scanDesktop(mode: String = "files") throws -> [DeskItem] {
 
 // MARK: - App delegate + pont WebView
 
-// MARK: - Ligne Ko-fi du menu (vue native alignée sur le texte des items)
-
-final class KofiMenuRow: NSView {
-    var onClick: (() -> Void)?
-    var icon: NSImage? { didSet { iconView.image = icon } }
-    private let iconView = NSImageView(frame: NSRect(x: 17, y: 5, width: 18, height: 18))
-    private let label = NSTextField(labelWithString: "Soutenir sur Ko-fi")
-    private var hovered = false {
-        didSet { layer?.backgroundColor = hovered ? NSColor.selectedContentBackgroundColor.cgColor : nil }
-    }
-
-    init() {
-        super.init(frame: NSRect(x: 0, y: 0, width: 240, height: 28))
-        wantsLayer = true
-        layer?.cornerRadius = 5
-        iconView.imageScaling = .scaleNone
-        label.font = .menuFont(ofSize: 0)
-        label.frame = NSRect(x: 42, y: 5, width: 185, height: 18)
-        addSubview(iconView)
-        addSubview(label)
-        setAccessibilityElement(true)
-        setAccessibilityRole(.button)
-        setAccessibilityLabel("Soutenir sur Ko-fi")
-    }
-
-    required init?(coder: NSCoder) { fatalError("non utilisé") }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if trackingAreas.isEmpty {
-            addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self))
-        }
-    }
-    override func mouseEntered(with event: NSEvent) { hovered = true }
-    override func mouseExited(with event: NSEvent) { hovered = false }
-    override func mouseDown(with event: NSEvent) { onClick?() }
-}
-
 class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate {
     var statusItem: NSStatusItem?
     var statusMenu: NSMenu?
@@ -331,11 +293,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupUpdater()
+        // Menu attaché nativement (comme PKwindowsManagement) : rendu système fiable, images d'items incluses
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
             button.title = "📦"
-            button.action = #selector(statusClicked)
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         statusItem = item
         let menu = NSMenu()
@@ -349,19 +310,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         menu.addItem(NSMenuItem(title: "Archiver (tout)", action: #selector(quickAll), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Ouvrir Google Drive", action: #selector(openDrive), keyEquivalent: ""))
-        // Ko-fi en vue dédiée : les NSMenuItem.image ne se rendent pas dans un menu popUp de status item (macOS 26)
-        let kofiRow = KofiMenuRow()
-        kofiRow.icon = Data(base64Encoded: kofiLogoBase64, options: .ignoreUnknownCharacters)
-            .flatMap { NSImage(data: $0) }
-            ?? NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Ko-fi")
-        kofiRow.onClick = { [weak self] in self?.openKofi() }
-        let kofiItem = NSMenuItem()
-        kofiItem.view = kofiRow
+        // Ko-fi : item standard avec image (rendu correct via l'attachement natif du menu)
+        let kofiItem = NSMenuItem(title: "Soutenir sur Ko-fi", action: #selector(openKofi), keyEquivalent: "")
+        if let data = Data(base64Encoded: kofiLogoBase64, options: .ignoreUnknownCharacters),
+           var kofi = NSImage(data: data) {
+            kofi.size = NSSize(width: 16, height: 16)
+            kofi.isTemplate = false
+            kofiItem.image = kofi
+        }
         menu.addItem(kofiItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Rechercher les mises à jour…", action: #selector(checkForUpdates), keyEquivalent: "u"))
         menu.addItem(NSMenuItem(title: "Quitter", action: #selector(quitApp), keyEquivalent: "q"))
         statusMenu = menu
+        statusItem?.menu = menu
         showWindow()
 
         // Test/e2e : PKARCHIVES_AUTOSTART=files|all lance l'archivage au démarrage
@@ -382,15 +344,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         guard Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else { return } // désactivé hors release
         let ctrl = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
         updaterController = ctrl
-    }
-
-    @objc func statusClicked() {
-        guard let event = NSApp.currentEvent else { showWindow(); return }
-        if event.type == .rightMouseUp, let button = statusItem?.button {
-            statusMenu?.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height), in: button)
-        } else {
-            showWindow()
-        }
     }
 
     @objc func showWindow() {

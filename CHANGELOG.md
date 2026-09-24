@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.21` (logo Ko-fi embarqué et ligne alignée)
+Statut : `2026.09.22` (menu du status item attaché nativement)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,11 @@ Statut : `2026.09.21` (logo Ko-fi embarqué et ligne alignée)
 ---
 
 ## Releases
+
+### [2026.09.22] - 2026-09-24
+#### Changed
+- Le menu de l'icône 📦 est attaché nativement au status item (`statusItem.menu`), comme PKwindowsManagement : rendu système fiable (icône Ko-fi, alignements, surlignage). Le clic gauche ouvre désormais ce menu ; « Ouvrir PKarchives » reste le premier item.
+- Suppression de la ligne Ko-fi en vue personnalisée et du chemin `popUp`, à l'origine des rendus cassés.
 
 ### [2026.09.21] - 2026-09-24
 #### Fixed
