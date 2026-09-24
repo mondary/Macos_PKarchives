@@ -64,5 +64,7 @@ $("chooseDesktop").onclick=function(){send("chooseDesktop")};$("gear").onclick=f
  $("historyYear").onchange=function(){send("historyReq")};
  $("driveStack").addEventListener("click",function(e){var c=e.target.closest(".file");if(c&&c.dataset.url){e.stopPropagation();send("openUrl",{url:c.dataset.url})}});
   document.addEventListener("click",function(){if(running)return;clearTimeout(refreshTimer);refreshTimer=setTimeout(function(){send("rescan",{mode:mode})},250)});
+ Array.prototype.forEach.call(document.querySelectorAll(".dtab"),function(t){t.onclick=function(){Array.prototype.forEach.call(document.querySelectorAll(".dtab"),function(x){x.classList.toggle("on",x===t)});Array.prototype.forEach.call(document.querySelectorAll(".dpage"),function(p){p.classList.toggle("on",p.id==="page-"+t.dataset.page)})}});
+ document.addEventListener("click",function(e){var l=e.target.closest?e.target.closest("[data-href]"):null;if(l){e.preventDefault();send("openUrl",{url:l.getAttribute("data-href")})}});
   send("ready");
-})();
+ })();
