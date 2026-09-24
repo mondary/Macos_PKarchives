@@ -6,10 +6,10 @@
         <description>Dernières mises à jour de PKarchives</description>
         <language>fr</language>
         <item>
-            <title>Version 2026.09.20</title>
-            <pubDate>Wed, 24 Sep 2026 16:00:00 +0200</pubDate>
-            <sparkle:version>2026.09.20</sparkle:version>
-            <sparkle:shortVersionString>2026.09.20</sparkle:shortVersionString>
+            <title>Version 2026.09.21</title>
+            <pubDate>Wed, 24 Sep 2026 17:00:00 +0200</pubDate>
+            <sparkle:version>2026.09.21</sparkle:version>
+            <sparkle:shortVersionString>2026.09.21</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/mondary/Macos_PKarchives/releases/latest/download/PKarchives.dmg" type="application/x-bzip2" sparkle:edSignature="placeholder" length="0" />
         </item>

@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.20` (Ko-fi en vue dédiée dans le menu clic droit)
+Statut : `2026.09.21` (logo Ko-fi embarqué et ligne alignée)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,11 @@ Statut : `2026.09.20` (Ko-fi en vue dédiée dans le menu clic droit)
 ---
 
 ## Releases
+
+### [2026.09.21] - 2026-09-24
+#### Fixed
+- Le logo Ko-fi est embarqué en base64 dans le binaire (`KofiLogo.swift`) : plus aucune dépendance au fichier de ressources au runtime, c'est la vraie tasse Ko-fi qui s'affiche.
+- La ligne Ko-fi est alignée sur les autres items du menu : icône à l'endroit exact où commence le texte des lignes classiques, libellé juste après.
 
 ### [2026.09.20] - 2026-09-24
 #### Fixed

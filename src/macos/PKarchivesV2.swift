@@ -270,6 +270,44 @@ func scanDesktop(mode: String = "files") throws -> [DeskItem] {
 
 // MARK: - App delegate + pont WebView
 
+// MARK: - Ligne Ko-fi du menu (vue native alignée sur le texte des items)
+
+final class KofiMenuRow: NSView {
+    var onClick: (() -> Void)?
+    var icon: NSImage? { didSet { iconView.image = icon } }
+    private let iconView = NSImageView(frame: NSRect(x: 17, y: 5, width: 18, height: 18))
+    private let label = NSTextField(labelWithString: "Soutenir sur Ko-fi")
+    private var hovered = false {
+        didSet { layer?.backgroundColor = hovered ? NSColor.selectedContentBackgroundColor.cgColor : nil }
+    }
+
+    init() {
+        super.init(frame: NSRect(x: 0, y: 0, width: 240, height: 28))
+        wantsLayer = true
+        layer?.cornerRadius = 5
+        iconView.imageScaling = .scaleNone
+        label.font = .menuFont(ofSize: 0)
+        label.frame = NSRect(x: 42, y: 5, width: 185, height: 18)
+        addSubview(iconView)
+        addSubview(label)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel("Soutenir sur Ko-fi")
+    }
+
+    required init?(coder: NSCoder) { fatalError("non utilisé") }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if trackingAreas.isEmpty {
+            addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self))
+        }
+    }
+    override func mouseEntered(with event: NSEvent) { hovered = true }
+    override func mouseExited(with event: NSEvent) { hovered = false }
+    override func mouseDown(with event: NSEvent) { onClick?() }
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate {
     var statusItem: NSStatusItem?
     var statusMenu: NSMenu?
@@ -312,30 +350,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Ouvrir Google Drive", action: #selector(openDrive), keyEquivalent: ""))
         // Ko-fi en vue dédiée : les NSMenuItem.image ne se rendent pas dans un menu popUp de status item (macOS 26)
-        let kofiRow = NSButton(frame: NSRect(x: 0, y: 0, width: 240, height: 28))
-        kofiRow.isBordered = false
-        kofiRow.imagePosition = .imageLeft
-        kofiRow.imageScaling = .scaleNone
-        kofiRow.alignment = .left
-        kofiRow.imageHugsTitle = true
-        kofiRow.font = .menuFont(ofSize: 0)
-        kofiRow.title = "   Soutenir sur Ko-fi"
-        if let src = Bundle.main.resourcePath.flatMap({ NSImage(contentsOfFile: $0 + "/kofi-logo.png") }) {
-            let baked = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
-                src.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
-                return true
-            }
-            baked.size = NSSize(width: 18, height: 18)
-            baked.isTemplate = false
-            kofiRow.image = baked
-        } else {
-            kofiRow.image = NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Ko-fi")
-        }
-        kofiRow.target = self
-        kofiRow.action = #selector(openKofi)
-        kofiRow.wantsLayer = true
-        kofiRow.layer?.cornerRadius = 6
-        kofiRow.addTrackingArea(NSTrackingArea(rect: kofiRow.bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self, userInfo: ["kofiRow": kofiRow]))
+        let kofiRow = KofiMenuRow()
+        kofiRow.icon = Data(base64Encoded: kofiLogoBase64, options: .ignoreUnknownCharacters)
+            .flatMap { NSImage(data: $0) }
+            ?? NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Ko-fi")
+        kofiRow.onClick = { [weak self] in self?.openKofi() }
         let kofiItem = NSMenuItem()
         kofiItem.view = kofiRow
         menu.addItem(kofiItem)
@@ -357,12 +376,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     }
     @objc func openKofi() {
         NSWorkspace.shared.open(URL(string: "https://ko-fi.com/pouark")!)
-    }
-    func mouseEntered(with event: NSEvent) {
-        (event.trackingArea?.userInfo?["kofiRow"] as? NSButton)?.layer?.backgroundColor = NSColor.selectedContentBackgroundColor.cgColor
-    }
-    func mouseExited(with event: NSEvent) {
-        (event.trackingArea?.userInfo?["kofiRow"] as? NSButton)?.layer?.backgroundColor = nil
     }
 
     private func setupUpdater() {
