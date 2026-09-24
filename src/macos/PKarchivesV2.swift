@@ -311,7 +311,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         menu.addItem(NSMenuItem(title: "Archiver (tout)", action: #selector(quickAll), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Ouvrir Google Drive", action: #selector(openDrive), keyEquivalent: ""))
-        let kofiItem = NSMenuItem(title: "Soutenir sur Ko-fi", action: #selector(openKofi), keyEquivalent: "")
+        // Ko-fi en vue dédiée : les NSMenuItem.image ne se rendent pas dans un menu popUp de status item (macOS 26)
+        let kofiRow = NSButton(frame: NSRect(x: 0, y: 0, width: 240, height: 28))
+        kofiRow.isBordered = false
+        kofiRow.imagePosition = .imageLeft
+        kofiRow.imageScaling = .scaleNone
+        kofiRow.alignment = .left
+        kofiRow.imageHugsTitle = true
+        kofiRow.font = .menuFont(ofSize: 0)
+        kofiRow.title = "   Soutenir sur Ko-fi"
         if let src = Bundle.main.resourcePath.flatMap({ NSImage(contentsOfFile: $0 + "/kofi-logo.png") }) {
             let baked = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
                 src.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
@@ -319,10 +327,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             }
             baked.size = NSSize(width: 18, height: 18)
             baked.isTemplate = false
-            kofiItem.image = baked
+            kofiRow.image = baked
         } else {
-            kofiItem.image = NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Ko-fi")
+            kofiRow.image = NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Ko-fi")
         }
+        kofiRow.target = self
+        kofiRow.action = #selector(openKofi)
+        kofiRow.wantsLayer = true
+        kofiRow.layer?.cornerRadius = 6
+        kofiRow.addTrackingArea(NSTrackingArea(rect: kofiRow.bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self, userInfo: ["kofiRow": kofiRow]))
+        let kofiItem = NSMenuItem()
+        kofiItem.view = kofiRow
         menu.addItem(kofiItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Rechercher les mises à jour…", action: #selector(checkForUpdates), keyEquivalent: "u"))
@@ -342,6 +357,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     }
     @objc func openKofi() {
         NSWorkspace.shared.open(URL(string: "https://ko-fi.com/pouark")!)
+    }
+    func mouseEntered(with event: NSEvent) {
+        (event.trackingArea?.userInfo?["kofiRow"] as? NSButton)?.layer?.backgroundColor = NSColor.selectedContentBackgroundColor.cgColor
+    }
+    func mouseExited(with event: NSEvent) {
+        (event.trackingArea?.userInfo?["kofiRow"] as? NSButton)?.layer?.backgroundColor = nil
     }
 
     private func setupUpdater() {

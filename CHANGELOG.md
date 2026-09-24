@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.19` (icône Ko-fi cuite en raster dans le menu)
+Statut : `2026.09.20` (Ko-fi en vue dédiée dans le menu clic droit)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,10 @@ Statut : `2026.09.19` (icône Ko-fi cuite en raster dans le menu)
 ---
 
 ## Releases
+
+### [2026.09.20] - 2026-09-24
+#### Fixed
+- La ligne « Soutenir sur Ko-fi » du menu clic droit devient une vue dédiée (bouton AppKit avec image cuite 18×18 et survol en surbrillance) : les `NSMenuItem.image` ne se rendent pas dans un menu `popUp` de status item sur macOS 26, une vraie `NSView` s'affiche dans tous les cas.
 
 ### [2026.09.19] - 2026-09-24
 #### Fixed
