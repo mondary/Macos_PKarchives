@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.13` (mise à jour automatique Sparkle)
+Statut : `2026.09.18` (appcast publié, onglet Soutenir, icône Ko-fi robuste)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,42 @@ Statut : `2026.09.13` (mise à jour automatique Sparkle)
 ---
 
 ## Releases
+
+### [2026.09.18] - 2026-09-24
+#### Added
+- Onglet « ❤️ Soutenir » dans le panneau latéral : en-tête cœur, carte Ko-fi avec bouton « Donner », liens GitHub et signalement (calqué sur la page Support de PKwindowsManagement).
+
+#### Fixed
+- Chargement de l'icône Ko-fi du menu clic droit rendu infaillible (repli sur le chemin direct des ressources).
+- L'appcast `appcast.xml` est publié sur `main` : « Rechercher les mises à jour » ne renvoie plus d'erreur.
+
+### [2026.09.17] - 2026-09-24
+#### Added
+- Le menu clic droit de l'icône 📦 affiche le numéro de version en en-tête (non cliquable).
+- L'item « Soutenir sur Ko-fi » porte la vraie icône Ko-fi (logo rouge, 16×16).
+
+#### Fixed
+- L'appcast `appcast.xml` existe à la racine du dépôt : Sparkle ne renvoie plus « Update Error » lors de la recherche de mises à jour (la version publiée y est décrite, la recherche répond « à jour » tant qu'aucune release ne dépasse la version installée).
+
+### [2026.09.16] - 2026-09-24
+#### Added
+- Panneau latéral à onglets inspiré de PKwindowsManagement : **Réglages**, **À propos** (icône, version, mot de PK, licence) et **Librairie** (cartes des autres apps PK : PKwindowsManagement, PKbrain, PKMediaDownloader, PKpowerlines, PKmonitor).
+- Carte Ko-fi avec bouton « Donner » dans l'onglet À propos.
+- Item « Soutenir sur Ko-fi » toujours présent dans le menu clic droit de l'icône menu bar 📦.
+
+### [2026.09.15] - 2026-09-24
+#### Fixed
+- L'icône 📦 réapparaît dans la barre des menus macOS : le `NSStatusItem` était déclaré mais jamais créé, l'application pouvait tourner de façon invisible (ni Dock, ni cmd-tab, ni menu bar).
+- La barre d'actions du bas (Fichiers / Fichiers + dossiers, Historique, Archiver les éléments) est fixée en bas de fenêtre : plus besoin de faire défiler la liste pour archiver.
+
+### [2026.09.14] - 2026-09-24
+#### Fixed
+- L'arborescence des dossiers du Bureau est préservée lors de l'archivage : chaque dossier part vers Drive avec ses sous-dossiers (`Dossier/sous-dossier/fichier`) au lieu d'être aplati à la racine du mois.
+- Plus de lien symbolique `DesktopArchive` laissé sur le Bureau après le montage du Drive.
+- Historique lisible : échelle adaptée et journal coloré remonté en haut.
+
+#### Changed
+- Interface v2 : style keeby sobre et friendly, CTA orange visible.
 
 ### [2026.09.13] - 2026-09-10
 #### Added
