@@ -293,17 +293,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupUpdater()
-        if let button = statusItem?.button {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = item.button {
             button.title = "📦"
             button.action = #selector(statusClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+        statusItem = item
         let menu = NSMenu()
+        let versionString = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "?"
+        let versionItem = NSMenuItem(title: "Version " + versionString, action: nil, keyEquivalent: "")
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Ouvrir PKarchives", action: #selector(showWindow), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Archiver (fichiers)", action: #selector(quickFiles), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Archiver (tout)", action: #selector(quickAll), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Ouvrir Google Drive", action: #selector(openDrive), keyEquivalent: ""))
+        let kofiItem = NSMenuItem(title: "Soutenir sur Ko-fi", action: #selector(openKofi), keyEquivalent: "")
+        let kofiImage = NSImage(named: "kofi-logo")
+            ?? Bundle.main.resourcePath.flatMap { NSImage(contentsOfFile: $0 + "/kofi-logo.png") }
+        if let kofi = kofiImage {
+            kofi.size = NSSize(width: 16, height: 16)
+            kofiItem.image = kofi
+        }
+        menu.addItem(kofiItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Rechercher les mises à jour…", action: #selector(checkForUpdates), keyEquivalent: "u"))
         menu.addItem(NSMenuItem(title: "Quitter", action: #selector(quitApp), keyEquivalent: "q"))
@@ -319,6 +334,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     }
     @objc func checkForUpdates() {
         updaterController?.checkForUpdates(nil)
+    }
+    @objc func openKofi() {
+        NSWorkspace.shared.open(URL(string: "https://ko-fi.com/pouark")!)
     }
 
     private func setupUpdater() {

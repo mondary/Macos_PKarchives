@@ -599,7 +599,7 @@ struct ContentView: View {
                 let data = handle.availableData
                 if data.isEmpty { break }
                 if let str = String(data: data, encoding: .utf8) {
-                    DispatchQueue.main.async { output += stripAnsi(str) }
+                    DispatchQueue.main.async { self.output += stripAnsi(str) }
                 }
             }
         }
@@ -610,7 +610,7 @@ struct ContentView: View {
                 let data = handle.availableData
                 if data.isEmpty { break }
                 if let str = String(data: data, encoding: .utf8) {
-                    DispatchQueue.main.async { output += stripAnsi(str) }
+                    DispatchQueue.main.async { self.output += stripAnsi(str) }
                 }
             }
         }

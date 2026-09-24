@@ -22,9 +22,11 @@ fi
 MACOS_APP_DIR="${DIR}/release/macos/PKarchives.app/Contents"
 CLI_RELEASE_DIR="${DIR}/release/cli"
 
-echo "🔨 Compilation..."
+(
+  set -e
+  echo "🔨 Compilation..."
 
-swiftc "${DIR}/src/macos/PKarchives.swift" \
+  swiftc "${DIR}/src/macos/PKarchives.swift" \
   -parse-as-library \
   -o PKarchives \
   -framework SwiftUI \
@@ -80,13 +82,15 @@ cat > "${MACOS_APP_DIR}/Info.plist" << EOF
 </plist>
 EOF
 
-if command -v go >/dev/null 2>&1; then
-  echo "🔨 Compilation CLI..."
-  (cd "${DIR}/src/cli" && go build -o "${CLI_RELEASE_DIR}/pkarchives" .)
-fi
-
 rm -f PKarchives
 echo "✅ ${DIR}/release/macos/PKarchives.app"
+) || echo "⚠️ v1 ignorée (CLT Swift 6.4 sans plugin macro SwiftUI) — seule la v2 est générée"
+
+if command -v go >/dev/null 2>&1; then
+  echo "🔨 Compilation CLI..."
+  mkdir -p "${CLI_RELEASE_DIR}"
+  (cd "${DIR}/src/cli" && go build -o "${CLI_RELEASE_DIR}/pkarchives" .)
+fi
 
 # --- v2 : interface moderne WKWebView ---
 echo "🔨 Compilation v2 (WKWebView + Sparkle)..."
@@ -107,6 +111,7 @@ cp PKarchives2 "${V2_APP_DIR}/MacOS/PKarchives"
 cp "${DIR}/src/shared/archive.sh" "${V2_APP_DIR}/MacOS/"
 cp "${DIR}/src/shared/archive.sh" "${V2_APP_DIR}/Resources/"
 cp "${DIR}/src/macos/v2/web/index.html" "${DIR}/src/macos/v2/web/app.js" "${DIR}/icon.png" "${DIR}/src/macos/v2/web/logo-drive.svg" "${DIR}/src/macos/v2/web/logo-finder.png" "${V2_APP_DIR}/Resources/web/"
+cp "${DIR}/src/macos/Resources/kofi-logo.png" "${V2_APP_DIR}/Resources/"
 V2_VERSION="$(tr -d '\n' < "${DIR}/VERSION")"
 sed -i '' "s/__VERSION__/${V2_VERSION}/g" "${V2_APP_DIR}/Resources/web/index.html"
 chmod +x "${V2_APP_DIR}/MacOS/"*
