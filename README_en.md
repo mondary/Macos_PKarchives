@@ -100,5 +100,7 @@ After archiving, Google Drive is mounted at `~/DesktopArchive` and a `DesktopArc
 
 ## 🔗 Links
 
+- [Ultra Crea 2 landing page](store/ultracrea2/index.html) · [Ultra Crea 3 landing page (teal)](store/ultracrea3/index.html) · [product film](store/videos/ultracrea2-promo.mp4)
 - [Google Drive](https://drive.google.com)
 - [rclone](https://rclone.org/)
+- ❤️ Support this project on [Ko-fi](https://ko-fi.com/pouark)

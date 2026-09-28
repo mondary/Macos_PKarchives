@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.23` (icône Ko-fi cuite en bitmap 16pt)
+Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -22,6 +22,16 @@ Statut : `2026.09.23` (icône Ko-fi cuite en bitmap 16pt)
 ---
 
 ## Releases
+
+### [2026.09.25] - 2026-09-28
+#### Added
+- Landing `store/ultracrea3/` : structure Ultra Crea complète (démo interactive fidèle incluse), hero sur le fond d'écran fourni et palette intégralement teal dérivée de ce fond (accent menthe, encres menthe, papiers teal) — aucune couleur crépuscule. Couleurs sémantiques (Drive, Finder, Ko-fi) conservées.
+
+### [2026.09.24] - 2026-09-28
+#### Added
+- Landing alternative `store/ultracrea2/` : thème turquoise et ambre basé sur le visuel fourni, transitions et parallaxe, sections épurées, version FR/EN.
+- Démo interactive guidée par le bouton « Archiver les éléments », avec archivage simulé, échec conservé, mode dossiers et historique.
+- Nouveau film 16:9 de 18 secondes et ses sources de montage, intégré à la landing.
 
 ### [2026.09.23] - 2026-09-24
 #### Fixed
