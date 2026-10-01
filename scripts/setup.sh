@@ -24,6 +24,11 @@ set -uo pipefail
 DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
 [ -z "$DIR" ] && DIR="$(pwd)"
 
+# Le script vit dans scripts/ — remonter d'un niveau si on est dans le repo
+if [ -f "${DIR}/../src/shared/archive.sh" ]; then
+  DIR="$(cd "${DIR}/.." && pwd)"
+fi
+
 # En mode curl|sh (_pkarch_reexec est défini), on clone le repo
 if [ -n "${_pkarch_reexec:-}" ]; then
   _INSTALL_DIR="${TMPDIR:-/tmp}/pkarchives-install-$$"
@@ -314,9 +319,9 @@ else
 fi
 
 # Step 3: Build the app
-if [ -f "$DIR/build.sh" ]; then
+if [ -f "$DIR/scripts/build.sh" ]; then
   (
-    cd "$DIR" && bash build.sh
+    cd "$DIR" && bash scripts/build.sh
   ) >/tmp/pkarch_build_$$.log 2>&1 &
   if spin $! "Building PKarchives.app (compiling Swift…)"; then
     ok "App compiled successfully"
@@ -328,7 +333,7 @@ if [ -f "$DIR/build.sh" ]; then
   fi
   rm -f /tmp/pkarch_build_$$.log
 else
-  pending "build.sh not found, skipping compilation"
+  pending "scripts/build.sh not found, skipping compilation"
 fi
 
 # ═══════════════════════════════════════════════════════════

@@ -5,14 +5,17 @@
 #   3. Génération de appcast.xml (lu par les apps pour détecter les MAJ)
 #   4. Publication : commit de l'appcast + GitHub Release
 #
-# Usage : ./.github/scripts/release.sh            (version lue depuis VERSION)
-#         ./.github/scripts/release.sh 2026.10.01 (version explicite)
+# Usage : ./.github/scripts/release.sh             (version lue depuis CHANGELOG.md)
+#         ./.github/scripts/release.sh 2026.10.01  (version explicite)
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$DIR"
 
-VERSION="${1:-$(tr -d '\n' < VERSION)}"
+VERSION="${1:-$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' CHANGELOG.md | head -1)}"
+if [[ -z "${VERSION}" ]]; then
+  echo "❌ Version introuvable dans CHANGELOG.md" >&2; exit 1
+fi
 ZIP_NAME="PKarchives2-${VERSION}.zip"
 BUILD_DIR="release"
 APP="release/macos/PKarchives2.app"
@@ -23,7 +26,7 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 echo "🔨 Build v${VERSION}..."
-./build.sh
+./scripts/build.sh
 
 echo "📦 Zip..."
 mkdir -p "${BUILD_DIR}"

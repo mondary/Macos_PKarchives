@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Toujours exécuter depuis la racine du repo
+cd "$(cd "$(dirname "$0")/.." && pwd)"
+
 echo "🧪 PKarchives — Mode Sandbox"
 echo ""
 echo "Ce mode te permet de tester setup.sh comme un nouveau user,"

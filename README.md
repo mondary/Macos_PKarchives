@@ -40,7 +40,7 @@ release/
 ### Premier setup (automatisé)
 
 ```bash
-./setup.sh
+./scripts/setup.sh
 ```
 
 Le script interactif vous guide pour :
@@ -71,7 +71,7 @@ open release/macos/PKarchives.app
 
 ## ⚙️ Configuration
 
-La configuration est générée automatiquement par `setup.sh` dans `secrets/.env`.
+La configuration est générée automatiquement par `scripts/setup.sh` dans `secrets/.env`.
 
 ### Variables disponibles
 
@@ -94,7 +94,7 @@ Le Drive est monté dans `~/DesktopArchive` (volume Finder « DesktopArchive »,
 ## 📦 Build
 
 ```bash
-./build.sh
+./scripts/build.sh
 ```
 
 ## 📋 Voir le [CHANGELOG](CHANGELOG.md) pour l'historique complet

@@ -23,6 +23,13 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.2] - 2026-10-01
+#### Changed
+- Racine du dépôt allégée : `build.sh`, `setup.sh` et `sandbox.sh` déplacés dans `scripts/` (README FR/EN et workflow GitHub mis à jour). La racine ne conserve que `CHANGELOG.md`, `README.md`, `README_en.md`, `ROADMAP.md`, `icon.png` et `appcast.xml` (requis à la racine : URL du feed Sparkle).
+#### Removed
+- Fichier `VERSION` : la version vit uniquement dans `CHANGELOG.md` (dernier en-tête versionné), lu par `scripts/build.sh` et le script de release.
+- `image.png` (non référencé) et `.DS_Store` traqués (`.github/.DS_Store` désuivé, `**/.DS_Store` ré-ignoré après les ré-inclusions `.github`).
+
 ### [2026.10.1] - 2026-10-01
 #### Added
 - Montage automatique du Drive au lancement de l'app (désactivable via `PKARCHIVES_AUTO_MOUNT=0`), en plus du montage post-archivage existant.

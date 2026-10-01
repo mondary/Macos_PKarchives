@@ -4,10 +4,19 @@ set -euo pipefail
 
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "${DIR}/.." && pwd)"
+
+# Version : source de vérité = dernier en-tête versionné de CHANGELOG.md
+APP_VERSION="$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' "${ROOT}/CHANGELOG.md" | head -1)"
+if [[ -z "${APP_VERSION}" ]]; then
+  echo "❌ Version introuvable dans CHANGELOG.md (en-tête '### [YYYY.MM.PATCH]')" >&2
+  exit 1
+fi
+echo "🔖 Version ${APP_VERSION}"
 
 SPARKLE_VERSION="2.9.6"
 SPARKLE_SHA256="52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192"
-SPARKLE_DIR="${DIR}/release/sparkle"
+SPARKLE_DIR="${ROOT}/release/sparkle"
 
 if [[ ! -f "${SPARKLE_DIR}/Sparkle.framework/Sparkle" || ! -x "${SPARKLE_DIR}/bin/sign_update" ]]; then
   echo "⬇️  Téléchargement Sparkle ${SPARKLE_VERSION}..."
@@ -19,14 +28,14 @@ if [[ ! -f "${SPARKLE_DIR}/Sparkle.framework/Sparkle" || ! -x "${SPARKLE_DIR}/bi
   rm -f "${SPARKLE_DIR}/Sparkle.tar.xz"
 fi
 
-MACOS_APP_DIR="${DIR}/release/macos/PKarchives.app/Contents"
-CLI_RELEASE_DIR="${DIR}/release/cli"
+MACOS_APP_DIR="${ROOT}/release/macos/PKarchives.app/Contents"
+CLI_RELEASE_DIR="${ROOT}/release/cli"
 
 (
   set -e
   echo "🔨 Compilation..."
 
-  swiftc "${DIR}/src/macos/PKarchives.swift" \
+  swiftc "${ROOT}/src/macos/PKarchives.swift" \
   -parse-as-library \
   -o PKarchives \
   -framework SwiftUI \
@@ -35,18 +44,18 @@ CLI_RELEASE_DIR="${DIR}/release/cli"
 mkdir -p "${MACOS_APP_DIR}/MacOS" "${MACOS_APP_DIR}/Resources" "${CLI_RELEASE_DIR}"
 
 cp PKarchives "${MACOS_APP_DIR}/MacOS/"
-cp "${DIR}/src/shared/archive.sh" "${MACOS_APP_DIR}/MacOS/"
-cp "${DIR}/src/shared/archive.sh" "${MACOS_APP_DIR}/Resources/"
+cp "${ROOT}/src/shared/archive.sh" "${MACOS_APP_DIR}/MacOS/"
+cp "${ROOT}/src/shared/archive.sh" "${MACOS_APP_DIR}/Resources/"
 chmod +x "${MACOS_APP_DIR}/MacOS/"*
 
 # --- Icône app (.icns) générée depuis icon.png ---
-if [[ -f "${DIR}/icon.png" ]]; then
+if [[ -f "${ROOT}/icon.png" ]]; then
   ICONSET="$(mktemp -d)/AppIcon.iconset"
   mkdir -p "${ICONSET}"
   for sz in 16 32 128 256 512; do
-    sips -z "${sz}" "${sz}" "${DIR}/icon.png" --out "${ICONSET}/icon_${sz}x${sz}.png" >/dev/null
+    sips -z "${sz}" "${sz}" "${ROOT}/icon.png" --out "${ICONSET}/icon_${sz}x${sz}.png" >/dev/null
     d=$((sz * 2))
-    sips -z "${d}" "${d}" "${DIR}/icon.png" --out "${ICONSET}/icon_${sz}x${sz}@2x.png" >/dev/null
+    sips -z "${d}" "${d}" "${ROOT}/icon.png" --out "${ICONSET}/icon_${sz}x${sz}@2x.png" >/dev/null
   done
   iconutil -c icns "${ICONSET}" -o "${MACOS_APP_DIR}/Resources/AppIcon.icns"
 fi
@@ -67,9 +76,9 @@ cat > "${MACOS_APP_DIR}/Info.plist" << EOF
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>$(cat "${DIR}/VERSION")</string>
+    <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>$(cat "${DIR}/VERSION")</string>
+    <string>${APP_VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
@@ -83,18 +92,18 @@ cat > "${MACOS_APP_DIR}/Info.plist" << EOF
 EOF
 
 rm -f PKarchives
-echo "✅ ${DIR}/release/macos/PKarchives.app"
+echo "✅ ${ROOT}/release/macos/PKarchives.app"
 ) || echo "⚠️ v1 ignorée (CLT Swift 6.4 sans plugin macro SwiftUI) — seule la v2 est générée"
 
 if command -v go >/dev/null 2>&1; then
   echo "🔨 Compilation CLI..."
   mkdir -p "${CLI_RELEASE_DIR}"
-  (cd "${DIR}/src/cli" && go build -o "${CLI_RELEASE_DIR}/pkarchives" .)
+  (cd "${ROOT}/src/cli" && go build -o "${CLI_RELEASE_DIR}/pkarchives" .)
 fi
 
 # --- v2 : interface moderne WKWebView ---
 echo "🔨 Compilation v2 (WKWebView + Sparkle)..."
-swiftc "${DIR}/src/macos/PKarchivesV2.swift" "${DIR}/src/macos/KofiLogo.swift" \
+swiftc "${ROOT}/src/macos/PKarchivesV2.swift" "${ROOT}/src/macos/KofiLogo.swift" \
   -F "${SPARKLE_DIR}" \
   -parse-as-library \
   -o PKarchives2 \
@@ -105,13 +114,13 @@ swiftc "${DIR}/src/macos/PKarchivesV2.swift" "${DIR}/src/macos/KofiLogo.swift" \
   -framework Sparkle \
   -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
 
-V2_APP_DIR="${DIR}/release/macos/PKarchives2.app/Contents"
+V2_APP_DIR="${ROOT}/release/macos/PKarchives2.app/Contents"
 mkdir -p "${V2_APP_DIR}/MacOS" "${V2_APP_DIR}/Resources/web"
 cp PKarchives2 "${V2_APP_DIR}/MacOS/PKarchives"
-cp "${DIR}/src/shared/archive.sh" "${V2_APP_DIR}/MacOS/"
-cp "${DIR}/src/shared/archive.sh" "${V2_APP_DIR}/Resources/"
-cp "${DIR}/src/macos/v2/web/index.html" "${DIR}/src/macos/v2/web/app.js" "${DIR}/icon.png" "${DIR}/src/macos/v2/web/logo-drive.svg" "${DIR}/src/macos/v2/web/logo-finder.png" "${V2_APP_DIR}/Resources/web/"
-V2_VERSION="$(tr -d '\n' < "${DIR}/VERSION")"
+cp "${ROOT}/src/shared/archive.sh" "${V2_APP_DIR}/MacOS/"
+cp "${ROOT}/src/shared/archive.sh" "${V2_APP_DIR}/Resources/"
+cp "${ROOT}/src/macos/v2/web/index.html" "${ROOT}/src/macos/v2/web/app.js" "${ROOT}/icon.png" "${ROOT}/src/macos/v2/web/logo-drive.svg" "${ROOT}/src/macos/v2/web/logo-finder.png" "${V2_APP_DIR}/Resources/web/"
+V2_VERSION="${APP_VERSION}"
 sed -i '' "s/__VERSION__/${V2_VERSION}/g" "${V2_APP_DIR}/Resources/web/index.html"
 chmod +x "${V2_APP_DIR}/MacOS/"*
 mkdir -p "${V2_APP_DIR}/Frameworks"
@@ -139,9 +148,9 @@ cat > "${V2_APP_DIR}/Info.plist" << EOF
     <key>SUEnableAutomaticChecks</key>
     <true/>
     <key>CFBundleShortVersionString</key>
-    <string>$(cat "${DIR}/VERSION")</string>
+    <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>$(cat "${DIR}/VERSION")</string>
+    <string>${APP_VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
@@ -158,6 +167,6 @@ if [[ -f "${MACOS_APP_DIR}/Resources/AppIcon.icns" ]]; then
   cp "${MACOS_APP_DIR}/Resources/AppIcon.icns" "${V2_APP_DIR}/Resources/AppIcon.icns"
 fi
 
-codesign --force --deep --sign - "${DIR}/release/macos/PKarchives2.app"
+codesign --force --deep --sign - "${ROOT}/release/macos/PKarchives2.app"
 rm -f PKarchives2
-echo "✅ ${DIR}/release/macos/PKarchives2.app"
+echo "✅ ${ROOT}/release/macos/PKarchives2.app"

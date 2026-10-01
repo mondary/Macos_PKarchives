@@ -59,3 +59,7 @@ Thumbs.db
 !.github/**
 !.gitignore
 .inspi
+
+# OS — ré-après les ré-inclusions ci-dessus (sinon .github/.DS_Store repasse)
+.DS_Store
+**/.DS_Store
