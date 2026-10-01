@@ -20,7 +20,7 @@ ffmpeg -hide_banner -loglevel error -y \
     [x2][v3]xfade=transition=fadeblack:duration=0.5:offset=10.5[x3];\
     [x3][v4]xfade=transition=fadeblack:duration=0.5:offset=14[out]" \
   -map '[out]' -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p \
-  -movflags +faststart "$here/../videos/ultracrea2-promo.mp4"
+  -movflags +faststart "$here/../../../media/ultracrea2-promo.mp4"
 
 ffprobe -v error -show_entries format=duration,size:stream=width,height \
-  -of default=noprint_wrappers=1 "$here/../videos/ultracrea2-promo.mp4"
+  -of default=noprint_wrappers=1 "$here/../../../media/ultracrea2-promo.mp4"

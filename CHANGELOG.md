@@ -23,6 +23,12 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.9] - 2026-10-01
+#### Changed
+- `store/archive/site/` devient le conservatoire des versions web : `ultracrea/` et `ultracrea2/` (avec son pipeline de film) vivent désormais dedans, aux côtés des pages du site. Toutes les captures regroupées dans `store/archive/screenshots/` (y compris les captures multi-projets). `media-kit/` conservé.
+#### Fixed
+- Références réparées sur toutes les pages archivées (site, 404, privacy, terms, ultracrea2, pipeline de rendu) : icône, gif et captures pointent vers les emplacements réels, gifs d'archive restaurés — vérifié par script, chaque cible existe.
+
 ### [2026.10.8] - 2026-10-01
 #### Fixed
 - Restauration complète du contenu supprimé par erreur dans `store/` à la 2026.10.7 : anciennes landings, brouillon `site/`, `media-kit/`, gifs et vidéos non référencés, captures et cartes sociales — tout vit désormais dans `store/archive/` (cartes actives dans `store/media/`). Vérification exhaustive : chaque fichier de la 2026.10.6 a son équivalent, zéro perte.
