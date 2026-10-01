@@ -9,6 +9,7 @@ PKarchives/
 ├── README.md                 ← ce fichier
 └── media/
     ├── background.jpg        ← fond du hero (copie déployable)
+    ├── film-poster.jpg       ← affiche du film (attribut poster de la vidéo)
     └── ultracrea2-promo.mp4  ← film de présentation (copie déployable)
 ```
 

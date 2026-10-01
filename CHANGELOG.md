@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.20] - 2026-10-01
+#### Fixed
+- `film-poster.jpg` ajouté au bundle `website/PKarchives/media/` : l'affiche du film (attribut `poster`) manquait au dossier déployable.
+
 ### [2026.10.19] - 2026-10-01
 #### Changed
 - La landing vit désormais dans `website/PKarchives/` à la racine : dossier unique suivi par git, à la fois source et bundle FTP déployable (upload = envoyer le dossier `PKarchives/`). Suppression de `store/index.html` et de `scripts/website.sh`, fin de l'ignore git. Convention `website/<NomDuProjet>/` consignée dans la skill `premium-promo-media`.
