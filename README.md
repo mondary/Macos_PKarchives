@@ -1,18 +1,18 @@
 # PKarchives
 
-![PKarchives — Un Bureau toujours net](store/assets/banner-1544x500.png)
+![PKarchives — Un Bureau toujours net](store/media/banner-1544x500.png)
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version : 2026.10.6** · [Changelog](CHANGELOG.md)
+**Version : 2026.10.7** · [Changelog](CHANGELOG.md)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
-![Vue principale : le Bureau archivé vers Google Drive](store/screenshots/01-promo-vue-principale.png)
+![Vue principale : le Bureau archivé vers Google Drive](store/media/01-promo-vue-principale.png)
 
-![Historique annuel des archivages](store/screenshots/02-promo-historique-annuel.png)
+![Historique annuel des archivages](store/media/02-promo-historique-annuel.png)
 
-![Démonstration animée de PKarchives](store/gifs/apple-style/03-interface-dynamic.gif)
+![Démonstration animée de PKarchives](store/media/03-interface-dynamic.gif)
 
 ## Structure
 
@@ -103,7 +103,7 @@ Le Drive est monté dans `~/DesktopArchive` (volume Finder « DesktopArchive »,
 
 ## 🔗 Liens
 
-- [Landing](store/index.html) · [film de présentation](store/videos/ultracrea2-promo.mp4) · [anciennes versions](store/archive)
+- [Landing](store/index.html) · [film de présentation](store/media/ultracrea2-promo.mp4)
 - [Google Drive](https://drive.google.com)
 - [rclone](https://rclone.org/)
 - ❤️ Soutenir ce projet sur [Ko-fi](https://ko-fi.com/pouark)

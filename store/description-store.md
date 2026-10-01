@@ -1,7 +1,7 @@
 # PKarchives — Dossier du store
 
 Matériel de présentation de l'application.
-Captures : `store/screenshots/` (données de démo, desktop).
+Captures : `store/media/` (données de démo, desktop).
 
 ---
 

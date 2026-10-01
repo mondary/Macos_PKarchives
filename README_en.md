@@ -1,18 +1,18 @@
 # PKarchives
 
-![PKarchives — A consistently clean Desktop](store/assets/banner-1544x500.png)
+![PKarchives — A consistently clean Desktop](store/media/banner-1544x500.png)
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version: 2026.10.6** · [Changelog](CHANGELOG.md)
+**Version: 2026.10.7** · [Changelog](CHANGELOG.md)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
-![Main view: Desktop archived to Google Drive](store/screenshots/01-promo-vue-principale.png)
+![Main view: Desktop archived to Google Drive](store/media/01-promo-vue-principale.png)
 
-![Yearly archiving history](store/screenshots/02-promo-historique-annuel.png)
+![Yearly archiving history](store/media/02-promo-historique-annuel.png)
 
-![Animated PKarchives demonstration](store/gifs/apple-style/03-interface-dynamic.gif)
+![Animated PKarchives demonstration](store/media/03-interface-dynamic.gif)
 
 ## Structure
 
@@ -103,7 +103,7 @@ The Drive is mounted at `~/DesktopArchive` (Finder volume “DesktopArchive”, 
 
 ## 🔗 Links
 
-- [Landing page](store/index.html) · [product film](store/videos/ultracrea2-promo.mp4) · [previous versions](store/archive)
+- [Landing page](store/index.html) · [product film](store/media/ultracrea2-promo.mp4)
 - [Google Drive](https://drive.google.com)
 - [rclone](https://rclone.org/)
 - ❤️ Support this project on [Ko-fi](https://ko-fi.com/pouark)

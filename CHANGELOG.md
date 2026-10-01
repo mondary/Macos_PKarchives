@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.7] - 2026-10-01
+#### Changed
+- `store/` réduit à l'essentiel : la landing `store/index.html`, sa description `store/description-store.md` et un unique dossier `store/media/` (banner, fond, affiche, captures, gif, film). Suppression réelle des anciennes landing archivées, du mini-site `site/` (brouillon FR non déployé, doublon d'index) et des variantes médias non référencées — récupérables via l'historique git si besoin.
+
 ### [2026.10.6] - 2026-10-01
 #### Changed
 - Refacto de `store/` : la landing Ultra Crea 3 (version courante) est promue `store/index.html` (média dans `store/assets/`), les générations précédentes (`ultracrea/`, `ultracrea2/` et son pipeline de film) et les captures multi-projets non référencées sont déplacées dans `store/archive/`. Liens des README FR/EN actualisés.
