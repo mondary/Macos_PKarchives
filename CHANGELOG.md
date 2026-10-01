@@ -23,6 +23,13 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.10] - 2026-10-01
+#### Changed
+- Landings archivées simplifiées : `v1.html`, `v2.html` et `v3.html` directement dans `store/archive/site/`; assets et pipeline V2 rangés dans `store/archive/media-kit/ultracrea2-film/`.
+- Variantes vidéo conservées déplacées dans `store/archive/screenshots/` à la demande ; les GIF et vidéos déjà supprimés par l'utilisateur restent supprimés. Suppression des pages 404/privacy/terms demandée.
+#### Fixed
+- Chemins médias de V2 réparés et liens supprimés vers privacy/terms retirés de V3 ; chemins locaux des pages vérifiés.
+
 ### [2026.10.9] - 2026-10-01
 #### Changed
 - `store/archive/site/` devient le conservatoire des versions web : `ultracrea/` et `ultracrea2/` (avec son pipeline de film) vivent désormais dedans, aux côtés des pages du site. Toutes les captures regroupées dans `store/archive/screenshots/` (y compris les captures multi-projets). `media-kit/` conservé.
