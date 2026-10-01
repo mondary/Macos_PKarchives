@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Project version: 2026.10.18** · Available app: 2026.10.12 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.10.19** · Available app: 2026.10.12 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -117,7 +117,7 @@ PKarchives is distributed under the [MIT License](LICENSE), which permits commer
 
 ## 🔗 Links
 
-- [Landing page](store/index.html) · [product film](store/media/ultracrea2-promo.mp4) · [previous versions](store/archive)
+- [Landing page](website/PKarchives/index.html) · [product film](store/media/ultracrea2-promo.mp4) · [previous versions](store/archive)
 - [Google Drive](https://drive.google.com)
 - [rclone](https://rclone.org/)
 - ❤️ Support this project on [Ko-fi](https://ko-fi.com/pouark)

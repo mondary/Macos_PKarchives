@@ -1,11 +1,8 @@
 # Build artifacts
-PKarchives
+/PKarchives
 *.o
 release/
 *.app/
-
-# Bundle de déploiement FTP (généré par scripts/website.sh)
-store/website/
 
 # Dependencies
 node_modules/
