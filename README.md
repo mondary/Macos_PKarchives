@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version : 2026.10.5** · [Changelog](CHANGELOG.md)
+**Version : 2026.10.6** · [Changelog](CHANGELOG.md)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
@@ -103,7 +103,7 @@ Le Drive est monté dans `~/DesktopArchive` (volume Finder « DesktopArchive »,
 
 ## 🔗 Liens
 
-- [Landing Ultra Crea 2](store/ultracrea2/index.html) · [Landing Ultra Crea 3 (teal)](store/ultracrea3/index.html) · [film de présentation](store/videos/ultracrea2-promo.mp4)
+- [Landing](store/index.html) · [film de présentation](store/videos/ultracrea2-promo.mp4) · [anciennes versions](store/archive)
 - [Google Drive](https://drive.google.com)
 - [rclone](https://rclone.org/)
 - ❤️ Soutenir ce projet sur [Ko-fi](https://ko-fi.com/pouark)

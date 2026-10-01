@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.6] - 2026-10-01
+#### Changed
+- Refacto de `store/` : la landing Ultra Crea 3 (version courante) est promue `store/index.html` (média dans `store/assets/`), les générations précédentes (`ultracrea/`, `ultracrea2/` et son pipeline de film) et les captures multi-projets non référencées sont déplacées dans `store/archive/`. Liens des README FR/EN actualisés.
+
 ### [2026.10.5] - 2026-10-01
 #### Changed
 - Bandeau des README FR/EN : ligne de version synchronisée avec le CHANGELOG et lien direct vers celui-ci.
