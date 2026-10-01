@@ -23,6 +23,14 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.12] - 2026-10-01
+#### Changed
+- Landing `store/index.html` : flèche dessinée persistante vers le menu 📦, téléchargement direct du DMG et installateur `.pkg` en double-clic ; commandes `brew` / `curl` copiables.
+- Pipeline de release versionnée pour DMG et installateur `.pkg` Apple Silicon ; le cask Homebrew sera publié avec le SHA-256 du DMG final.
+- Licence MIT déclarée dans `LICENSE` à la racine et dans les README FR/EN. Le feed Sparkle invalide (signature placeholder, taille nulle) est neutralisé ; aucune mise à jour Sparkle n'est annoncée sans ZIP EdDSA signé.
+#### Fixed
+- Les boutons DMG et `.pkg` vérifient les assets GitHub réels, tandis que les commandes de `curl` et Homebrew sont copiables.
+
 ### [2026.10.10] - 2026-10-01
 #### Changed
 - Landings archivées simplifiées : `v1.html`, `v2.html` et `v3.html` directement dans `store/archive/site/`; assets et pipeline V2 rangés dans `store/archive/media-kit/ultracrea2-film/`.

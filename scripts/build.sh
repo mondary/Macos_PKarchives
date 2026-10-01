@@ -28,7 +28,8 @@ if [[ ! -f "${SPARKLE_DIR}/Sparkle.framework/Sparkle" || ! -x "${SPARKLE_DIR}/bi
   rm -f "${SPARKLE_DIR}/Sparkle.tar.xz"
 fi
 
-MACOS_APP_DIR="${ROOT}/release/macos/PKarchives.app/Contents"
+MACOS_APP_PATH="${ROOT}/release/macos/PKarchives-v1-${APP_VERSION}.app"
+MACOS_APP_DIR="${MACOS_APP_PATH}/Contents"
 CLI_RELEASE_DIR="${ROOT}/release/cli"
 
 (
@@ -92,7 +93,7 @@ cat > "${MACOS_APP_DIR}/Info.plist" << EOF
 EOF
 
 rm -f PKarchives
-echo "✅ ${ROOT}/release/macos/PKarchives.app"
+echo "✅ ${MACOS_APP_PATH}"
 ) || echo "⚠️ v1 ignorée (CLT Swift 6.4 sans plugin macro SwiftUI) — seule la v2 est générée"
 
 if command -v go >/dev/null 2>&1; then
@@ -106,6 +107,7 @@ echo "🔨 Compilation v2 (WKWebView + Sparkle)..."
 swiftc "${ROOT}/src/macos/PKarchivesV2.swift" "${ROOT}/src/macos/KofiLogo.swift" \
   -F "${SPARKLE_DIR}" \
   -parse-as-library \
+  -target arm64-apple-macos14.0 \
   -o PKarchives2 \
   -framework SwiftUI \
   -framework AppKit \
@@ -114,7 +116,8 @@ swiftc "${ROOT}/src/macos/PKarchivesV2.swift" "${ROOT}/src/macos/KofiLogo.swift"
   -framework Sparkle \
   -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
 
-V2_APP_DIR="${ROOT}/release/macos/PKarchives2.app/Contents"
+V2_APP_PATH="${ROOT}/release/macos/PKarchives-${APP_VERSION}.app"
+V2_APP_DIR="${V2_APP_PATH}/Contents"
 mkdir -p "${V2_APP_DIR}/MacOS" "${V2_APP_DIR}/Resources/web"
 cp PKarchives2 "${V2_APP_DIR}/MacOS/PKarchives"
 cp "${ROOT}/src/shared/archive.sh" "${V2_APP_DIR}/MacOS/"
@@ -138,7 +141,7 @@ cat > "${V2_APP_DIR}/Info.plist" << EOF
     <key>CFBundleIdentifier</key>
     <string>com.pkarchives.app2</string>
     <key>CFBundleName</key>
-    <string>PKarchives2</string>
+    <string>PKarchives</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>SUFeedURL</key>
@@ -167,6 +170,6 @@ if [[ -f "${MACOS_APP_DIR}/Resources/AppIcon.icns" ]]; then
   cp "${MACOS_APP_DIR}/Resources/AppIcon.icns" "${V2_APP_DIR}/Resources/AppIcon.icns"
 fi
 
-codesign --force --deep --sign - "${ROOT}/release/macos/PKarchives2.app"
+codesign --force --deep --sign - "${V2_APP_PATH}"
 rm -f PKarchives2
-echo "✅ ${ROOT}/release/macos/PKarchives2.app"
+echo "✅ ${V2_APP_PATH}"

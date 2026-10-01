@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version: 2026.10.10** · [Changelog](CHANGELOG.md)
+**Version: 2026.10.12** · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -23,7 +23,7 @@ src/
 └── shared/      # Shared archive script
 
 release/
-├── macos/       # PKarchives.app
+├── macos/       # PKarchives-<YYYY.MM.PATCH>.app
 └── cli/         # pkarchives binary
 ```
 
@@ -55,8 +55,18 @@ The interactive script guides you through:
 ### Launch the app
 
 ```bash
-open release/macos/PKarchives.app
+APP_VERSION="$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' CHANGELOG.md | head -1)"
+open "release/macos/PKarchives-${APP_VERSION}.app"
 ```
+
+## Installation — Apple Silicon Mac
+
+- **DMG**: [Download PKarchives for Mac](https://github.com/mondary/Macos_PKarchives/releases/latest/download/PKarchives.dmg), then open the DMG and drag the app to Applications.
+- **Direct installer**: [Download the .pkg installer](https://github.com/mondary/Macos_PKarchives/releases/latest/download/PKarchives.pkg), then double-click the file.
+- **Homebrew**: `brew install --cask mondary/tap/pkarchives`
+- **curl**: `curl -fL https://github.com/mondary/Macos_PKarchives/releases/latest/download/PKarchives.pkg -o "$HOME/Downloads/PKarchives.pkg"`
+
+The published build targets Apple Silicon (arm64). The app and installer are not notarized; macOS may ask you to approve the installation and first launch.
 
 ### Launch the CLI/TUI
 
@@ -98,6 +108,10 @@ The Drive is mounted at `~/DesktopArchive` (Finder volume “DesktopArchive”, 
 ```bash
 ./scripts/build.sh
 ```
+
+## License
+
+PKarchives is distributed under the [MIT License](LICENSE), which permits commercial use and redistribution provided the copyright and license notice are retained.
 
 ## 📋 See [CHANGELOG](CHANGELOG.md) for full history
 

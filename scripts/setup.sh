@@ -332,6 +332,7 @@ if [ -f "$DIR/scripts/build.sh" ]; then
     exit 1
   fi
   rm -f /tmp/pkarch_build_$$.log
+  APP_VERSION=$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' "$DIR/CHANGELOG.md" | head -1)
 else
   pending "scripts/build.sh not found, skipping compilation"
 fi
@@ -346,7 +347,7 @@ printf '%b║%b  %b✓  Installation complete!%b                %b║%b\n' "$GRE
 printf '%b╚══════════════════════════════════════════╝%b\n' "$GREEN" "$RST"
 println
 printf '  %bLaunch the app:%b\n' "$GRAY" "$RST"
-printf '    %bopen release/macos/PKarchives.app%b\n' "$CYAN" "$RST"
+printf '    %bopen release/macos/PKarchives-%s.app%b\n' "$CYAN" "$APP_VERSION" "$RST"
 println
 printf '  %bEdit config later:%b\n' "$GRAY" "$RST"
 printf '    %b%s%b\n' "$CYAN" "$ENV_FILE" "$RST"
