@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version : 2026.10.7** · [Changelog](CHANGELOG.md)
+**Version : 2026.10.8** · [Changelog](CHANGELOG.md)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
@@ -103,7 +103,7 @@ Le Drive est monté dans `~/DesktopArchive` (volume Finder « DesktopArchive »,
 
 ## 🔗 Liens
 
-- [Landing](store/index.html) · [film de présentation](store/media/ultracrea2-promo.mp4)
+- [Landing](store/index.html) · [film de présentation](store/media/ultracrea2-promo.mp4) · [anciennes versions](store/archive)
 - [Google Drive](https://drive.google.com)
 - [rclone](https://rclone.org/)
 - ❤️ Soutenir ce projet sur [Ko-fi](https://ko-fi.com/pouark)

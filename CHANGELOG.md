@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.8] - 2026-10-01
+#### Fixed
+- Restauration complète du contenu supprimé par erreur dans `store/` à la 2026.10.7 : anciennes landings, brouillon `site/`, `media-kit/`, gifs et vidéos non référencés, captures et cartes sociales — tout vit désormais dans `store/archive/` (cartes actives dans `store/media/`). Vérification exhaustive : chaque fichier de la 2026.10.6 a son équivalent, zéro perte.
+
 ### [2026.10.7] - 2026-10-01
 #### Changed
 - `store/` réduit à l'essentiel : la landing `store/index.html`, sa description `store/description-store.md` et un unique dossier `store/media/` (banner, fond, affiche, captures, gif, film). Suppression réelle des anciennes landing archivées, du mini-site `site/` (brouillon FR non déployé, doublon d'index) et des variantes médias non référencées — récupérables via l'historique git si besoin.

@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version: 2026.10.7** · [Changelog](CHANGELOG.md)
+**Version: 2026.10.8** · [Changelog](CHANGELOG.md)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -103,7 +103,7 @@ The Drive is mounted at `~/DesktopArchive` (Finder volume “DesktopArchive”, 
 
 ## 🔗 Links
 
-- [Landing page](store/index.html) · [product film](store/media/ultracrea2-promo.mp4)
+- [Landing page](store/index.html) · [product film](store/media/ultracrea2-promo.mp4) · [previous versions](store/archive)
 - [Google Drive](https://drive.google.com)
 - [rclone](https://rclone.org/)
 - ❤️ Support this project on [Ko-fi](https://ko-fi.com/pouark)
