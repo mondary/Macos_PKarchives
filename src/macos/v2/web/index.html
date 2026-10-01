@@ -56,6 +56,18 @@ button,input{font:inherit}button{cursor:pointer;border:0;background:none;color:i
 .arrow .line:after{content:"";position:absolute;right:0;top:-4px;border-left:8px solid #b5b5b5;border-top:4px solid transparent;border-bottom:4px solid transparent}
 .arrow small{display:block;margin-top:8px;font:800 9px var(--sans);letter-spacing:.12em;color:#a0a0a0}
 
+/* Barre de progression centrale (archivage en cours) */
+.runbar{display:none;align-items:center;gap:18px;margin:-6px 0 22px;padding:16px 22px;border:1px solid #fff;border-radius:20px;background:rgba(255,255,255,.92);box-shadow:var(--shadow)}
+.runbar.on{display:flex;animation:arrive .3s var(--ease)}
+.rq{display:flex;align-items:baseline;gap:6px;flex:none}
+.rq b{font-family:var(--display);font-size:26px;font-weight:900;letter-spacing:-1px;color:var(--ink)}
+.rq span{font:700 12px var(--sans);color:var(--muted)}
+.rmain{min-width:0;flex:1}
+.rname{font:650 13.5px var(--sans);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:8px}
+.rtrack{height:8px;border-radius:99px;background:#ececec;overflow:hidden}
+.rtrack i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#ffab53,var(--accent));transition:width .3s var(--ease)}
+.rpct{flex:none;font:800 15px var(--mono);color:#c96a00;min-width:52px;text-align:right}
+
 /* Boutons lien (Finder / Drive / Monter) */
 .link-btn{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 11px;font:650 10px var(--sans);color:#4a4a4a;background:#f1f1f1;vertical-align:middle;margin-left:8px;transition:background .2s,transform .2s var(--ease)}
 .link-btn:hover{background:#e7e7e7;transform:translateY(-1px)}
@@ -197,6 +209,9 @@ button,input{font:inherit}button{cursor:pointer;border:0;background:none;color:i
 
 @media(max-width:760px){
   #app{padding:18px}
+  .runbar{gap:12px;padding:12px 16px}
+  .rq b{font-size:20px}
+  .rpct{font-size:13px;min-width:44px}
   .top{align-items:flex-start;flex-wrap:wrap}
   .route{grid-template-columns:1fr;gap:12px}
   .side.right{text-align:left}
@@ -239,6 +254,12 @@ body{background:radial-gradient(ellipse at 50% -20%,#2a2521 0%,#1a1714 45%,#1412
 .link-btn.mount-btn[data-state="mounted"]:hover{background:rgba(61,220,133,.22)}
 .link-btn.mount-btn[data-state="failed"]{background:rgba(255,100,80,.14);color:#ff8d7a}
 .link-btn.mount-btn[data-state="failed"]:hover{background:rgba(255,100,80,.22)}
+.runbar{background:rgba(30,26,22,.85);border-color:var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.rq b,.rname{color:var(--ink)}
+.rq span{color:var(--muted-2)}
+.rtrack{background:#241f1b}
+.rtrack i{background:linear-gradient(90deg,#ffc07a,var(--accent))}
+.rpct{color:var(--accent)}
 .file{border-color:var(--line);background:rgba(255,255,255,.045)}
 .file:hover{box-shadow:0 12px 26px rgba(0,0,0,.4);border-color:#5a5148}
 .thumb{background:#241f1b;color:#5c554c}
@@ -285,6 +306,14 @@ body{background:radial-gradient(ellipse at 50% -20%,#2a2521 0%,#1a1714 45%,#1412
   <header class="top"><div class="brand"><img class="logo" src="icon.png" alt="" /><div><h1>PKarchives <small id="appVersion">__VERSION__</small></h1><div class="state" id="state"><i class="led"></i><span id="status">Prêt</span></div></div></div><div class="header-context"><button class="gear" id="themeBtn" aria-label="Basculer thème clair/sombre">☀️</button><button class="gear" id="gear" aria-label="Réglages">⚙</button></div></header>
   <div class="log" id="log"></div>
   <section class="route"><div class="side route-card"><div class="eyebrow">Depuis</div><div class="location"><span class="place-icon"><img src="logo-finder.png" alt=""></span><h2>Bureau</h2><span class="badge" id="sourceCount">0</span></div><div class="path"><span id="sourcePath">~/Desktop</span><button class="link-btn finder-btn" id="openFinder" title="Ouvrir dans Finder"><img class="bico" src="logo-finder.png" alt="">Ouvrir dans Finder</button></div></div><div class="arrow"><div class="line"></div><small>ARCHIVER</small></div><div class="side right route-card"><div class="eyebrow">Vers</div><div class="location"><span class="place-icon"><img src="logo-drive.svg" alt=""></span><h2 id="destinationShort">Dossier cloud</h2><span class="badge" id="archiveCount">0</span></div><div class="path"><span id="destination">Google Drive</span><button class="link-btn drive-btn" id="openDriveBtn" title="Ouvrir Google Drive"><img class="bico" src="logo-drive.svg" alt="">Ouvrir Drive</button><button class="link-btn mount-btn" id="mountBtn" title="Monter le volume Google Drive localement"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="mountLabel">Monter le Drive</span></button></div></div></section>
+  <div class="runbar" id="runbar" hidden>
+    <div class="rq"><b id="runPos">–</b><span id="runTotal">/ –</span></div>
+    <div class="rmain">
+      <div class="rname" id="runName">Préparation…</div>
+      <div class="rtrack"><i id="runFill"></i></div>
+    </div>
+    <div class="rpct" id="runPct">0%</div>
+  </div>
   <section class="workspace"><article class="panel"><div class="panel-head"><strong>En attente sur le Bureau</strong><span id="sourceHint">éléments archivables</span></div><div class="stack" id="sourceStack"><div class="empty"><div><strong>Scan du Bureau…</strong><span>Les éléments ignorés ne sont pas comptés.</span></div></div></div></article><article class="panel transfer"><div class="panel-head"><strong>Archivé vers Drive</strong><span id="transferLabel">prêt à archiver</span></div><div class="stack" id="driveStack"><div class="empty"><div><strong>Aucun fichier archivé</strong><span>Les fichiers arrivent ici pendant un archivage.</span></div></div></div></article></section>
   <footer class="bottom"><div class="modes"><button id="mFiles" class="on">Fichiers</button><button id="mAll">Fichiers + dossiers</button></div><div class="actions"><button class="secondary" id="logButton">Historique</button><button class="cancel" id="cancel">Annuler</button><button class="primary" id="archive">Archiver les éléments</button></div></footer>
 <section class="history" id="history"><div class="history-head"><span>Historique annuel</span><span><select class="history-year" id="historyYear" aria-label="Année de l’historique"></select><button id="closeHistory" aria-label="Fermer l’historique">×</button></span></div><div class="history-stats"><div><b id="historyTotal">0</b>fichiers archivés</div><div><b id="historyBytes">0</b>libérés</div></div><div class="history-legend">Fichiers archivés par mois · échelle max <b id="historyMax">0</b></div><div class="bars-wrap"><span class="axis-y" id="historyAxisMax">0</span><div class="bars" id="historyBars"></div></div><div class="history-months" id="historyMonths"></div><div class="history-empty" id="historyEmpty">Aucun archivage cette année.</div></section>

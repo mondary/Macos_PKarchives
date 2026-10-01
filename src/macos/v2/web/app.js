@@ -5,7 +5,10 @@ var pk=window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandle
 function send(cmd,data){if(pk)try{pk.postMessage(Object.assign({cmd:cmd},data||{}));}catch(e){}}
 function $(id){return document.getElementById(id)}
 function setStatus(text,kind){$("status").textContent=text;$("state").className="state "+(kind||"")}
-function log(text,good){var cls="log";if(good)cls+=" ok";else if(text.indexOf("❌")>-1)cls+=" err";else if(text.indexOf("⚠️")>-1||text.indexOf("⚠")>-1)cls+=" warn";var el=$("log");el.className=cls;el.textContent=text;$("transferLabel").textContent=text}
+function log(text,good){var cls="log";if(good)cls+=" ok";else if(text.indexOf("❌")>-1)cls+=" err";else if(text.indexOf("⚠️")>-1||text.indexOf("⚠")>-1)cls+=" warn";var el=$("log");el.className=cls;el.textContent=text}
+function runbarShow(on){$("runbar").classList.toggle("on",!!on);$("runbar").hidden=!on}
+function runbarSet(name,pct){var p=Math.max(0,Math.min(100,pct||0));$("runName").textContent=name||"";$("runFill").style.width=p+"%";$("runPct").textContent=Math.round(p)+"%"}
+function runbarPos(pos,total){$("runPos").textContent=pos||"–";$("runTotal").textContent="/ "+(total||"–")}
 function setMode(next){mode=next;$("mFiles").classList.toggle("on",mode==="files");$("mAll").classList.toggle("on",mode==="all");send("rescan",{mode:mode})}
 function escapeHTML(s){return String(s||"").replace(/[&<>\"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]})}
 function icon(kind){return kind==="folder"?"▰":"◻"}
@@ -45,16 +48,16 @@ function handle(ev){
     case"mountState":renderMount(ev);break;
     case"dest":$("destination").textContent=ev.name||"Google Drive";$("destinationShort").textContent=ev.short||"Dossier cloud";break;
     case"settings":$("folder").value=ev.folderId||"";$("desktop").value=ev.desktop||"";$("remote").value=ev.remote||"gdrive";break;
-    case"run":total=ev.total||0;finished=0;$("archiveCount").textContent="0";$("driveStack").innerHTML='<div class="empty"><div><strong>Aucun fichier archivé</strong><span>Les fichiers arrivent ici pendant un archivage.</span></div></div>';break;
-    case"status":setStatus(ev.text||"En cours…",running?"busy":"");log(ev.text||"En cours…");break;
+    case"run":total=ev.total||0;finished=0;$("archiveCount").textContent="0";runbarShow(true);runbarPos(1,total);runbarSet(total?"1ᵉʳ fichier…":"Préparation…",0);$("transferLabel").textContent="archivage en cours…";$("driveStack").innerHTML='<div class="empty"><div><strong>Aucun fichier archivé</strong><span>Les fichiers arrivent ici pendant un archivage.</span></div></div>';setStatus("Archivage en cours…","busy");break;
+    case"status":if(!running)setStatus(ev.text||"En cours…");break;
     case"log":log(ev.line||"",ev.cls==="ok");break;
-    case"uploadStart":fly(ev.name);break;
-    case"progress":{var c=findCard(ev.name);if(c){c.classList.add("uploading");var f=c.querySelector(".fill");if(f)f.style.height=Math.max(0,Math.min(100,ev.pct||0))+"%"}break}
+    case"uploadStart":fly(ev.name);runbarPos(finished+1,total);runbarSet(ev.name,0);break;
+    case"progress":{var c=findCard(ev.name);if(c){c.classList.add("uploading");var f=c.querySelector(".fill");if(f)f.style.height=Math.max(0,Math.min(100,ev.pct||0))+"%"}runbarSet(ev.name,ev.pct);break}
     case"fileUrl":{urls[ev.name]=ev.url;var cs=document.querySelectorAll("#driveStack .file");for(var i=0;i<cs.length;i++){if(cs[i].dataset.name===ev.name)cs[i].dataset.url=ev.url}break}
-    case"uploaded":{var uploaded=findCard(ev.name);var ds=$("driveStack"),empty=ds.querySelector(".empty");if(empty)empty.remove();var cloud=uploaded?uploaded.cloneNode(true):null;if(cloud){cloud.classList.remove("uploading");cloud.classList.add("done","archived");cloud.dataset.name=ev.name;var cu=urls[ev.name];if(cu)cloud.dataset.url=cu;var cf=cloud.querySelector(".fill");if(cf)cf.remove();cloud.querySelector(".file-state").textContent="archivé"}else{cloud=document.createElement("div");cloud.className="file done archived";cloud.innerHTML='<div class="thumb"></div><div class="file-name">'+escapeHTML(ev.name)+'</div><div class="file-meta"><span></span><span class="file-state">archivé</span></div><span class="check">✓</span>'}ds.appendChild(cloud);if(uploaded){uploaded.classList.remove("uploading");uploaded.classList.add("done");var pf=uploaded.querySelector(".fill");if(pf)pf.style.height="100%";uploaded.querySelector(".file-state").textContent="archivé"}finished++;$("archiveCount").textContent=finished;break}
+    case"uploaded":{var uploaded=findCard(ev.name);var ds=$("driveStack"),empty=ds.querySelector(".empty");if(empty)empty.remove();var cloud=uploaded?uploaded.cloneNode(true):null;if(cloud){cloud.classList.remove("uploading");cloud.classList.add("done","archived");cloud.dataset.name=ev.name;var cu=urls[ev.name];if(cu)cloud.dataset.url=cu;var cf=cloud.querySelector(".fill");if(cf)cf.remove();cloud.querySelector(".file-state").textContent="archivé"}else{cloud=document.createElement("div");cloud.className="file done archived";cloud.innerHTML='<div class="thumb"></div><div class="file-name">'+escapeHTML(ev.name)+'</div><div class="file-meta"><span></span><span class="file-state">archivé</span></div><span class="check">✓</span>'}ds.appendChild(cloud);if(uploaded){uploaded.classList.remove("uploading");uploaded.classList.add("done");var pf=uploaded.querySelector(".fill");if(pf)pf.style.height="100%";uploaded.querySelector(".file-state").textContent="archivé"}finished++;$("archiveCount").textContent=finished;$("transferLabel").textContent=finished+(finished>1?" archivés":" archivé");break}
     case"deleted":{var deleted=findCard(ev.name);if(deleted){deleted.style.opacity="0";deleted.style.transform="translateY(8px)";setTimeout(function(){deleted.remove();$("sourceCount").textContent=document.querySelectorAll("#sourceStack .file").length},260)}break}
     case"failed":{var failed=findCard(ev.name);if(failed){failed.classList.remove("uploading");failed.classList.add("failed");var ff=failed.querySelector(".fill");if(ff)ff.style.height="0%"}break}
-    case"runDone":running=false;$("archive").disabled=!document.querySelector("#sourceStack .file");$("cancel").style.display="none";setStatus(ev.ok?"Terminé · "+(ev.success||0)+" archivé(s)":"Échec",""+(ev.ok?"":"error"));log(ev.ok?"Archivage terminé":"Archivage interrompu",ev.ok);break;
+    case"runDone":running=false;runbarShow(false);$("archive").disabled=!document.querySelector("#sourceStack .file");$("cancel").style.display="none";setStatus(ev.ok?"Terminé · "+(ev.success||0)+" archivé(s)":"Échec",""+(ev.ok?"":"error"));log(ev.ok?"Archivage terminé":"Archivage interrompu",ev.ok);break;
   }
 }
 window.__pkEvent=function(value){var ev=typeof value==="string"?JSON.parse(value):value;handle(ev)};

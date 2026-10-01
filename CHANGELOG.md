@@ -23,6 +23,12 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.3] - 2026-10-01
+#### Added
+- Barre de progression centrale pendant l'archivage : position dans la file (ex. « 1 / 23 »), nom du fichier en cours et pourcentage avec barre de progression, dans un bandeau proéminent entre la route Bureau → Drive et les panneaux.
+#### Changed
+- Fin de la triple duplication du statut : le détail (fichier, position, %) vit uniquement dans la barre centrale ; le statut sous le titre n'affiche plus que l'état global (« Prêt » / « Archivage en cours… » / « Terminé · N archivé(s) ») ; la ligne de journal n'est plus écrasée par les statuts d'upload ; l'en-tête du panneau Drive affiche un simple compteur « N archivé(s) ».
+
 ### [2026.10.2] - 2026-10-01
 #### Changed
 - Racine du dépôt allégée : `build.sh`, `setup.sh` et `sandbox.sh` déplacés dans `scripts/` (README FR/EN et workflow GitHub mis à jour). La racine ne conserve que `CHANGELOG.md`, `README.md`, `README_en.md`, `ROADMAP.md`, `icon.png` et `appcast.xml` (requis à la racine : URL du feed Sparkle).
