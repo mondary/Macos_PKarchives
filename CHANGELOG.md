@@ -23,7 +23,7 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
-### [2026.09.26] - 2026-10-01
+### [2026.10.1] - 2026-10-01
 #### Added
 - Montage automatique du Drive au lancement de l'app (désactivable via `PKARCHIVES_AUTO_MOUNT=0`), en plus du montage post-archivage existant.
 #### Fixed
