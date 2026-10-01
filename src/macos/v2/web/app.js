@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 var pk=window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.pk;
- var mode="files",running=false,total=0,finished=0,items=[],refreshTimer,urls={};
+ var mode="all",running=false,total=0,finished=0,items=[],refreshTimer,urls={};
 function send(cmd,data){if(pk)try{pk.postMessage(Object.assign({cmd:cmd},data||{}));}catch(e){}}
 function $(id){return document.getElementById(id)}
 function setStatus(text,kind){$("status").textContent=text;$("state").className="state "+(kind||"")}

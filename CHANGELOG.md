@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.4] - 2026-10-01
+#### Changed
+- Mode par défaut au démarrage : « Fichiers + dossiers » au lieu de « Fichiers » (interface, scan initial et côté natif alignés).
+
 ### [2026.10.3] - 2026-10-01
 #### Added
 - Barre de progression centrale pendant l'archivage : position dans la file (ex. « 1 / 23 »), nom du fichier en cours et pourcentage avec barre de progression, dans un bandeau proéminent entre la route Bureau → Drive et les panneaux.

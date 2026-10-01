@@ -294,7 +294,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     var process: Process?
     var timer: Timer?
     var isRunning = false
-    var selectedMode = "files"
+    var selectedMode = "all"
     var lastTotal = 0
     var deletedCount = 0
     var uploadedBytes: Int64 = 0
@@ -482,7 +482,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         sendDest()
         sendSettings()
         sendHistory()
-        refreshItems()
+        refreshItems(mode: selectedMode)
         sendMountStateIfKnown()
     }
 
