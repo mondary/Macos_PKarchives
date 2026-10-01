@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.17] - 2026-10-01
+#### Added
+- `store/website/` : bundle de déploiement FTP autonome (index.html + media/background.jpg + media/ultracrea2-promo.mp4, ~1,9 Mo) avec son README de maintenance.
+
 ### [2026.10.16] - 2026-10-01
 #### Fixed
 - Lien licence du pied de page redirigé vers le `LICENSE` GitHub : le déploiement FTP autonome de la landing n'a plus de 404.
