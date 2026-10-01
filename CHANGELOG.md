@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.16] - 2026-10-01
+#### Fixed
+- Lien licence du pied de page redirigé vers le `LICENSE` GitHub : le déploiement FTP autonome de la landing n'a plus de 404.
+
 ### [2026.10.15] - 2026-10-01
 #### Changed
 - `PKSTACK` renommé en `PKSTACK.md` pour un rendu Markdown correct sur GitHub.
