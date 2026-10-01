@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Project version: 2026.10.20** · Available app: 2026.10.12 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.10.21** · Available app: 2026.10.12 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -50,12 +50,10 @@ The interactive script guides you through:
 4. Verifying rclone is installed and configured
 5. Building and launching the app
 
-### Launch the app
+### The app
 
-```bash
-APP_VERSION="$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' CHANGELOG.md | head -1)"
-open "release/macos/PKarchives-${APP_VERSION}.app"
-```
+After installing from the DMG or `.pkg` (see below), the app lives in the menu bar.
+To build it yourself: `./scripts/build.sh`.
 
 ![Yearly archiving history](store/media/02-promo-historique-annuel.png)
 
@@ -68,17 +66,13 @@ open "release/macos/PKarchives-${APP_VERSION}.app"
 
 The published build targets Apple Silicon (arm64). The app and installer are not notarized; macOS may ask you to approve the installation and first launch.
 
-### Launch the CLI/TUI
+### CLI/TUI, from anywhere in Terminal
+
+Run this once, then use `pkarchives` from any folder:
 
 ```bash
-./release/cli/pkarchives
-```
-
-### Manual script
-
-```bash
-./src/shared/archive.sh files      # Files only
-./src/shared/archive.sh all        # Files + folders
+curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/scripts/install-cli.sh | sh
+pkarchives
 ```
 
 ## ⚙️ Configuration
@@ -117,7 +111,7 @@ PKarchives is distributed under the [MIT License](LICENSE), which permits commer
 
 ## 🔗 Links
 
-- [Landing page](website/PKarchives/index.html) · [product film](store/media/ultracrea2-promo.mp4) · [previous versions](store/archive)
+- [Landing page](store/website/index.html) · [product film](store/media/ultracrea2-promo.mp4) · [previous versions](store/archive)
 - [Google Drive](https://drive.google.com)
 - [rclone](https://rclone.org/)
 - ❤️ Support this project on [Ko-fi](https://ko-fi.com/pouark)

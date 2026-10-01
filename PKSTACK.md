@@ -6,7 +6,7 @@ quand une nouvelle skill intervient sur le projet.
 
 | Skill | Rôle ici | Livrables dans ce dépôt |
 |---|---|---|
-| `premium-promo-media` | Landing produit + kit média | `website/PKarchives/index.html` (landing Ultra Crea 3 : hero, démo interactive, installation, FAQ, Ko-fi — dossier unique, source ET bundle FTP déployable) ; `store/media/` (bannière 1544×500, cards OG, captures, GIF d'interface, film promo) ; pipeline de génération archivé dans `store/archive/media-kit/` |
+| `premium-promo-media` | Landing produit + kit média | `store/website/index.html` (landing Ultra Crea 3, source et dossier FTP déployable) ; `store/media/` (bannière 1544×500, cards OG, captures, GIF d'interface, film promo) ; pipeline de génération archivé dans `store/archive/media-kit/` |
 | `pk-app-release` | Release macOS complète | Release GitHub `v2026.10.12` (DMG + installateur `.pkg` Apple Silicon, liens directs versionnés) ; `.github/workflows/release.yml` ; `.github/scripts/release.sh` |
 | `pkhomebrew` | Cask Homebrew du tap | `Casks/pkarchives.rb` du dépôt `mondary/homebrew-tap` (URL versionnée + SHA-256 du DMG publié) ; commandes `brew` de la landing et des README |
 | `pk-commits` | Convention commits & versioning | Préfixes `ADD`/`FIX`/`REFACTO`/`MAJ` ; CalVer `YYYY.MM.PATCH` avec `CHANGELOG.md` comme source de vérité ; checklist Ko-fi (READMEs + landing + app) et exigence landing bilingue |

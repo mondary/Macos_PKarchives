@@ -1,5 +1,7 @@
 # Build artifacts
 /PKarchives
+src/cli/pkarchives
+store/website/index-standalone.html
 *.o
 release/
 *.app/

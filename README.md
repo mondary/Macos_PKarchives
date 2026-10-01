@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version du projet : 2026.10.20** · App disponible : 2026.10.12 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
+**Version du projet : 2026.10.21** · App disponible : 2026.10.12 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
@@ -50,12 +50,10 @@ Le script interactif vous guide pour :
 4. Vérifier que rclone est installé et configuré
 5. Build et lancer l'app
 
-### Lancer l'app
+### L'app
 
-```bash
-APP_VERSION="$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' CHANGELOG.md | head -1)"
-open "release/macos/PKarchives-${APP_VERSION}.app"
-```
+Installée depuis le DMG ou le `.pkg` (voir Installation ci-dessous), l'app vit dans la barre
+des menus. Pour compiler soi-même : `./scripts/build.sh`.
 
 ![Historique annuel des archivages](store/media/02-promo-historique-annuel.png)
 
@@ -68,17 +66,13 @@ open "release/macos/PKarchives-${APP_VERSION}.app"
 
 Le build publié est pour Apple Silicon (arm64). L’app et l’installateur ne sont pas notariés ; macOS peut demander une autorisation à l’installation et au premier lancement.
 
-### Lancer la version CLI/TUI
+### La CLI/TUI, partout dans le terminal
+
+Une commande, puis `pkarchives` fonctionne depuis n'importe quel dossier :
 
 ```bash
-./release/cli/pkarchives
-```
-
-### Script manuel
-
-```bash
-./src/shared/archive.sh files      # Fichiers seulement
-./src/shared/archive.sh all        # Fichiers + dossiers
+curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/scripts/install-cli.sh | sh
+pkarchives
 ```
 
 ## ⚙️ Configuration
@@ -117,7 +111,7 @@ PKarchives est distribué sous licence [MIT](LICENSE), qui autorise notamment l'
 
 ## 🔗 Liens
 
-- [Landing](website/PKarchives/index.html) · [film de présentation](store/media/ultracrea2-promo.mp4) · [anciennes versions](store/archive)
+- [Landing](store/website/index.html) · [film de présentation](store/media/ultracrea2-promo.mp4) · [anciennes versions](store/archive)
 - [Google Drive](https://drive.google.com)
 - [rclone](https://rclone.org/)
 - ❤️ Soutenir ce projet sur [Ko-fi](https://ko-fi.com/pouark)

@@ -23,6 +23,15 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.21] - 2026-10-01
+#### Added
+- Installation CLI/TUI en une commande : `curl …/scripts/install-cli.sh | sh`, puis `pkarchives` depuis n'importe quel dossier. Binaire Apple Silicon ajouté à la release GitHub.
+- `scripts/build-standalone.sh` génère à la demande une landing HTML autonome (images et vidéo inline, environ 3,6 Mo).
+#### Changed
+- README FR/EN simplifiés : retrait des commandes qui pointaient vers `release/` ignoré par Git et du script manuel réservé au dépôt cloné.
+- Landing déplacée dans `store/website/` selon la réorganisation locale ; liens README et `PKSTACK.md` réalignés.
+
+
 ### [2026.10.20] - 2026-10-01
 #### Fixed
 - `film-poster.jpg` ajouté au bundle `website/PKarchives/media/` : l'affiche du film (attribut `poster`) manquait au dossier déployable.
