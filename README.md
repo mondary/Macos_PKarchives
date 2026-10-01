@@ -4,6 +4,8 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
+**Version : 2026.10.5** · [Changelog](CHANGELOG.md)
+
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
 ![Vue principale : le Bureau archivé vers Google Drive](store/screenshots/01-promo-vue-principale.png)

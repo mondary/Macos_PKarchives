@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.5] - 2026-10-01
+#### Changed
+- Bandeau des README FR/EN : ligne de version synchronisée avec le CHANGELOG et lien direct vers celui-ci.
+
 ### [2026.10.4] - 2026-10-01
 #### Changed
 - Mode par défaut au démarrage : « Fichiers + dossiers » au lieu de « Fichiers » (interface, scan initial et côté natif alignés).

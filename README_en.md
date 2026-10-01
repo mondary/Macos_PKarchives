@@ -4,6 +4,8 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
+**Version: 2026.10.5** · [Changelog](CHANGELOG.md)
+
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
 ![Main view: Desktop archived to Google Drive](store/screenshots/01-promo-vue-principale.png)
