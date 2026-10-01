@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.14] - 2026-10-01
+#### Added
+- Fichier `PKSTACK` à la racine : cartographie des skills du hub utilisées sur le projet (landing, release, cask, convention, accessibilité, Sparkle) et de leurs livrables.
+
 ### [2026.10.13] - 2026-10-01
 #### Changed
 - Store : options d'installation DMG, Homebrew et PKG/curl regroupées et alignées ; FAQ déployée sur toute la largeur.
