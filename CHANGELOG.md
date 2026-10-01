@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.15] - 2026-10-01
+#### Changed
+- `PKSTACK` renommé en `PKSTACK.md` pour un rendu Markdown correct sur GitHub.
+
 ### [2026.10.14] - 2026-10-01
 #### Added
 - Fichier `PKSTACK` à la racine : cartographie des skills du hub utilisées sur le projet (landing, release, cask, convention, accessibilité, Sparkle) et de leurs livrables.
