@@ -23,6 +23,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.18] - 2026-10-01
+#### Changed
+- Bundle de déploiement FTP `store/website/PKarchives/` : un dossier nommé par projet, régénéré par `scripts/website.sh` et exclu du dépôt — la landing n'existe qu'en un exemplaire (`store/index.html`), plus de copie en double dans git. Convention consignée dans la skill `premium-promo-media`.
+
 ### [2026.10.17] - 2026-10-01
 #### Added
 - `store/website/` : bundle de déploiement FTP autonome (index.html + media/background.jpg + media/ultracrea2-promo.mp4, ~1,9 Mo) avec son README de maintenance.
