@@ -70,17 +70,22 @@ p{text-wrap:pretty}
 .mac-left nav a{padding:5px 9px;border-radius:6px}
 .mac-left nav a:hover{background:rgba(205,244,233,.1);color:#fff}
 .mac-right{display:flex;align-items:center;gap:15px;font-size:11.5px;font-variant-numeric:tabular-nums}
+.pk-control{position:relative;display:flex;align-items:center;height:100%}
 .mac-right .icon{width:15px;height:15px}
 .battery{position:relative;width:23px;height:11px;border:1px solid rgba(230,250,245,.65);border-radius:3.5px;padding:1.5px}
 .battery::after{content:"";position:absolute;right:-3.5px;top:3px;width:2px;height:4px;border-radius:0 2px 2px 0;background:rgba(230,250,245,.55)}
 .battery i{display:block;height:100%;width:78%;background:#c9f2e6;border-radius:1.5px}
 .pk-status{position:relative;display:flex;align-items:center;height:100%;padding:0 8px;font-size:14px;line-height:1;border-radius:0}
 .pk-status:hover{background:rgba(205,244,233,.1)}
-.menu-hint{position:absolute;z-index:130;top:46px;right:22px;display:flex;align-items:center;gap:9px;padding:8px 12px;border:1px solid rgba(180,240,227,.3);border-radius:10px;background:rgba(8,32,34,.94);box-shadow:0 10px 30px rgba(0,0,0,.32);color:#d9fff4;font:700 11px var(--body);white-space:nowrap}
+.kofi-link{display:flex;align-items:center;height:100%;padding:0 8px}
+.kofi-link:hover{background:rgba(205,244,233,.1)}
+.kofi-link .kofi-cup{width:16px;height:16px;border-radius:3px;filter:brightness(0) invert(1);opacity:.92;transition:opacity .2s}
+.kofi-link:hover .kofi-cup{opacity:1}
+.menu-hint{position:absolute;z-index:130;top:calc(100% + 4px);left:50%;width:74px;height:76px;transform:translateX(-50%);pointer-events:none}
 .menu-hint[hidden]{display:none}
-.menu-hint-arrow{position:absolute;right:5px;top:-39px;width:72px;height:43px;overflow:visible;pointer-events:none}
-.menu-hint-arrow path{fill:none;stroke:var(--amber);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
-.pk-menu{position:absolute;top:calc(100% + 8px);right:-8px;width:284px;padding:5px;border:1px solid rgba(200,240,230,.16);border-radius:12px;background:rgba(12,40,42,.92);backdrop-filter:blur(34px) saturate(1.6);-webkit-backdrop-filter:blur(34px) saturate(1.6);box-shadow:0 22px 60px rgba(0,0,0,.55);font:500 12.5px/1.3 var(--body);color:#e8f4ef;opacity:0;visibility:hidden;transform:translateY(-6px) scale(.98);transform-origin:top right;transition:opacity .22s var(--ease),transform .28s var(--ease),visibility .22s}
+.menu-hint-arrow{width:100%;height:100%;overflow:visible}
+.menu-hint-arrow path{fill:none;stroke:#7ce8da;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.pk-menu{position:absolute;top:calc(100% + 8px);right:0;width:284px;padding:5px;border:1px solid rgba(200,240,230,.16);border-radius:12px;background:rgba(12,40,42,.92);backdrop-filter:blur(34px) saturate(1.6);-webkit-backdrop-filter:blur(34px) saturate(1.6);box-shadow:0 22px 60px rgba(0,0,0,.55);font:500 12.5px/1.3 var(--body);color:#e8f4ef;opacity:0;visibility:hidden;transform:translateY(-6px) scale(.98);transform-origin:top right;transition:opacity .22s var(--ease),transform .28s var(--ease),visibility .22s}
 .pk-menu.open{opacity:1;visibility:visible;transform:none}
 .pk-menu .mi{display:flex;align-items:center;gap:9px;width:100%;padding:7px 10px;border-radius:7px;text-align:left}
 .pk-menu .mi:hover{background:var(--amber);color:#082b27}
@@ -103,7 +108,7 @@ p{text-wrap:pretty}
 .hero-grain{position:absolute;inset:0;opacity:.5;mix-blend-mode:overlay;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.34'/%3E%3C/svg%3E")}
 .hero-vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 30%,transparent 40%,rgba(3,14,16,.55) 100%)}
 .hero-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(4,18,20,.68) 0%,rgba(4,18,20,.14) 30%,rgba(4,18,20,.06) 55%,rgba(4,16,18,.82) 100%)}
-.hero-content{position:relative;z-index:6;width:min(1240px,calc(100% - 64px));margin:0 auto;padding-top:66px;display:grid;grid-template-columns:1.02fr .98fr;gap:56px;align-items:center}
+.hero-content{position:relative;z-index:6;width:min(1280px,calc(100% - 64px));margin:0 auto;padding-top:66px;display:grid;grid-template-columns:.86fr 1.14fr;gap:38px;align-items:center}
 .hero-label{display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border:1px solid rgba(170,238,224,.3);border-radius:999px;background:rgba(8,32,34,.35);backdrop-filter:blur(8px);font:700 10px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:#aef2e4;animation:hero-in .9s var(--ease) both}
 .hero-label i{width:6px;height:6px;border-radius:50%;background:var(--drive);box-shadow:0 0 8px var(--drive)}
 .hero-content h1{font-size:clamp(44px,4.6vw,66px);font-weight:900;letter-spacing:-.045em;margin-top:26px;animation:hero-in .9s .08s var(--ease) both}
@@ -111,10 +116,15 @@ p{text-wrap:pretty}
 .hero-copy{max-width:480px;margin-top:24px;font-size:15.5px;line-height:1.75;color:#d9ece6;animation:hero-in .9s .16s var(--ease) both}
 .hero-copy b{color:#fff;font-weight:700}
 .hero-actions{display:flex;flex-wrap:wrap;gap:16px;margin-top:34px;animation:hero-in .9s .24s var(--ease) both}
-.play-link{display:inline-flex;align-items:center;gap:11px;font:800 13px var(--display);color:#d7f6ee}
-.play-circle{width:42px;height:42px;border-radius:50%;border:1px solid rgba(185,240,228,.5);display:grid;place-items:center;background:rgba(140,232,215,.12);backdrop-filter:blur(8px);transition:transform .3s var(--ease),background .3s}
-.play-link:hover .play-circle{transform:scale(1.1);background:rgba(140,232,215,.25)}
-.play-circle .icon{width:15px;height:15px;fill:currentColor;stroke:none;margin-left:2px}
+.hero-quick{display:flex;align-items:center;flex-wrap:wrap;gap:14px 22px;margin-top:20px;animation:hero-in .9s .3s var(--ease) both}
+.quick-link{display:inline-flex;align-items:center;gap:9px;font:700 12.5px var(--display);letter-spacing:.01em;color:#b9d8cf;transition:color .2s}
+.quick-link:hover{color:#fff}
+.quick-link .qico{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:rgba(205,244,233,.07);border:1px solid rgba(205,244,233,.16);flex:none;transition:background .2s,border-color .2s,transform .2s var(--ease)}
+.quick-link:hover .qico{background:rgba(75,222,203,.14);border-color:rgba(75,222,203,.42);transform:translateY(-1px)}
+.quick-link .qico svg{width:9px;height:9px;fill:currentColor;stroke:none;margin-left:1px;color:#8fe3d3}
+.quick-link:hover .qico svg{color:#fff}
+.quick-link .qico .kofi-cup{width:12px;height:12px;border-radius:3px;margin:0}
+.quick-sep{width:1px;height:18px;background:var(--line-strong)}
 .hero-meta{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:36px;font:600 10.5px var(--mono);letter-spacing:.05em;color:rgba(205,240,231,.62);animation:hero-in .9s .32s var(--ease) both}
 .hero-meta span{display:inline-flex;align-items:center;gap:7px}
 .hero-meta .icon{width:13px;height:13px;color:rgba(160,235,220,.75)}
@@ -131,24 +141,30 @@ p{text-wrap:pretty}
 .hw-title img{width:15px;height:15px;border-radius:4px}
 .hw-badge{font:800 9px var(--mono);letter-spacing:.1em;color:#6d938b}
 .hw-body{padding:16px 16px 14px}
-.hw-route{display:grid;grid-template-columns:1fr 64px 1fr;align-items:center;gap:8px;margin-bottom:12px}
-.hw-side{padding:9px 11px;border:1px solid rgba(205,244,233,.1);border-radius:12px;background:rgba(205,244,233,.045)}
+.hw-cols{display:grid;grid-template-columns:1fr 30px 1fr;gap:9px;align-items:stretch;margin-bottom:12px}
+.hw-side{padding:9px 11px;border:1px solid rgba(205,244,233,.1);border-radius:12px;background:rgba(205,244,233,.045);min-width:0}
 .hw-side .k{font:800 8.5px var(--mono);letter-spacing:.12em;color:#6d938b}
-.hw-side .v{display:flex;align-items:center;gap:7px;margin-top:4px;font:800 13px var(--display);letter-spacing:-.02em}
+.hw-side .v{display:flex;align-items:center;gap:7px;margin:4px 0 9px;font:800 13px var(--display);letter-spacing:-.02em}
 .hw-side .n{margin-left:auto;font:800 10.5px var(--mono);padding:1px 7px;border-radius:999px;background:rgba(75,222,203,.16);color:#7ce8da}
 .hw-side.right .n{background:rgba(63,202,111,.15);color:#6fe09a}
-.hw-arrow{color:#6d938b;text-align:center}
-.hw-arrow .icon{width:17px;height:17px;margin:auto}
-.hw-stack{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;min-height:118px}
-.hw-card{position:relative;border:1px solid rgba(205,244,233,.1);border-radius:10px;background:rgba(205,244,233,.04);overflow:hidden}
-.hw-thumb{height:56px;display:grid;place-items:center;font-size:19px;color:#7fa39a;background:rgba(205,244,233,.05)}
-.hw-name{padding:5px 7px 6px;font:700 8.5px var(--body);color:#a9ccc2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hw-mid{display:grid;place-items:center;color:#6d938b;transition:color .25s}
+.hw-mid .icon{width:17px;height:17px}
+.hw-mid.active{color:var(--amber)}
+.hw-stack{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;align-content:start}
+#hwDstStack{display:grid;gap:6px;align-content:start;min-height:100px}
+.hw-card{position:relative;border:1px solid rgba(205,244,233,.1);border-radius:9px;background:rgba(205,244,233,.04);overflow:hidden}
+.hw-thumb{height:30px;display:grid;place-items:center;font-size:14px;color:#7fa39a;background:rgba(205,244,233,.05)}
+.hw-name{padding:3px 6px 4px;font:700 8px var(--body);color:#a9ccc2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hw-card .fill{position:absolute;left:0;right:0;bottom:0;height:0;background:repeating-linear-gradient(135deg,rgba(75,222,203,.22) 0 7px,rgba(75,222,203,.45) 7px 14px);pointer-events:none}
 .hw-card .fill::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--amber);box-shadow:0 0 8px 1px rgba(75,222,203,.8)}
 .hw-card.ok{border-color:rgba(63,202,111,.5)}
 .hw-card.ok .thumb{color:#6fe09a}
 .hw-card.gone{animation:hw-dissolve .55s var(--ease) forwards}
-.hw-flyer{position:absolute;z-index:8;width:74px;pointer-events:none;transition:transform .8s cubic-bezier(.3,.7,.3,1),opacity .4s;border:1px solid rgba(160,235,220,.5);border-radius:10px;background:rgba(9,34,36,.95);box-shadow:0 14px 30px rgba(23,180,165,.25)}
+.hw-flyer{position:absolute;z-index:8;pointer-events:none;transition:transform .7s cubic-bezier(.3,.7,.3,1),opacity .45s;border:1px solid rgba(160,235,220,.5);border-radius:9px;background:rgba(9,34,36,.95);overflow:hidden;box-shadow:0 14px 30px rgba(23,180,165,.25)}
+.hw-arrived{display:flex;align-items:center;gap:6px;padding:4px 7px;border:1px solid rgba(63,202,111,.35);border-radius:8px;background:rgba(63,202,111,.08);font:700 8.5px var(--body);color:#bfe9cf;animation:arrive .3s var(--ease)}
+.hw-arrived .ae{font-size:11px;flex:none}
+.hw-arrived .an{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hw-arrived .ac{color:#6fe09a;font:800 9px var(--mono);flex:none}
 .hw-status{display:flex;align-items:center;gap:8px;margin-top:12px;font:700 10px var(--mono);color:#97bcb2}
 .hw-status .led{width:7px;height:7px;border-radius:50%;background:var(--drive);box-shadow:0 0 8px rgba(63,202,111,.8)}
 .hw-status.busy .led{background:var(--amber);animation:pulse 1s infinite}
@@ -499,6 +515,17 @@ p{text-wrap:pretty}
 .install-section{position:relative;isolation:isolate;overflow:hidden;padding:130px 0;background:#0a2022}
 .install-section::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(80% 70% at 50% 0%,rgba(75,222,203,.08),transparent 60%),linear-gradient(180deg,#0a2224,#081d20)}
 .install-grid{display:grid;grid-template-columns:.95fr 1.05fr;gap:64px;align-items:center}
+.install-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:42px}
+.install-option{display:flex;flex-direction:column;min-width:0;padding:22px;border:1px solid var(--line-strong);border-radius:18px;background:rgba(4,16,18,.48)}
+.install-option h3{font-size:18px}
+.install-option>p{min-height:48px;margin:10px 0 18px;color:var(--muted);font-size:12px;line-height:1.6}
+.install-option .button{width:100%;min-height:54px;text-align:center}
+.install-option .button span{overflow-wrap:anywhere}
+.install-option .release-status{margin-top:12px}
+.install-option .copy-command{min-height:54px}
+.install-option #curlCommand{font-size:10px}
+.install-option #pkgDownload+.copy-command{margin-top:12px}
+.install-source{align-self:flex-start;margin-top:auto;padding-top:18px;font-size:12px}
 .install-title h2{font-size:clamp(34px,3.4vw,48px);font-weight:900}
 .install-title>p{max-width:400px;margin-top:20px;font-size:14px;color:var(--muted);line-height:1.8}
 .install-steps{display:grid;gap:14px;margin-top:34px}
@@ -509,7 +536,7 @@ p{text-wrap:pretty}
 .istep code{font:650 10.5px var(--mono);background:rgba(205,244,233,.08);padding:1px 6px;border-radius:5px;color:#a9dcd0}
 .install-card{border:1px solid var(--line-strong);border-radius:18px;background:rgba(4,16,18,.7);backdrop-filter:blur(10px);padding:24px;box-shadow:var(--shadow)}
 .install-card .term-body{min-height:0}
-.dl-band{display:flex;flex-wrap:wrap;gap:14px;margin-top:24px}
+.dl-band{display:flex;flex-wrap:wrap;gap:40px;margin-top:24px}
 .install-commands{display:grid;gap:10px;margin-top:18px}
 .copy-command{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line-strong);border-radius:12px;background:rgba(0,0,0,.19)}
 .copy-command code{min-width:0;overflow-wrap:anywhere;color:#cce9df;font:600 11px/1.6 var(--mono)}
@@ -528,9 +555,13 @@ p{text-wrap:pretty}
 .button-kofi{color:#fff;background:linear-gradient(148deg,#ff7a78,#f0484f);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 12px 30px rgba(240,72,79,.35)}
 .button-kofi:hover{box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 16px 38px rgba(240,72,79,.5)}
 .kofi-cup{width:20px;height:20px;border-radius:5px}
+.button-kofi .kofi-cup{filter:brightness(0) invert(1)}
 
 /* ============ 14. FAQ ============ */
-.faq-section{display:grid;grid-template-columns:.8fr 1.2fr;gap:80px;padding:90px 0 100px}
+.faq-section{padding:90px 0 100px}
+.faq-section>.wrap{display:grid;grid-template-columns:1fr;gap:32px}
+.faq-list{min-width:0;width:100%}
+.faq-list details p{max-width:85ch}
 .faq-heading h2{font-size:clamp(30px,3vw,42px);font-weight:900}
 .faq-heading p{margin-top:18px;font-size:13px;color:var(--muted);max-width:280px;line-height:1.7}
 .faq-list details{border-bottom:1px solid var(--line)}
@@ -577,7 +608,7 @@ p{text-wrap:pretty}
 /* ============ 18. Responsive ============ */
 @media(max-width:1080px){
   .hero-content{grid-template-columns:1fr;gap:46px;padding-top:96px}
-  .hero-window-wrap{max-width:640px}
+  .hero-window-wrap{max-width:760px}
   .monthly-grid,.mount-grid,.install-grid{grid-template-columns:1fr;gap:50px}
   .demo-route{grid-template-columns:1fr;gap:10px}
   .darrow{transform:rotate(90deg);width:80px;margin:0 auto}
@@ -589,10 +620,13 @@ p{text-wrap:pretty}
   .wrap{width:calc(100% - 48px)}
   .mac-left nav{display:none}
   .mac-right .battery,.mac-right .wifi{display:none}
+  .pk-menu{right:-14px}
+  .install-options{grid-template-columns:1fr}
+  .install-option>p{min-height:0}
   .demo-workspace{grid-template-columns:1fr}
   .dstack{min-height:0}
   .utility-grid,.gallery{grid-template-columns:1fr}
-  .faq-section{grid-template-columns:1fr;gap:36px}
+  .faq-section>.wrap{gap:36px}
   .support-inner{grid-template-columns:1fr;padding:34px 28px}
   .demo-bottom{flex-wrap:wrap}
   .hero-scene{min-height:960px;height:auto;padding-bottom:80px}
@@ -604,8 +638,9 @@ p{text-wrap:pretty}
   .wrap{width:calc(100% - 40px)}
   .mac-app-title{font-size:11px}
   .mac-right{gap:9px;font-size:10px}
-  .hw-stack{grid-template-columns:repeat(3,1fr)}
+  .hw-stack{grid-template-columns:repeat(2,1fr)}
   .hero-actions{flex-direction:column;align-items:stretch}
+  .hero-quick{gap:12px 16px}
   .hero-meta{gap:6px 14px}
   .pipe-node{padding:24px 18px 20px}
   .dstack{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
@@ -614,7 +649,7 @@ p{text-wrap:pretty}
   .dprimary{flex:1}
   .hero-scene-foot{font-size:7.5px;left:20px;right:20px}
   .support-actions .button{width:100%}
-.menu-hint{right:8px;top:43px;font-size:10px}.menu-hint-arrow{right:4px;top:-38px;width:66px}
+  .menu-hint{width:70px;height:66px}
 }
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -680,27 +715,30 @@ p{text-wrap:pretty}
     </nav>
   </div>
   <div class="mac-right">
+    <div class="pk-control">
+      <button class="pk-status" id="pkStatusBtn" aria-haspopup="true" aria-controls="pkMenu" aria-expanded="false" aria-label="Ouvrir le menu PKarchives" title="Ouvrir le menu PKarchives">📦</button>
+      <div class="menu-hint" id="menuHint" aria-hidden="true"><svg class="menu-hint-arrow" viewBox="0 0 74 76"><path d="M5 69C17 59 8 49 21 43C34 37 25 21 37 7"/><path d="m27 13 10-8 6 12"/></svg></div>
+      <div class="pk-menu" id="pkMenu" role="menu">
+        <button class="mi" role="menuitem" disabled>Version <span id="menuVersion">2026.10.12</span> <span class="mi-sub">Sparkle</span></button>
+        <hr>
+        <button class="mi" role="menuitem" data-act="open"><span class="mi-ico">🗂</span>Ouvrir PKarchives</button>
+        <button class="mi" role="menuitem" data-act="files"><span class="mi-ico">📄</span>Archiver (fichiers)</button>
+        <button class="mi" role="menuitem" data-act="all"><span class="mi-ico">🗃</span>Archiver (tout)</button>
+        <hr>
+        <button class="mi" role="menuitem" data-act="drive"><svg class="icon" style="width:15px;height:15px"><use href="#i-drive"/></svg>Ouvrir Google Drive</button>
+        <button class="mi" role="menuitem" data-act="mount"><svg class="icon" style="width:15px;height:15px"><use href="#i-mount"/></svg>Monter le Drive</button>
+        <hr>
+        <button class="mi" role="menuitem" data-act="kofi"><span class="mi-ico">♥</span>Soutenir sur Ko-fi</button>
+        <hr>
+        <button class="mi" role="menuitem" data-act="update"><svg class="icon" style="width:15px;height:15px"><use href="#i-spark"/></svg>Rechercher les mises à jour…<span class="mi-kbd">⌘U</span></button>
+        <button class="mi" role="menuitem" data-act="quit"><svg class="icon" style="width:15px;height:15px"><use href="#i-close"/></svg>Quitter<span class="mi-kbd">⌘Q</span></button>
+      </div>
+    </div>
+    <a class="kofi-link" href="https://ko-fi.com/pouark" target="_blank" rel="noopener" aria-label="Soutenir PKarchives sur Ko-fi" title="Soutenir sur Ko-fi"><img class="kofi-cup" src="data:image/png;base64,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" alt=""></a>
     <svg class="icon wifi" aria-hidden="true"><use href="#i-wifi"/></svg>
     <span class="battery" aria-hidden="true"><i></i></span>
     <span id="macDate" aria-label="Heure"></span>
-    <button class="pk-status" id="pkStatusBtn" aria-haspopup="true" aria-expanded="false" aria-label="Ouvrir le menu PKarchives" title="Ouvrir le menu PKarchives">📦</button>
-    <div class="pk-menu" id="pkMenu" role="menu">
-      <button class="mi" role="menuitem" disabled>Version <span id="menuVersion">2026.10.12</span> <span class="mi-sub">Sparkle</span></button>
-      <hr>
-      <button class="mi" role="menuitem" data-act="open"><span class="mi-ico">🗂</span>Ouvrir PKarchives</button>
-      <button class="mi" role="menuitem" data-act="files"><span class="mi-ico">📄</span>Archiver (fichiers)</button>
-      <button class="mi" role="menuitem" data-act="all"><span class="mi-ico">🗃</span>Archiver (tout)</button>
-      <hr>
-      <button class="mi" role="menuitem" data-act="drive"><svg class="icon" style="width:15px;height:15px"><use href="#i-drive"/></svg>Ouvrir Google Drive</button>
-      <button class="mi" role="menuitem" data-act="mount"><svg class="icon" style="width:15px;height:15px"><use href="#i-mount"/></svg>Monter le Drive</button>
-      <hr>
-      <button class="mi" role="menuitem" data-act="kofi"><img class="mi-kofi" src="data:image/png;base64,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" alt="">Soutenir sur Ko-fi</button>
-      <hr>
-      <button class="mi" role="menuitem" data-act="update"><svg class="icon" style="width:15px;height:15px"><use href="#i-spark"/></svg>Rechercher les mises à jour…<span class="mi-kbd">⌘U</span></button>
-      <button class="mi" role="menuitem" data-act="quit"><svg class="icon" style="width:15px;height:15px"><use href="#i-close"/></svg>Quitter<span class="mi-kbd">⌘Q</span></button>
-    </div>
   </div>
-  <div class="menu-hint" id="menuHint" role="note"><svg class="menu-hint-arrow" viewBox="0 0 72 43" aria-hidden="true"><path d="M5 39C-1 34 5 26 12 28c8 2 6 10 0 9-4-1-4-6 0-7 8-2 10-8 16-8 8 0 7-8 12-13 5-5 13-6 23-5M56 3l8 1-4 8"/><path d="M3 40c5-7 9-10 14-10m25-15c5-5 11-7 18-7"/></svg>Cliquez ici pour ouvrir le menu</div>
   <div class="progress-line" id="progressLine"></div>
 </header>
 
@@ -728,13 +766,20 @@ p{text-wrap:pretty}
       <h1>Votre Bureau, archivé.<br><em>Votre Drive, rangé.</em></h1>
       <p class="hero-copy">PKarchives vide votre Bureau et remplit votre Google Drive — <b>sans jamais perdre un fichier</b>. Chaque élément est uploadé, <b>vérifié sur Drive</b>, rangé dans son dossier du mois, et seulement ensuite libéré. Votre Drive se monte même sur votre Bureau, comme un disque.</p>
       <div class="hero-actions">
-        <a class="button button-amber" id="heroDownload" href="#installer" aria-describedby="releaseStatus">
-          <svg class="icon"><use href="#i-download"/></svg><span id="heroDownloadLabel">Télécharger pour Mac Apple Silicon</span>
+        <a class="button button-amber" id="heroDownload" href="https://github.com/mondary/Macos_PKarchives/releases/download/v2026.10.12/PKarchives-2026.10.12.dmg" aria-label="Télécharger directement PKarchives-2026.10.12.dmg pour Mac Apple Silicon" aria-describedby="releaseStatus">
+          <svg class="icon"><use href="#i-download"/></svg><span id="heroDownloadLabel">Télécharger PKarchives.dmg</span>
         </a>
-        <button class="play-link" data-goto="#demo">
-          <span class="play-circle"><svg class="icon"><use href="#i-play"/></svg></span>
+      </div>
+      <div class="hero-quick">
+        <button class="quick-link" data-goto="#demo" aria-label="Essayer la démo interactive de PKarchives">
+          <span class="qico"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg></span>
           Essayer la démo interactive
         </button>
+        <span class="quick-sep" aria-hidden="true"></span>
+        <a class="quick-link" href="https://ko-fi.com/pouark" target="_blank" rel="noopener">
+          <span class="qico"><img class="kofi-cup" src="data:image/png;base64,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" alt=""></span>
+          Soutenir sur Ko-fi
+        </a>
       </div>
       <div class="hero-meta">
         <span><svg class="icon"><use href="#i-shield"/></svg>Upload vérifié avant suppression</span>
@@ -752,12 +797,19 @@ p{text-wrap:pretty}
           <div class="hw-badge">2026.10.12</div>
         </div>
         <div class="hw-body">
-          <div class="hw-route">
-            <div class="hw-side"><div class="k">DEPUIS</div><div class="v">🗂 Bureau <span class="n" id="hwSrcCount">7</span></div></div>
-            <div class="hw-arrow"><svg class="icon"><use href="#i-arrow"/></svg></div>
-            <div class="hw-side right"><div class="k">VERS</div><div class="v">☁️ Drive <span class="n" id="hwDstCount">0</span></div></div>
+          <div class="hw-cols">
+            <div class="hw-side">
+              <div class="k">DEPUIS</div>
+              <div class="v">🗂 Bureau <span class="n" id="hwSrcCount">7</span></div>
+              <div class="hw-stack" id="hwStack"></div>
+            </div>
+            <div class="hw-mid" aria-hidden="true"><svg class="icon"><use href="#i-arrow"/></svg></div>
+            <div class="hw-side right">
+              <div class="k">VERS</div>
+              <div class="v">☁️ Drive <span class="n" id="hwDstCount">0</span></div>
+              <div id="hwDstStack"></div>
+            </div>
           </div>
-          <div class="hw-stack" id="hwStack"></div>
           <div class="hw-status" id="hwStatus"><i class="led"></i><span id="hwStatusTxt">Prêt — 7 éléments archivables</span></div>
           <div class="hw-bar">
             <div class="cta">Archiver les éléments</div>
@@ -1156,17 +1208,6 @@ p{text-wrap:pretty}
           <div class="istep"><span class="n">2</span><div><b>Installer rclone</b><span><code>brew install rclone</code> puis <code>rclone config</code> pour connecter votre Google Drive, une seule fois.</span></div></div>
           <div class="istep"><span class="n">3</span><div><b>Configurer &amp; archiver</b><span><code>./scripts/setup.sh</code> guide : dossier Drive, dossier à archiver, remote. Premier archivage immédiat.</span></div></div>
         </div>
-        <div class="dl-band">
-          <a class="button button-amber" id="installDownload" href="#installer" aria-describedby="releaseStatus"><svg class="icon"><use href="#i-download"/></svg><span id="installDownloadLabel">Vérification…</span></a>
-          <a class="button button-ghost" href="https://github.com/mondary/Macos_PKarchives" target="_blank" rel="noopener"><svg class="icon"><use href="#i-github"/></svg>Voir le code</a>
-        </div>
-        <div class="install-commands" aria-label="Commandes d'installation">
-          <div class="copy-command"><code id="brewCommand">brew install --cask mondary/tap/pkarchives</code><button type="button" id="copyBrew" aria-describedby="brewStatus">Copier</button></div>
-          <p class="release-status" id="brewStatus">Vérification de Homebrew…</p>
-          <a class="button button-ghost" id="pkgDownload" href="#installer"><svg class="icon"><use href="#i-download"/></svg><span>Installer d'un double-clic (.pkg)</span></a>
-          <div class="copy-command"><code id="curlCommand">curl -fL https://github.com/mondary/Macos_PKarchives/releases/latest/download/PKarchives.pkg -o "$HOME/Downloads/PKarchives.pkg"</code><button type="button" id="copyCurl">Copier</button></div>
-          <p class="release-status" id="releaseStatus" role="status" aria-live="polite">Recherche d'une release contenant le DMG…</p>
-        </div>
       </div>
       <div class="install-card reveal reveal-d1">
         <div class="term">
@@ -1176,6 +1217,27 @@ p{text-wrap:pretty}
         <div class="dl-band" style="margin-top:18px">
           <span style="font:600 10px var(--mono);color:var(--faint);letter-spacing:.06em">MACOS 14+ · RCLONE · ~15 MO · SPARKLE INTÉGRÉ</span>
         </div>
+      </div>
+    </div>
+    <div class="install-options" aria-label="Choisir une méthode d'installation">
+      <div class="install-option">
+        <h3>DMG · installation manuelle</h3>
+        <p>Ouvrez le DMG, puis glissez l'app dans Applications. Le code source est aussi sur GitHub.</p>
+        <a class="button button-amber" id="installDownload" href="https://github.com/mondary/Macos_PKarchives/releases/download/v2026.10.12/PKarchives-2026.10.12.dmg" aria-label="Télécharger le DMG de la dernière release" aria-describedby="releaseStatus"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg><span id="installDownloadLabel">Télécharger le DMG</span></a>
+        <p class="release-status" id="releaseStatus" role="status" aria-live="polite">Téléchargement direct disponible · Apple Silicon.</p>
+        <a class="text-link install-source" href="https://github.com/mondary/Macos_PKarchives" target="_blank" rel="noopener"><svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>Voir le code</a>
+      </div>
+      <div class="install-option">
+        <h3>Homebrew · une commande</h3>
+        <p>Installez l'app depuis le tap PK ; Homebrew gère aussi les mises à jour.</p>
+        <div class="copy-command"><code id="brewCommand">brew install --cask mondary/tap/pkarchives</code><button type="button" id="copyBrew" aria-describedby="brewStatus">Copier</button></div>
+        <p class="release-status" id="brewStatus">Vérification de Homebrew…</p>
+      </div>
+      <div class="install-option">
+        <h3>PKG · installation guidée</h3>
+        <p>Le même installateur : double-cliquez sur le PKG, ou téléchargez-le via curl.</p>
+        <a class="button button-ghost" id="pkgDownload" href="https://github.com/mondary/Macos_PKarchives/releases/download/v2026.10.12/PKarchives-2026.10.12.pkg"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg><span>Installer d'un double-clic (.pkg)</span></a>
+        <div class="copy-command"><code id="curlCommand">curl -fL https://github.com/mondary/Macos_PKarchives/releases/latest/download/PKarchives.pkg -o "$HOME/Downloads/PKarchives.pkg"</code><button type="button" id="copyCurl">Copier</button></div>
       </div>
     </div>
   </div>
@@ -1204,7 +1266,7 @@ p{text-wrap:pretty}
 
 <!-- ═══════════ FAQ ═══════════ -->
 <section class="faq-section" id="faq">
-  <div class="wrap" style="display:grid;grid-template-columns:inherit;gap:inherit">
+  <div class="wrap">
     <div class="faq-heading reveal">
       <span class="eyebrow" style="display:block;margin-bottom:18px">Questions fréquentes</span>
       <h2>Avant de vider<br>votre Bureau.</h2>
@@ -1255,7 +1317,7 @@ p{text-wrap:pretty}
       </nav>
     </div>
     <div class="foot-note">
-      <span>© 2026 PK — Fait avec soin, café et rclone · v2026.10.12 · <a href="../LICENSE">MIT License</a></span>
+      <span>© 2026 PK — Fait avec soin, café et rclone · site v2026.10.13 · <a href="../LICENSE">MIT License</a></span>
       <span>LE BUREAU SE VIDE · LE DRIVE SE REMPLIT · RIEN NE SE PERD</span>
     </div>
   </div>
@@ -1293,10 +1355,13 @@ tick(); setInterval(tick, 20000);
 /* ---------- GitHub Releases: pas de faux lien vers une page vide ---------- */
 const releaseStatus = $('#releaseStatus');
 const setReleaseLink = (link, label, url, filename) => {
-  link.href = url || '#installer';
   link.querySelector('span').textContent = label;
-  if (url) { link.setAttribute('download', filename || ''); link.removeAttribute('target'); link.removeAttribute('rel'); }
-  else { link.removeAttribute('download'); link.removeAttribute('target'); }
+  if (url) {
+    link.href = url;
+    link.removeAttribute('download');
+    link.removeAttribute('target');
+    link.removeAttribute('rel');
+  }
 };
 async function prepareDownloads(){
   const api = 'https://api.github.com/repos/mondary/Macos_PKarchives/releases/latest';
@@ -1308,8 +1373,8 @@ async function prepareDownloads(){
     if (!dmg) throw new Error(`La release ${release.tag_name} ne contient pas encore de DMG.`);
     const pkg = (release.assets || []).find(asset => /^PKarchives(?:-[\d.]+)?\.pkg$/i.test(asset.name));
     if (!pkg) throw new Error(`La release ${release.tag_name} ne contient pas l'installateur .pkg attendu.`);
-    setReleaseLink($('#heroDownload'), 'Télécharger pour Mac Apple Silicon', dmg.browser_download_url, dmg.name);
-    setReleaseLink($('#installDownload'), `Télécharger ${release.tag_name}`, dmg.browser_download_url, dmg.name);
+    setReleaseLink($('#heroDownload'), 'Télécharger PKarchives.dmg', dmg.browser_download_url, dmg.name);
+    setReleaseLink($('#installDownload'), 'Télécharger le DMG', dmg.browser_download_url, dmg.name);
     releaseStatus.textContent = `DMG + installateur .pkg prêts · ${release.tag_name} · ${Math.round(dmg.size / 1048576)} Mo. macOS peut demander une autorisation, l'app n'étant pas notariée.`;
     $('#menuVersion').textContent = release.tag_name.replace(/^v/, '');
     $('#heroDownload').setAttribute('aria-label', `Télécharger PKarchives ${release.tag_name} pour Mac Apple Silicon`);
@@ -1320,8 +1385,8 @@ async function prepareDownloads(){
     $('#copyCurl').disabled = false;
   } catch (error) {
     const message = error instanceof TypeError ? 'Impossible de vérifier GitHub pour le moment.' : error.message;
-    setReleaseLink($('#heroDownload'), 'Télécharger pour Mac Apple Silicon', null);
-    setReleaseLink($('#installDownload'), 'Télécharger pour Mac', null);
+    setReleaseLink($('#heroDownload'), 'Télécharger PKarchives.dmg', null);
+    setReleaseLink($('#installDownload'), 'Télécharger le DMG', null);
     setReleaseLink($('#pkgDownload'), 'Installer d’un double-clic (.pkg)', null);
     releaseStatus.textContent = `Vérification du lien de release impossible : ${message}`;
   }
@@ -1357,7 +1422,7 @@ addEventListener('scroll', () => {
 const pkBtn = $('#pkStatusBtn'), pkMenu = $('#pkMenu');
 const menuHint = $('#menuHint');
 function closeMenu(){ pkMenu.classList.remove('open'); pkBtn.setAttribute('aria-expanded','false'); }
-pkBtn.addEventListener('click', e => { e.stopPropagation(); pkMenu.classList.toggle('open'); pkBtn.setAttribute('aria-expanded', pkMenu.classList.contains('open')); });
+pkBtn.addEventListener('click', e => { e.stopPropagation(); menuHint.hidden = true; pkMenu.classList.toggle('open'); pkBtn.setAttribute('aria-expanded', pkMenu.classList.contains('open')); });
 document.addEventListener('click', e => { if (!pkMenu.contains(e.target) && !pkBtn.contains(e.target)) closeMenu(); });
 pkMenu.addEventListener('click', async e => {
   const b = e.target.closest('.mi'); if (!b) return;
@@ -1386,6 +1451,7 @@ const heroFiles = [
   {n:'rapport.docx', e:'📄', s:'1,1 Mo'}
 ];
 const hwStack = $('#hwStack');
+const hwDst = $('#hwDstStack');
 let hwStop = false;
 function hwRender(){
   hwStack.innerHTML = heroFiles.map((f,i) => `
@@ -1394,8 +1460,40 @@ function hwRender(){
       <div class="fill"></div>
       <div class="hw-name">${f.n}</div>
     </div>`).join('');
+  hwDst.innerHTML = '';
   $('#hwSrcCount').textContent = heroFiles.length;
   $('#hwDstCount').textContent = 0;
+}
+function hwFly(card, f){
+  const win = card.closest('.hero-window');
+  const mid = $('.hw-mid');
+  const row = document.createElement('div');
+  row.className = 'hw-arrived';
+  row.innerHTML = `<span class="ae">${f.e}</span><span class="an">${f.n}</span><span class="ac">✓</span>`;
+  hwDst.appendChild(row);
+  if (reduced || !win){ card.classList.add('gone'); return; }
+  row.style.visibility = 'hidden';
+  const wr = win.getBoundingClientRect(), cr = card.getBoundingClientRect(), rr = row.getBoundingClientRect();
+  const flyer = document.createElement('div');
+  flyer.className = 'hw-flyer';
+  flyer.innerHTML = `<div class="hw-thumb">${f.e}</div><div class="hw-name">${f.n}</div>`;
+  flyer.style.left = (cr.left - wr.left) + 'px';
+  flyer.style.top = (cr.top - wr.top) + 'px';
+  flyer.style.width = cr.width + 'px';
+  win.appendChild(flyer);
+  if (mid) mid.classList.add('active');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const dx = (rr.left + rr.width/2) - (cr.left + cr.width/2);
+    const dy = (rr.top + rr.height/2) - (cr.top + cr.height/2);
+    flyer.style.transform = `translate(${dx}px, ${dy}px) scale(.9)`;
+    flyer.style.opacity = '0';
+  }));
+  setTimeout(() => {
+    flyer.remove();
+    row.style.visibility = '';
+    if (mid) mid.classList.remove('active');
+    card.classList.add('gone');
+  }, 700);
 }
 async function hwLoop(){
   await sleep(1600);
@@ -1416,11 +1514,11 @@ async function hwLoop(){
       $('#hwStatusTxt').textContent = `✅ ${heroFiles[i].n} vérifié sur Drive`;
       $('#hwStatus').classList.remove('busy');
       await sleep(420);
-      card.classList.add('gone');
+      hwFly(card, heroFiles[i]);
       $('#hwDstCount').textContent = i + 1;
       $('#hwSrcCount').textContent = heroFiles.length - (i + 1);
-      $('#hwStatusTxt').textContent = `🗑️ ${heroFiles[i].n} → Corbeille`;
-      await sleep(reduced ? 0 : 620);
+      $('#hwStatusTxt').textContent = `☁️ ${heroFiles[i].n} → Drive · 🗑️ Bureau libéré`;
+      await sleep(reduced ? 0 : 860);
     }
     $('#hwStatusTxt').textContent = `Bureau net · ${heroFiles.length} éléments archivés — Drive monté`;
     await sleep(3400);

@@ -4,13 +4,9 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version : 2026.10.12** · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
+**Version du projet : 2026.10.13** · App disponible : 2026.10.12 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
-
-![Vue principale : le Bureau archivé vers Google Drive](store/media/01-promo-vue-principale.png)
-
-![Historique annuel des archivages](store/media/02-promo-historique-annuel.png)
 
 ![Démonstration animée de PKarchives](store/media/03-interface-dynamic.gif)
 
@@ -37,6 +33,8 @@ release/
 - Support fichiers et dossiers
 - Barre de progression en temps réel
 
+![Vue principale : le Bureau archivé vers Google Drive](store/media/01-promo-vue-principale.png)
+
 ## 🧠 Utilisation
 
 ### Premier setup (automatisé)
@@ -58,6 +56,8 @@ Le script interactif vous guide pour :
 APP_VERSION="$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' CHANGELOG.md | head -1)"
 open "release/macos/PKarchives-${APP_VERSION}.app"
 ```
+
+![Historique annuel des archivages](store/media/02-promo-historique-annuel.png)
 
 ## Installation — Mac Apple Silicon
 

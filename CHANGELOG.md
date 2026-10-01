@@ -23,6 +23,18 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.10.13] - 2026-10-01
+#### Changed
+- Store : options d'installation DMG, Homebrew et PKG/curl regroupées et alignées ; FAQ déployée sur toute la largeur.
+- Barre macOS de démonstration : icône 📦 avant le Wi-Fi, menu ancré sur l'icône et flèche seule qui disparaît à l'ouverture.
+- Icône Ko-fi blanche sur le bouton rouge et simulation du hero agrandie.
+- README FR/EN : le GIF reste en tête, les deux captures sont réparties dans les sections Fonctionnalités et Utilisation.
+- Tasse Ko-fi blanche et cliquable dans la barre de menu de la landing, à côté de l'icône 📦.
+- Mini-démo du hero en deux zones : chaque fichier se charge à gauche (Bureau) puis vole visiblement vers la zone droite (Drive) où il atterrit ; compteurs synchronisés.
+- Actions du hero réorganisées : bouton principal Télécharger le DMG, puis deux liens discrets « Essayer la démo interactive » et « Soutenir sur Ko-fi » sous forme de puces icône + texte.
+#### Fixed
+- Liens DMG et PKG directs et versionnés pour la release d'application `2026.10.12`.
+
 ### [2026.10.12] - 2026-10-01
 #### Changed
 - Landing `store/index.html` : flèche dessinée persistante vers le menu 📦, téléchargement direct du DMG et installateur `.pkg` en double-clic ; commandes `brew` / `curl` copiables.

@@ -4,13 +4,9 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version: 2026.10.12** · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.10.13** · Available app: 2026.10.12 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
-
-![Main view: Desktop archived to Google Drive](store/media/01-promo-vue-principale.png)
-
-![Yearly archiving history](store/media/02-promo-historique-annuel.png)
 
 ![Animated PKarchives demonstration](store/media/03-interface-dynamic.gif)
 
@@ -37,6 +33,8 @@ release/
 - Files and folders support
 - Real-time progress bar
 
+![Main view: Desktop archived to Google Drive](store/media/01-promo-vue-principale.png)
+
 ## 🧠 Usage
 
 ### First-time setup (automated)
@@ -58,6 +56,8 @@ The interactive script guides you through:
 APP_VERSION="$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' CHANGELOG.md | head -1)"
 open "release/macos/PKarchives-${APP_VERSION}.app"
 ```
+
+![Yearly archiving history](store/media/02-promo-historique-annuel.png)
 
 ## Installation — Apple Silicon Mac
 
