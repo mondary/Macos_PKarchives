@@ -98,6 +98,20 @@ func desktopPath() -> String {
     return p.isEmpty ? "\(home)/Desktop" : expandedPath(p)
 }
 
+// Un seul nom partout : dossier de montage, volume Finder, journal, interface.
+func mountLinkName() -> String {
+    loadEnv("PKARCHIVES_DESKTOP_LINK_NAME") ?? "DesktopArchive"
+}
+
+func mountPath() -> String {
+    "\(NSHomeDirectory())/\(mountLinkName())"
+}
+
+func shortPath(_ p: String) -> String {
+    let home = FileManager.default.homeDirectoryForCurrentUser.path
+    return p.hasPrefix(home) ? "~" + p.dropFirst(home.count) : p
+}
+
 func driveFolderURL() -> String {
     guard let id = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID"), !id.isEmpty else {
         return "https://drive.google.com"
@@ -287,6 +301,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     var eventOffset = 0
     var sizeByName: [String: Int64] = [:]
     var currentItems: [DeskItem] = []
+    // État du montage Drive — source unique pour l'interface ("" inconnu, mounting, mounted, unmounted, failed)
+    var mountStatus = ""
     // Sparkle : détection automatique des mises à jour (appcast GitHub)
     var updaterController: SPUStandardUpdaterController?
 
@@ -333,6 +349,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         statusMenu = menu
         statusItem?.menu = menu
         showWindow()
+
+        // Montage automatique du Drive au démarrage (désactivable : PKARCHIVES_AUTO_MOUNT=0)
+        if (loadEnv("PKARCHIVES_AUTO_MOUNT") ?? "1") != "0" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.mountDrive()
+            }
+        }
 
         // Test/e2e : PKARCHIVES_AUTOSTART=files|all lance l'archivage au démarrage
         if let auto = loadEnv("PKARCHIVES_AUTOSTART"), !auto.isEmpty {
@@ -428,6 +451,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             openFinder()
         case "mount":
             mountDrive()
+        case "openVolume":
+            NSWorkspace.shared.open(URL(fileURLWithPath: mountPath()))
         case "chooseDesktop":
             chooseDesktop()
         case "rescan":
@@ -458,6 +483,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         sendSettings()
         sendHistory()
         refreshItems()
+        sendMountStateIfKnown()
     }
 
     func sendDest() {
@@ -725,30 +751,61 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         return a / b * 100
     }
 
-    // MARK: montage Drive (identique v1)
+    // MARK: montage Drive — un seul état, une seule source de vérité
+
+    func sendMountState() {
+        sendEV(["type": "mountState",
+                "state": mountStatus.isEmpty ? "unmounted" : mountStatus,
+                "path": shortPath(mountPath())])
+    }
+
+    func sendMountStateIfKnown() {
+        if !mountStatus.isEmpty { sendMountState(); return }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let mounted = isMounted(at: mountPath())
+            DispatchQueue.main.async {
+                if self?.mountStatus.isEmpty == true {
+                    self?.mountStatus = mounted ? "mounted" : "unmounted"
+                }
+                self?.sendMountState()
+            }
+        }
+    }
 
     func mountDrive() {
-        let linkName = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME") ?? "DesktopArchive"
+        let linkName = mountLinkName()
         let remote = (loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive").trimmingCharacters(in: CharacterSet(charactersIn: ":"))
         guard let folderID = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID"), !folderID.isEmpty else {
+            mountStatus = "failed"
+            sendMountState()
             sendEV(["type": "log", "line": "⚠️ Drive Folder ID absent, montage ignoré", "cls": "warn"])
             return
         }
         // ponytail: montage hors du dossier Bureau (rm -rf du Bureau ne doit jamais traverser vers le Drive)
-        let mountPath = "\(NSHomeDirectory())/DesktopArchive"
+        let mntPath = mountPath()
+        mountStatus = "mounting"
+        sendMountState()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            func finish(_ state: String) {
+                DispatchQueue.main.async {
+                    self?.mountStatus = state
+                    self?.sendMountState()
+                }
+            }
             let fm = FileManager.default
-            if isMounted(at: mountPath) {
-                self?.sendEV(["type": "log", "line": "📁 Google Drive déjà monté : \(mountPath)", "cls": "ok"])
+            if isMounted(at: mntPath) {
+                finish("mounted")
+                self?.sendEV(["type": "log", "line": "📁 Google Drive déjà monté : \(shortPath(mntPath))", "cls": "ok"])
                 return
             }
-            if fm.fileExists(atPath: mountPath) {
-                guard (try? fm.contentsOfDirectory(atPath: mountPath).isEmpty) == true else {
+            if fm.fileExists(atPath: mntPath) {
+                guard (try? fm.contentsOfDirectory(atPath: mntPath).isEmpty) == true else {
                     self?.sendEV(["type": "log", "line": "⚠️ \(linkName) existe déjà et n'est pas vide. Montage annulé.", "cls": "warn"])
+                    finish("failed")
                     return
                 }
             } else {
-                try? fm.createDirectory(atPath: mountPath, withIntermediateDirectories: true)
+                try? fm.createDirectory(atPath: mntPath, withIntermediateDirectories: true)
             }
             let logPath = FileManager.default.temporaryDirectory
                 .appendingPathComponent("pkarchives-mount.log").path
@@ -756,29 +813,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             let binary = rcloneBinary()
             if binary.contains("/") {
                 mount.executableURL = URL(fileURLWithPath: binary)
-                mount.arguments = ["mount", "\(remote):", mountPath,
+                mount.arguments = ["mount", "\(remote):", mntPath,
                                    "--drive-root-folder-id", folderID,
                                    "--daemon", "--daemon-wait", "10s",
                                    "--fast-list",
-                                   "--vfs-cache-mode", "minimal", "--volname", "PKarchives",
+                                   "--vfs-cache-mode", "minimal", "--volname", linkName,
                                    "--log-file", logPath, "--log-level", "INFO"]
             } else {
                 mount.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-                mount.arguments = ["rclone", "mount", "\(remote):", mountPath,
+                mount.arguments = ["rclone", "mount", "\(remote):", mntPath,
                                    "--drive-root-folder-id", folderID,
                                    "--daemon", "--daemon-wait", "10s",
                                    "--fast-list",
-                                   "--vfs-cache-mode", "minimal", "--volname", "PKarchives",
+                                   "--vfs-cache-mode", "minimal", "--volname", linkName,
                                    "--log-file", logPath, "--log-level", "INFO"]
             }
             do { try mount.run(); mount.waitUntilExit() } catch {
                 self?.sendEV(["type": "log", "line": "⚠️ Impossible de lancer rclone mount: \(error.localizedDescription)", "cls": "warn"])
+                finish("failed")
                 return
             }
-            if isMounted(at: mountPath) {
-                self?.sendEV(["type": "log", "line": "📁 Google Drive monté : \(mountPath)", "cls": "ok"])
+            if isMounted(at: mntPath) {
+                finish("mounted")
+                self?.sendEV(["type": "log", "line": "📁 Google Drive monté : \(shortPath(mntPath)) (volume « \(linkName) »)", "cls": "ok"])
             } else {
-                try? fm.removeItem(atPath: mountPath)
+                try? fm.removeItem(atPath: mntPath)
+                finish("failed")
                 self?.sendEV(["type": "log", "line": "⚠️ Google Drive non monté (voir log rclone / FUSE-T)", "cls": "warn"])
             }
         }

@@ -458,7 +458,7 @@ struct ContentView: View {
                     "mount", "\(remote):", mountPath,
                     "--drive-root-folder-id", folderID,
                     "--daemon", "--daemon-wait", "10s",
-                    "--vfs-cache-mode", "minimal", "--volname", "PKarchives",
+                    "--vfs-cache-mode", "minimal", "--volname", linkName,
                     "--log-file", logPath, "--log-level", "INFO"
                 ]
             } else {
@@ -467,7 +467,7 @@ struct ContentView: View {
                     "rclone", "mount", "\(remote):", mountPath,
                 "--drive-root-folder-id", folderID,
                 "--daemon", "--daemon-wait", "10s",
-                "--vfs-cache-mode", "minimal", "--volname", "PKarchives",
+                "--vfs-cache-mode", "minimal", "--volname", linkName,
                 "--log-file", logPath, "--log-level", "INFO"
                 ]
             }

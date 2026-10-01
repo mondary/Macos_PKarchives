@@ -79,10 +79,11 @@ La configuration est générée automatiquement par `setup.sh` dans `secrets/.en
 |----------|--------|-------------|
 | `PKARCHIVES_DRIVE_FOLDER_ID` | *(obligatoire)* | ID du dossier Google Drive |
 | `PKARCHIVES_DESKTOP_PATH` | `~/Desktop` | Dossier à archiver |
-| `PKARCHIVES_DESKTOP_LINK_NAME` | `DesktopArchive` | Symlink à exclure |
+| `PKARCHIVES_DESKTOP_LINK_NAME` | `DesktopArchive` | Nom du volume monté |
 | `PKARCHIVES_RCLONE_REMOTE` | `gdrive` | Nom du remote rclone |
+| `PKARCHIVES_AUTO_MOUNT` | `1` | Monter le Drive automatiquement au lancement (`0` pour désactiver) |
 
-Après l'archivage, Google Drive est monté dans `~/DesktopArchive` et un lien `DesktopArchive` est créé sur le Bureau vers ce dossier.
+Le Drive est monté dans `~/DesktopArchive` (volume Finder « DesktopArchive », volontairement hors du Bureau pour que la suppression des fichiers du Bureau ne puisse jamais traverser vers le Drive). Le montage est tenté automatiquement au lancement de l'app, puis après chaque archivage réussi.
 
 ## 🧾 Prérequis
 

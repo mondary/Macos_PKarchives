@@ -23,6 +23,13 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ## Releases
 
+### [2026.09.26] - 2026-10-01
+#### Added
+- Montage automatique du Drive au lancement de l'app (désactivable via `PKARCHIVES_AUTO_MOUNT=0`), en plus du montage post-archivage existant.
+#### Fixed
+- État de montage cohérent partout : le bouton « Monter le Drive » reflète désormais l'état réel (Montage… / ✓ Drive monté / Réessayer) et devient cliquable pour ouvrir le volume une fois monté. Le statut sous le titre se résout correctement (fini le « Montage… » clignotant contradictoire avec « monté »).
+- Nom unique du volume : le montage utilise le nom configuré (`DesktopArchive`) comme `--volname` Finder, identique au dossier `~/DesktopArchive`, au journal et à l'interface (avant : volume Finder « PKarchives » ≠ dossier « DesktopArchive »).
+
 ### [2026.09.25] - 2026-09-28
 #### Added
 - Landing `store/ultracrea3/` : structure Ultra Crea complète (démo interactive fidèle incluse), hero sur le fond d'écran fourni et palette intégralement teal dérivée de ce fond (accent menthe, encres menthe, papiers teal) — aucune couleur crépuscule. Couleurs sémantiques (Drive, Finder, Ko-fi) conservées.

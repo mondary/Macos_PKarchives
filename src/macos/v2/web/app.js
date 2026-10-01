@@ -23,6 +23,17 @@ function renderItems(ev){
 function renderScanError(ev){items=[];$("sourceCount").textContent="?";$("sourceHint").textContent="accès refusé ou dossier indisponible";$("archive").disabled=true;$("sourceStack").innerHTML='<div class="empty"><div><strong>Accès au dossier impossible</strong><span>'+escapeHTML(ev.path||"Le dossier source")+'<br>Ouvrez les réglages et choisissez le dossier manuellement.</span></div></div>';setStatus("Scan impossible","error");log("Impossible de lire le dossier source")}
 function fmtBytes(b){return b>=1073741824?(b/1073741824).toFixed(1).replace(".",",")+" Go":b>=1048576?Math.round(b/1048576)+" Mo":b>=1024?Math.round(b/1024)+" Ko":b+" o"}
 function renderHistory(ev){var runs=ev.runs||[],years={};runs.forEach(function(r){var d=new Date(r.date),y=d.getFullYear();(years[y]||(years[y]=[])).push(r)});var ys=Object.keys(years).sort().reverse();var current=$("historyYear").value||String(new Date().getFullYear());if(!years[current]&&ys.length)current=ys[0];$("historyYear").innerHTML=ys.map(function(y){return '<option>'+y+'</option>'}).join("")||'<option>'+new Date().getFullYear()+'</option>';$("historyYear").value=current;var months=Array(12).fill(0);(years[current]||[]).forEach(function(r){months[new Date(r.date).getMonth()]+=r.success||0});var max=Math.max.apply(null,months.concat([1]));$("historyTotal").textContent=months.reduce(function(a,b){return a+b},0);$("historyBytes").textContent=ev.bytes?fmtBytes(ev.bytes):"0";$("historyMax").textContent=max;$("historyAxisMax").textContent=max;$("historyBars").innerHTML=months.map(function(v,i){return '<i class="bar" title="'+["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"][i]+': '+v+' fichier(s)" style="height:'+Math.max(4,Math.round(v/max*104))+'px"></i>'}).join("");$("historyMonths").innerHTML=["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"].map(function(m){return "<span>"+m+"</span>"}).join("");$("historyEmpty").style.display=months.some(Boolean)?"none":"block"}
+function renderMount(ev){
+  var st=ev.state||"unmounted",p=ev.path||"",btn=$("mountBtn"),lbl=$("mountLabel");
+  btn.dataset.state=st;btn.disabled=st==="mounting";
+  btn.title=st==="mounted"&&p?("Ouvrir le volume monté : "+p):st==="mounting"?"Montage du volume Google Drive en cours…":st==="failed"?"Échec du montage — cliquer pour réessayer":"Monter le volume Google Drive dans "+(p||"~/DesktopArchive");
+  if(lbl)lbl.textContent=st==="mounting"?"Montage…":st==="mounted"?"✓ Drive monté":st==="failed"?"Réessayer le montage":"Monter le Drive";
+  if(st==="mounting"){if(!running)setStatus("Montage du Drive…","busy")}
+  else if($("status").textContent==="Montage du Drive…"){
+    if(st==="mounted")setStatus("Prêt");
+    else if(st==="failed")setStatus("Montage impossible","error");
+  }
+}
 function findCard(name){return Array.prototype.find.call(document.querySelectorAll("#sourceStack .file"),function(el){return el.dataset.name===name})}
 function fly(name){var card=findCard(name);if(!card)return;card.classList.add("uploading");var fill=card.querySelector(".fill");if(fill)fill.style.height="10%";var ghost=card.cloneNode(true);ghost.className="flying";ghost.style.left=(card.offsetLeft+8)+"px";ghost.style.top=(card.offsetTop+8)+"px";ghost.style.transform="translate(0,0)";$("sourceStack").appendChild(ghost);var ds=$("driveStack").getBoundingClientRect(),cr=card.getBoundingClientRect(),dx=ds.left+ds.width/2-(cr.left+cr.width/2),dy=ds.top+ds.height/2-(cr.top+cr.height/2);requestAnimationFrame(function(){ghost.classList.add("to-drive");ghost.style.transform="translate("+dx+"px,"+dy+"px) rotate(5deg) scale(.85)"});setTimeout(function(){ghost.remove()},900)}
 function handle(ev){
@@ -31,6 +42,7 @@ function handle(ev){
     case"scanError":renderScanError(ev);break;
     case"desktopChosen":$("desktop").value=ev.path||"";break;
     case"history":renderHistory(ev);break;
+    case"mountState":renderMount(ev);break;
     case"dest":$("destination").textContent=ev.name||"Google Drive";$("destinationShort").textContent=ev.short||"Dossier cloud";break;
     case"settings":$("folder").value=ev.folderId||"";$("desktop").value=ev.desktop||"";$("remote").value=ev.remote||"gdrive";break;
     case"run":total=ev.total||0;finished=0;$("archiveCount").textContent="0";$("driveStack").innerHTML='<div class="empty"><div><strong>Aucun fichier archivé</strong><span>Les fichiers arrivent ici pendant un archivage.</span></div></div>';break;
@@ -53,7 +65,7 @@ $("chooseDesktop").onclick=function(){send("chooseDesktop")};$("gear").onclick=f
  $("destination").parentElement.onclick=function(){send("openDrive")};
  $("openFinder").onclick=function(){send("openFinder")};
  $("openDriveBtn").onclick=function(){send("openDrive")};
- $("mountBtn").onclick=function(e){e.stopPropagation();send("mount");setStatus("Montage du Drive…","busy")};
+ $("mountBtn").onclick=function(e){e.stopPropagation();var st=this.dataset.state||"";if(st==="mounted"){send("openVolume")}else if(st!=="mounting"){send("mount")}};
  var vesper=document.getElementById("vesper");
  function setTheme(dark){vesper.disabled=!dark;$("themeBtn").textContent=dark?"☀️":"🌙";try{localStorage.setItem("pkTheme",dark?"dark":"light")}catch(e){}}
  $("themeBtn").onclick=function(){setTheme(vesper.disabled)};
