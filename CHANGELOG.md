@@ -19,6 +19,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
 
+### [2026.10.35] - 2026-10-07
+#### Fixed
+- Compilation Swift concurrency : captures `weak self` déplacées dans les tâches MainActor et appels de l’updater isolés sur l’acteur principal.
+
 ### [2026.10.34] - 2026-10-07
 #### Changed
 - À propos distingue l’application installée des dernières builds Stable/Dev, affiche un statut par canal et lance une vérification manuelle sur un appcast rafraîchi ; une build publiée plus ancienne n’est plus proposée comme mise à jour. L’installation manuelle vérifie la signature EdDSA et identifie le bundle extrait par version et identifiant avant installation, avec retour arrière en cas d’échec. Le script de release aligne l’appcast sur le `CFBundleVersion` compilé.

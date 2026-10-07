@@ -956,13 +956,13 @@ final class ArchiveUpdaterManager: NSObject, ObservableObject {
             UserDefaults.standard.set("dev", forKey: "updateChannel")
         }
         applyChannelPreference()
-        channelObserver = NotificationCenter.default.addObserver(forName: .pkUpdateChannelDidChange, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.applyChannelPreference(); self?.refreshAvailableVersions() }
+        channelObserver = NotificationCenter.default.addObserver(forName: .pkUpdateChannelDidChange, object: nil, queue: .main) { _ in
+            Task { @MainActor [weak self] in self?.applyChannelPreference(); self?.refreshAvailableVersions() }
         }
         controller.startUpdater()
         refreshAvailableVersions()
-        versionRefreshTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshAvailableVersions() }
+        versionRefreshTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { _ in
+            Task { @MainActor [weak self] in self?.refreshAvailableVersions() }
         }
     }
 
@@ -1218,7 +1218,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     var updaterController: SPUStandardUpdaterController?
 
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    @MainActor func applicationDidFinishLaunching(_ notification: Notification) {
         setupUpdater()
         // Menu attaché nativement (comme PKwindowsManagement) : rendu système fiable, images d'items incluses
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -1279,7 +1279,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             }
         }
     }
-    @objc func checkForUpdates() {
+    @objc @MainActor func checkForUpdates() {
         ArchiveUpdaterManager.shared.checkForUpdates()
     }
     private func makeMenuItem(_ title: String, action: Selector, symbol: String, key: String = "") -> NSMenuItem {
@@ -1310,7 +1310,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         NSWorkspace.shared.open(URL(string: "https://ko-fi.com/pouark")!)
     }
 
-    private func setupUpdater() {
+    @MainActor private func setupUpdater() {
         guard Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else { return } // désactivé hors release
         ArchiveUpdaterManager.shared.start()
         updaterController = ArchiveUpdaterManager.shared.controller

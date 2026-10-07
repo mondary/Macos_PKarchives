@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Project version: 2026.10.34** · Available app: 2026.10.30 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.10.35** · Available app: 2026.10.30 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
