@@ -6,13 +6,13 @@
     <description>Builds automatiques du canal Dev.</description>
     <language>fr</language>
     <item>
-      <title>PKarchives 2026.10.35-dev.173129</title>
-      <pubDate>Wed, 07 Oct 2026 17:31:49 +0000</pubDate>
-      <sparkle:version>1791394289</sparkle:version>
-      <sparkle:shortVersionString>2026.10.35-dev.173129</sparkle:shortVersionString>
+      <title>PKarchives 2026.10.36-dev.194554</title>
+      <pubDate>Wed, 07 Oct 2026 19:46:15 +0000</pubDate>
+      <sparkle:version>1791402354</sparkle:version>
+      <sparkle:shortVersionString>2026.10.36-dev.194554</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description>Build Dev automatique depuis main.</description>
-      <enclosure url="https://github.com/mondary/Macos_PKarchives/releases/download/dev/PKarchives-dev.zip" sparkle:edSignature="ugDPbszaeDZhQsvw4f9WP786sQTRQSw6WGzMN/vTIQPlfSW+li/E1e7EcKhaRqQoPlT9faoM4c5rZ/7fZcPgBA==" length="6628367" type="application/octet-stream" />
+      <description>Build Dev automatique depuis la branche dev.</description>
+      <enclosure url="https://github.com/mondary/Macos_PKarchives/releases/download/dev/PKarchives-dev.zip" sparkle:edSignature="gaX+Qtf2zES7mLxYe5WfutbS0WHLVxsXK9QOYYYKfRwFhIkz0pfeHo36ws5vxKuT/iJ3eURcCrpR8kTx5guFBQ==" length="6628420" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
