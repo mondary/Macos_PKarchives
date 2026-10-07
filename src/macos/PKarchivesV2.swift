@@ -305,7 +305,7 @@ private struct ArchivePreferencesView: View {
     private let sections: [(String, String)] = [("archive","archivebox"),("library","square.grid.2x2"),("credits","text.book.closed"),("support","heart.fill"),("about","info.circle")]
     private var copy: [String: [String: String]] { [
         "archive":["fr":"Archivage","en":"Archiving","es":"Archivo","de":"Archivierung"],
-        "library":["fr":"Project Library","en":"Project Library","es":"Biblioteca de proyectos","de":"Projektbibliothek"],
+        "library":["fr":"Bibliothèque de projets","en":"Project Library","es":"Biblioteca de proyectos","de":"Projektbibliothek"],
         "support":["fr":"Soutenir","en":"Support","es":"Apoyar","de":"Unterstützen"],
         "credits":["fr":"Crédits","en":"Credits","es":"Créditos","de":"Credits"],
         "about":["fr":"À propos","en":"About","es":"Acerca de","de":"Über"],
@@ -320,7 +320,7 @@ private struct ArchivePreferencesView: View {
         "group.app":["fr":"APPLICATION","en":"APP","es":"APLICACIÓN","de":"APP"],
         "group.projects":["fr":"PROJETS PK","en":"PK PROJECTS","es":"PROYECTOS PK","de":"PK-PROJEKTE"],
         "search.none":["fr":"Aucun réglage trouvé","en":"No setting found","es":"No se encontró ningún ajuste","de":"Keine Einstellung gefunden"],
-        "library.title":["fr":"Project Library","en":"Project Library","es":"Biblioteca de proyectos","de":"Projekt-Bibliothek"],
+        "library.title":["fr":"Bibliothèque de projets","en":"Project Library","es":"Biblioteca de proyectos","de":"Projekt-Bibliothek"],
         "library.subtitle":["fr":"Découvrez les autres outils et projets que je développe.","en":"Discover the other tools and projects I build.","es":"Descubre las demás herramientas y proyectos que creo.","de":"Entdecke die anderen Tools und Projekte, die ich baue."],
         "library.more":["fr":"Plus de projets","en":"More projects","es":"Más proyectos","de":"Weitere Projekte"],
         "library.star":["fr":"Étoiler sur GitHub","en":"Star on GitHub","es":"Añadir estrella en GitHub","de":"Auf GitHub markieren"],
@@ -1321,6 +1321,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 780),
                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
                          backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false
         let cfg = WKWebViewConfiguration()
         cfg.userContentController.add(self, name: "pk")
         let wv = WKWebView(frame: w.contentLayoutRect, configuration: cfg)

@@ -3,7 +3,7 @@ name: Dev build
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [dev]
 
 permissions:
   contents: write
@@ -54,7 +54,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create dev --prerelease --title "PKarchives Dev" \
-            --notes "Build automatique du canal Dev depuis main." || true
+            --notes "Build automatique du canal Dev depuis la branche dev." || true
           gh release upload dev release/PKarchives-dev.zip --clobber
 
       - name: Generate dev appcast
@@ -79,7 +79,7 @@ jobs:
                 <sparkle:version>${BUILD_VERSION}</sparkle:version>
                 <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
                 <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-                <description>Build Dev automatique depuis main.</description>
+                <description>Build Dev automatique depuis la branche dev.</description>
                 <enclosure url="https://github.com/mondary/Macos_PKarchives/releases/download/dev/PKarchives-dev.zip" sparkle:edSignature="${SIGNATURE}" length="${LENGTH}" type="application/octet-stream" />
               </item>
             </channel>
