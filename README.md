@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version du projet : 2026.10.30** · App disponible : 2026.10.30 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
+**Version du projet : 2026.10.34** · App disponible : 2026.10.30 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
@@ -33,7 +33,7 @@ release/
 - Support fichiers et dossiers
 - Barre de progression en temps réel
 - Réglages natifs avec recherche, langues, librairie de projets PK, soutien et informations de version
-- Canaux de mise à jour Stable et Dev dans À propos
+- À propos compare la version installée aux dernières builds Stable/Dev, avec statut par canal et vérification manuelle sur un flux actualisé
 - Rubrique dédiée Crédits & inspirations, avec liens vers les outils, dépendances et projets référents
 
 ![Vue principale : le Bureau archivé vers Google Drive](store/media/01-promo-vue-principale.png)

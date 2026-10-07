@@ -7,6 +7,7 @@ import Combine
 import WebKit
 import QuickLookThumbnailing
 import CoreServices
+import CryptoKit
 import Sparkle
 
 // MARK: - Config / historique (identique v1, app séparée)
@@ -369,11 +370,23 @@ private struct ArchivePreferencesView: View {
         "about.channel.dev":["fr":"Builds automatiques de main. En Dev, les mises à jour sont téléchargées et installées automatiquement.","en":"Automatic builds from main. Dev updates download and install automatically.","es":"Builds automáticas de main. En Dev, las actualizaciones se descargan e instalan automáticamente.","de":"Automatische Builds von main. Dev-Updates werden automatisch geladen und installiert."],
         "about.check":["fr":"Rechercher les mises à jour…","en":"Check for Updates…","es":"Buscar actualizaciones…","de":"Nach Updates suchen…"],
         "about.version":["fr":"Version installée","en":"Installed version","es":"Versión instalada","de":"Installierte Version"],
+        "about.installed":["fr":"Version installée %@","en":"Installed version %@","es":"Versión instalada %@","de":"Installierte Version %@"],
         "footer.kofi":["fr":"Soutenir sur Ko-fi","en":"Support on Ko-fi","es":"Apoyar en Ko-fi","de":"Auf Ko-fi unterstützen"],
         "byPK":["fr":"Par PK","en":"By PK","es":"Por PK","de":"Von PK"],
         "macApp":["fr":"Application macOS","en":"macOS app","es":"Aplicación macOS","de":"macOS-App"],
         "settings.subtitle":["fr":"Configurez la source et la destination de vos archives.","en":"Configure your archive source and destination.","es":"Configura el origen y el destino de tus archivos.","de":"Konfiguriere Quelle und Ziel deiner Archive."],
-        "updates.caption":["fr":"Choisissez le canal de mise à jour qui vous convient.","en":"Choose the update channel that works for you.","es":"Elige el canal de actualización que prefieras.","de":"Wähle den passenden Update-Kanal."]
+        "updates.caption":["fr":"Choisissez le canal de mise à jour qui vous convient.","en":"Choose the update channel that works for you.","es":"Elige el canal de actualización que prefieras.","de":"Wähle den passenden Update-Kanal."],
+        "update.status.available":["fr":"Mise à jour disponible","en":"Update available","es":"Actualización disponible","de":"Update verfügbar"],
+        "update.status.current":["fr":"À jour","en":"Up to date","es":"Actualizado","de":"Aktuell"],
+        "update.status.ahead":["fr":"Version installée plus récente","en":"Installed version is newer","es":"La versión instalada es más reciente","de":"Installierte Version ist neuer"],
+        "update.status.other":["fr":"Autre canal","en":"Other channel","es":"Otro canal","de":"Anderer Kanal"],
+        "update.status.unavailable":["fr":"Version indisponible","en":"Version unavailable","es":"Versión no disponible","de":"Version nicht verfügbar"],
+        "update.install":["fr":"Installer %@","en":"Install %@","es":"Instalar %@","de":"%@ installieren"],
+        "update.installing":["fr":"Installation de la mise à jour…","en":"Installing update…","es":"Instalando actualización…","de":"Update wird installiert…"],
+        "update.failed":["fr":"Échec de l’installation : %@","en":"Installation failed: %@","es":"Error de instalación: %@","de":"Installation fehlgeschlagen: %@"],
+        "update.offer.title":["fr":"Installer cette version ?","en":"Install this version?","es":"¿Instalar esta versión?","de":"Diese Version installieren?"],
+        "update.offer.message":["fr":"Installer la version %@ du canal %@ ?","en":"Install version %@ from the %@ channel?","es":"¿Instalar la versión %@ del canal %@?","de":"Version %@ aus dem %@-Kanal installieren?"],
+        "update.cancel":["fr":"Plus tard","en":"Later","es":"Más tarde","de":"Später"]
     ] }
     private func text(_ key: String) -> String { copy[key]?[language] ?? copy[key]?["en"] ?? key }
     private var filtered: [(String,String)] {
@@ -420,8 +433,25 @@ private struct ArchivePreferencesView: View {
                 HStack(spacing: 8) { ForEach(ArchiveLanguage.allCases, id: \.rawValue) { lang in
                     Button(lang.flag) { language = lang.rawValue }.buttonStyle(.plain).opacity(language == lang.rawValue ? 1 : 0.55).help(lang.name)
                 } }
-                Text("PKarchives  \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
-                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary).padding(.bottom, 14)
+                HStack(spacing: 5) {
+                    Text("PKarchives  \(version)")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    if let available = updater.availableUpdateVersion {
+                        Button { updater.checkForUpdates() } label: {
+                            Label(available, systemImage: "arrow.down.circle.fill")
+                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                        .help(String(format: text("update.install"), available))
+                    }
+                }
+                .padding(.bottom, 14)
             }.padding(.horizontal, 16).frame(width: 230).background(.regularMaterial)
             Divider()
             Group {
@@ -522,7 +552,9 @@ private struct ArchivePreferencesView: View {
                     Image(nsImage: NSApp.applicationIconImage).resizable().interpolation(.high).frame(width: 88, height: 88)
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)).padding(.top, 36).padding(.bottom, 16)
                     Text("PKarchives").font(.system(size: 24, weight: .bold))
-                    Text("Version \(version) (\(build))").font(.system(size: 13)).foregroundStyle(.secondary).padding(.top, 4)
+                    Text(String(format: text("about.installed"), version))
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary).padding(.top, 4)
                     Text(text("byPK")).font(.system(size: 13)).foregroundStyle(.secondary).padding(.top, 2).padding(.bottom, 32)
                     VStack(alignment: .leading, spacing: 14) {
                         Text(text("about.greeting")).italic().font(.system(size: 13))
@@ -531,10 +563,11 @@ private struct ArchivePreferencesView: View {
                         Text(text("about.care")).font(.system(size: 13)).foregroundStyle(.secondary)
                         Text(text("about.thanks")).font(.system(size: 13)).foregroundStyle(.secondary).padding(.top, 8)
                         Text("— PK").font(.system(size: 13)).foregroundStyle(.secondary)
-                    }.frame(maxWidth: 480, alignment: .leading).padding(.bottom, 28)
-                    updatesCard.frame(maxWidth: 480).padding(.bottom, 30)
+                    }.frame(maxWidth: 480, alignment: .leading).padding(.bottom, 30)
                 }.frame(maxWidth: .infinity)
             }
+            Divider()
+            updatesCard.frame(maxWidth: .infinity).padding(.horizontal, 20).padding(.vertical, 12)
             Divider()
             HStack(spacing: 16) {
                 Link(destination: githubURL) { Label("GitHub", systemImage: "network").font(.caption).foregroundStyle(.secondary) }
@@ -552,32 +585,45 @@ private struct ArchivePreferencesView: View {
     }
 
     private var updatesCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(text("about.updates")).font(.headline)
+            HStack(spacing: 10) {
+                updateVersionColumn(title: text("about.stable"), value: updater.latestStableVersion ?? text("about.notPublished"), status: updater.versionStatus(for: "stable"))
+                updateVersionColumn(title: text("about.dev"), value: updater.latestDevVersion ?? text("about.notPublished"), status: updater.versionStatus(for: "dev"))
+            }
             HStack(spacing: 12) {
-                Text(language == "fr" ? "Canal" : "Channel").font(.subheadline.weight(.medium))
                 Picker(text("about.updates"), selection: updateChannelBinding) {
                     Text("Stable").tag("stable")
                     Text("Dev").tag("dev")
                 }
                 .pickerStyle(.segmented).labelsHidden().frame(width: 190).disabled(isDevBuild)
-                Spacer()
-                Text(version).font(.system(size: 12, weight: .medium, design: .monospaced))
+                Spacer(minLength: 0)
+                Button { updater.checkForUpdates() } label: {
+                    Label(updateButtonTitle, systemImage: updater.availableUpdateVersion == nil ? "arrow.triangle.2.circlepath" : "arrow.down.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(updater.installingUpdate)
             }
             Text(text(effectiveUpdateChannel == "dev" ? "about.channel.dev" : "about.channel.stable"))
                 .font(.caption).foregroundStyle(.secondary)
-            HStack(alignment: .top, spacing: 0) {
-                updateVersionColumn(title: text("about.stable"), value: updater.latestStableVersion ?? text("about.notPublished"), symbol: "checkmark.seal", installed: !isDevBuild)
-                Divider().frame(height: 42)
-                updateVersionColumn(title: text("about.dev"), value: updater.latestDevVersion ?? text("about.notPublished"), symbol: "hammer", installed: isDevBuild)
+            if updater.installingUpdate {
+                Label(text("update.installing"), systemImage: "arrow.down.circle")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            .padding(.vertical, 12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.045)))
-            Button { updater.refreshAvailableVersions(); delegate.checkForUpdates() } label: { Label(text("about.check"), systemImage: "arrow.triangle.2.circlepath") }
-                .buttonStyle(.bordered).disabled(delegate.updaterController == nil)
+            if let error = updater.updateError {
+                Text(String(format: text("update.failed"), error)).font(.caption).foregroundStyle(.red)
+            }
         }
         .padding(16).background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(0.025)))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+        .alert(text("update.offer.title"), isPresented: updateOfferPresented) {
+            Button(text("about.check")) { updater.performUpdateInstall() }
+            Button(text("update.cancel"), role: .cancel) { updater.cancelUpdateOffer() }
+        } message: {
+            if let offer = updater.updateOffer {
+                Text(String(format: text("update.offer.message"), offer.version, offer.channel))
+            }
+        }
     }
 
     private var creditsCard: some View {
@@ -653,12 +699,23 @@ private struct ArchivePreferencesView: View {
         })
     }
 
-    private func updateVersionColumn(title: String, value: String, symbol: String, installed: Bool) -> some View {
+    private var updateButtonTitle: String {
+        guard let update = updater.availableUpdateVersion else { return text("about.check") }
+        return String(format: text("update.install"), update)
+    }
+
+    private var updateOfferPresented: Binding<Bool> {
+        Binding(get: { updater.updateOffer != nil }, set: { if !$0 { updater.cancelUpdateOffer() } })
+    }
+
+    private func updateVersionColumn(title: String, value: String, status: ChannelVersionStatus) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Label(title, systemImage: symbol).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            Text(value).font(.system(size: 12, weight: .medium, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.75).help(value)
-            if installed { Label(text("about.version"), systemImage: "checkmark.circle.fill").font(.system(size: 10, weight: .medium)).foregroundStyle(.green).padding(.top, 2) }
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8)
+            Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+            Text(value).font(.system(size: 14, weight: .semibold, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.75).help(value)
+            Label(text("update.status.\(status.rawValue)"), systemImage: status.symbol)
+                .font(.system(size: 10, weight: .medium)).foregroundStyle(status.color).lineLimit(1).minimumScaleFactor(0.8)
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(10)
+            .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var kofiImage: NSImage? { Bundle.main.url(forResource: "kofi-logo", withExtension: "png").flatMap(NSImage.init(contentsOf:)) }
@@ -802,16 +859,65 @@ extension Notification.Name {
 }
 
 private final class ArchiveChannelFeedProvider: NSObject, SPUUpdaterDelegate {
-    nonisolated func feedURLString(for updater: SPUUpdater) -> String {
+    nonisolated func feedURLString(for updater: SPUUpdater) -> String? {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
         let devBuild = version.localizedCaseInsensitiveContains("-dev")
         let devChannel = devBuild || UserDefaults.standard.string(forKey: "updateChannel") == "dev"
-        return devChannel
+        let address = devChannel
             ? "https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast-dev.xml"
             : "https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast.xml"
+        guard var components = URLComponents(string: address) else { return address }
+        components.queryItems = (components.queryItems ?? []) + [URLQueryItem(name: "_pk_refresh", value: UUID().uuidString)]
+        return components.url?.absoluteString ?? address
     }
 }
 
+enum ChannelVersionStatus {
+    case updateAvailable, upToDate, installedAhead, otherChannel, unavailable
+    var rawValue: String {
+        switch self {
+        case .updateAvailable: "available"
+        case .upToDate: "current"
+        case .installedAhead: "ahead"
+        case .otherChannel: "other"
+        case .unavailable: "unavailable"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .updateAvailable: "arrow.down.circle.fill"
+        case .upToDate: "checkmark.circle.fill"
+        case .installedAhead: "arrow.up.circle.fill"
+        case .otherChannel: "circle.dashed"
+        case .unavailable: "questionmark.circle"
+        }
+    }
+    var color: Color {
+        switch self {
+        case .updateAvailable: .accentColor
+        case .upToDate: .green
+        case .installedAhead: .orange
+        case .otherChannel: .secondary
+        case .unavailable: .secondary
+        }
+    }
+}
+
+private struct ArchiveAppcastInfo {
+    let shortVersion: String
+    let buildVersion: String
+    let enclosure: URL?
+    let signature: String?
+}
+
+struct ArchiveUpdateOffer {
+    let version: String
+    let channel: String
+    let url: URL
+    let signature: String
+}
+
+@MainActor
 final class ArchiveUpdaterManager: NSObject, ObservableObject {
     static let shared = ArchiveUpdaterManager()
     static let stableFeedURL = "https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast.xml"
@@ -820,9 +926,22 @@ final class ArchiveUpdaterManager: NSObject, ObservableObject {
     let controller: SPUStandardUpdaterController
     @Published private(set) var latestStableVersion: String?
     @Published private(set) var latestDevVersion: String?
+    @Published private(set) var availableUpdateVersion: String?
+    @Published private(set) var updateOffer: ArchiveUpdateOffer?
+    @Published private(set) var installingUpdate = false
+    @Published private(set) var updateError: String?
     private let feedProvider = ArchiveChannelFeedProvider()
     private var channelObserver: NSObjectProtocol?
+    private var versionRefreshTimer: Timer?
+    private var stableInfo: ArchiveAppcastInfo?
+    private var devInfo: ArchiveAppcastInfo?
     private var started = false
+
+    private var selectedChannel: String {
+        let installed = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        if installed.localizedCaseInsensitiveContains("-dev") { return "dev" }
+        return UserDefaults.standard.string(forKey: "updateChannel") ?? "stable"
+    }
 
     private override init() {
         controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: feedProvider, userDriverDelegate: nil)
@@ -838,65 +957,237 @@ final class ArchiveUpdaterManager: NSObject, ObservableObject {
         }
         applyChannelPreference()
         channelObserver = NotificationCenter.default.addObserver(forName: .pkUpdateChannelDidChange, object: nil, queue: .main) { [weak self] _ in
-            self?.applyChannelPreference()
+            Task { @MainActor in self?.applyChannelPreference(); self?.refreshAvailableVersions() }
         }
         controller.startUpdater()
+        refreshAvailableVersions()
+        versionRefreshTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshAvailableVersions() }
+        }
     }
 
     private func applyChannelPreference() {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-        let devBuild = version.localizedCaseInsensitiveContains("-dev")
-        controller.updater.automaticallyDownloadsUpdates = devBuild || UserDefaults.standard.string(forKey: "updateChannel") == "dev"
+        let devBuild = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "").localizedCaseInsensitiveContains("-dev")
+        controller.updater.automaticallyDownloadsUpdates = devBuild || selectedChannel == "dev"
+    }
+
+    func refreshAvailableVersions() {
+        Task {
+            async let stable = Self.latestInfo(at: Self.stableFeedURL)
+            async let dev = Self.latestInfo(at: Self.devFeedURL)
+            let results = await (stable, dev)
+            stableInfo = results.0
+            devInfo = results.1
+            latestStableVersion = results.0?.shortVersion
+            latestDevVersion = results.1?.shortVersion
+            refreshUpdateAvailability()
+        }
+    }
+
+    func versionStatus(for channel: String) -> ChannelVersionStatus {
+        let installedVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let installedChannel = installedVersion.localizedCaseInsensitiveContains("-dev") ? "dev" : "stable"
+        guard installedChannel == channel else { return .otherChannel }
+        guard let info = channel == "dev" ? devInfo : stableInfo,
+              let installedBuild = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
+              let order = compareBuildNumbers(info.buildVersion, installedBuild) else { return .unavailable }
+        switch order {
+        case .orderedDescending: return .updateAvailable
+        case .orderedSame: return .upToDate
+        case .orderedAscending: return .installedAhead
+        }
+    }
+
+    private func refreshUpdateAvailability() {
+        let info = selectedChannel == "dev" ? devInfo : stableInfo
+        guard let info,
+              let installedBuild = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
+              compareBuildNumbers(info.buildVersion, installedBuild) == .orderedDescending else {
+            availableUpdateVersion = nil
+            return
+        }
+        availableUpdateVersion = info.shortVersion
     }
 
     func checkForUpdates() {
         NSApp.activate(ignoringOtherApps: true)
-        controller.checkForUpdates(nil)
-    }
-
-    func refreshAvailableVersions() {
-        fetchVersion(from: Self.stableFeedURL) { [weak self] in self?.latestStableVersion = $0 }
-        fetchVersion(from: Self.devFeedURL) { [weak self] in self?.latestDevVersion = $0 }
-    }
-
-    private func fetchVersion(from address: String, completion: @escaping (String?) -> Void) {
-        guard let url = URL(string: address) else { completion(nil); return }
-        URLSession.shared.dataTask(with: url) { data, response, _ in
-            guard let data, (response as? HTTPURLResponse)?.statusCode == 200 else {
-                DispatchQueue.main.async { completion(nil) }
+        updateError = nil
+        Task {
+            let address = selectedChannel == "dev" ? Self.devFeedURL : Self.stableFeedURL
+            let info = await Self.latestInfo(at: address)
+            if selectedChannel == "dev" { devInfo = info; latestDevVersion = info?.shortVersion }
+            else { stableInfo = info; latestStableVersion = info?.shortVersion }
+            refreshUpdateAvailability()
+            guard let info, let enclosure = info.enclosure, let signature = info.signature,
+                  let installedBuild = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
+                  let buildOrder = compareBuildNumbers(info.buildVersion, installedBuild) else {
+                controller.checkForUpdates(nil)
                 return
             }
-            let parser = ArchiveAppcastParser()
-            let xml = XMLParser(data: data)
-            xml.delegate = parser
-            let parsed = xml.parse() ? parser.version : nil
-            DispatchQueue.main.async { completion(parsed) }
-        }.resume()
+            let installedVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+            guard buildOrder == .orderedDescending else {
+                let message = buildOrder == .orderedAscending
+                    ? "The installed build is newer than the latest published \(selectedChannel) build (\(info.shortVersion))."
+                    : "PKarchives is up to date (\(installedVersion))."
+                showInformation(title: "PKarchives", message: message)
+                return
+            }
+            updateOffer = ArchiveUpdateOffer(version: info.shortVersion, channel: selectedChannel, url: enclosure, signature: signature)
+        }
     }
+
+    func cancelUpdateOffer() { updateOffer = nil }
+
+    func performUpdateInstall() {
+        guard let offer = updateOffer else { return }
+        updateOffer = nil
+        installingUpdate = true
+        updateError = nil
+        Task {
+            do {
+                try await installBuild(from: offer.url, expectedVersion: offer.version, signature: offer.signature)
+                installingUpdate = false
+                NSApp.terminate(nil)
+            } catch {
+                installingUpdate = false
+                updateError = error.localizedDescription
+            }
+        }
+    }
+
+    private func installBuild(from url: URL, expectedVersion: String, signature: String) async throws {
+        let bundleURL = Bundle.main.bundleURL
+        let work = FileManager.default.temporaryDirectory.appendingPathComponent("PKarchives-update-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
+        let (data, response) = try await URLSession.shared.data(from: url)
+        guard (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else {
+            throw NSError(domain: "PKarchives.Update", code: 1, userInfo: [NSLocalizedDescriptionKey: "Could not download the update archive."])
+        }
+        guard let signatureData = Data(base64Encoded: signature),
+              let publicKeyString = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String,
+              let publicKeyData = Data(base64Encoded: publicKeyString),
+              let publicKey = try? Curve25519.Signing.PublicKey(rawRepresentation: publicKeyData),
+              publicKey.isValidSignature(signatureData, for: data) else {
+            throw NSError(domain: "PKarchives.Update", code: 4, userInfo: [NSLocalizedDescriptionKey: "The update signature is invalid."])
+        }
+        let zip = work.appendingPathComponent("update.zip")
+        try data.write(to: zip)
+        try await Task.detached(priority: .userInitiated) {
+            try runArchiveProcess("/usr/bin/ditto", ["-x", "-k", zip.path, work.path])
+        }.value
+        let currentBundleIdentifier = Bundle.main.bundleIdentifier
+        let candidates = try FileManager.default.contentsOfDirectory(at: work, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "app" }
+        guard let extracted = candidates.first(where: { candidate in
+            guard let info = NSDictionary(contentsOf: candidate.appendingPathComponent("Contents/Info.plist")),
+                  let extractedVersion = info["CFBundleShortVersionString"] as? String,
+                  let extractedBundleIdentifier = info["CFBundleIdentifier"] as? String else { return false }
+            return extractedVersion == expectedVersion && extractedBundleIdentifier == currentBundleIdentifier
+        }) else {
+            throw NSError(domain: "PKarchives.Update", code: 2, userInfo: [NSLocalizedDescriptionKey: "The downloaded app version did not match the appcast."])
+        }
+        let stagedApp = bundleURL.deletingLastPathComponent().appendingPathComponent(".PKarchives-update-\(UUID().uuidString).app")
+        try FileManager.default.copyItem(at: extracted, to: stagedApp)
+        let scriptURL = work.appendingPathComponent("install.sh")
+        let target = Self.shellQuote(bundleURL.path)
+        let staged = Self.shellQuote(stagedApp.path)
+        let backup = Self.shellQuote(bundleURL.deletingLastPathComponent().appendingPathComponent(".PKarchives-backup-\(UUID().uuidString).app").path)
+        let cleanup = Self.shellQuote(work.path)
+        try "#!/bin/bash\nsleep 2\n/usr/bin/mv \(target) \(backup) || exit 1\nif /usr/bin/mv \(staged) \(target); then\n  /usr/bin/open \(target)\n  /bin/rm -rf \(backup) \(cleanup)\nelse\n  /usr/bin/mv \(backup) \(target)\n  exit 1\nfi\n".write(to: scriptURL, atomically: true, encoding: .utf8)
+        let installer = Process()
+        installer.executableURL = URL(fileURLWithPath: "/bin/bash")
+        installer.arguments = [scriptURL.path]
+        installer.qualityOfService = .userInitiated
+        try installer.run()
+    }
+
+    private static func shellQuote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+
+    private static func freshFeedURL(_ address: String) -> URL? {
+        guard var components = URLComponents(string: address) else { return nil }
+        components.queryItems = (components.queryItems ?? []) + [URLQueryItem(name: "_pk_refresh", value: UUID().uuidString)]
+        return components.url
+    }
+
+    private static func latestInfo(at address: String) async -> ArchiveAppcastInfo? {
+        guard let url = freshFeedURL(address) else { return nil }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
+        request.setValue("no-cache, no-store", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        let parser = ArchiveAppcastParser()
+        let xml = XMLParser(data: data)
+        xml.delegate = parser
+        return xml.parse() ? parser.info : nil
+    }
+}
+
+private func runArchiveProcess(_ path: String, _ arguments: [String]) throws {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: path)
+    process.arguments = arguments
+    try process.run()
+    process.waitUntilExit()
+    guard process.terminationStatus == 0 else {
+        throw NSError(domain: "PKarchives.Update", code: 3, userInfo: [NSLocalizedDescriptionKey: "Update extraction failed (\(process.terminationStatus))."])
+    }
+}
+
+private func compareBuildNumbers(_ lhs: String, _ rhs: String) -> ComparisonResult? {
+    func components(_ value: String) -> [UInt64]? {
+        let parts = value.split(separator: ".")
+        guard !parts.isEmpty else { return nil }
+        let numbers = parts.compactMap { UInt64($0) }
+        return numbers.count == parts.count ? numbers : nil
+    }
+    guard let left = components(lhs), let right = components(rhs) else { return nil }
+    for index in 0..<max(left.count, right.count) {
+        let a = index < left.count ? left[index] : 0
+        let b = index < right.count ? right[index] : 0
+        if a != b { return a < b ? .orderedAscending : .orderedDescending }
+    }
+    return .orderedSame
+}
+
+@MainActor
+private func showInformation(title: String, message: String) {
+    let alert = NSAlert()
+    alert.messageText = title
+    alert.informativeText = message
+    alert.addButton(withTitle: "OK")
+    alert.runModal()
 }
 
 private final class ArchiveAppcastParser: NSObject, XMLParserDelegate {
     private var inShortVersion = false
     private var inVersion = false
     private var current = ""
-    private(set) var version: String?
+    private var shortVersion: String?
+    private var buildVersion: String?
+    private var enclosure: URL?
+    private var signature: String?
+    var info: ArchiveAppcastInfo? {
+        guard let shortVersion else { return nil }
+        return ArchiveAppcastInfo(shortVersion: shortVersion, buildVersion: buildVersion ?? shortVersion, enclosure: enclosure, signature: signature)
+    }
 
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
         let name = qName ?? elementName
         if name == "sparkle:shortVersionString" { inShortVersion = true; current = "" }
         else if name == "sparkle:version" { inVersion = true; current = "" }
+        else if name == "enclosure", let address = attributeDict["url"] {
+            enclosure = URL(string: address)
+            signature = attributeDict["sparkle:edSignature"] ?? attributeDict["edSignature"]
+        }
     }
     func parser(_ parser: XMLParser, foundCharacters string: String) {
         if inShortVersion || inVersion { current += string }
     }
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
         let name = qName ?? elementName
-        if name == "sparkle:shortVersionString" {
-            version = current.trimmingCharacters(in: .whitespacesAndNewlines); inShortVersion = false
-        } else if name == "sparkle:version" {
-            if version == nil { version = current.trimmingCharacters(in: .whitespacesAndNewlines) }
-            inVersion = false
-        }
+        if name == "sparkle:shortVersionString" { shortVersion = current.trimmingCharacters(in: .whitespacesAndNewlines); inShortVersion = false }
+        else if name == "sparkle:version" { buildVersion = current.trimmingCharacters(in: .whitespacesAndNewlines); inVersion = false }
     }
 }
 

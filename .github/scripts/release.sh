@@ -25,6 +25,7 @@ echo "🔨 Build v${VERSION}..."
 [[ -d "$APP" ]] || { echo "❌ App versionnée introuvable : $APP" >&2; exit 1; }
 INFO_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")
 [[ "$INFO_VERSION" == "$VERSION" ]] || { echo "❌ Version du bundle ${INFO_VERSION} différente de ${VERSION}" >&2; exit 1; }
+BUILD_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")
 
 mkdir -p release
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/pkarchives-dmg.XXXXXX")"
@@ -61,7 +62,7 @@ if [[ -n "${SPARKLE_PRIVATE_KEY:-}" ]]; then
     <item>
       <title>Version ${VERSION}</title>
       <pubDate>${PUB_DATE}</pubDate>
-      <sparkle:version>${VERSION}</sparkle:version>
+      <sparkle:version>${BUILD_VERSION}</sparkle:version>
       <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <enclosure url="https://github.com/mondary/Macos_PKarchives/releases/download/v${VERSION}/${ZIP_NAME}" sparkle:edSignature="${SIG}" length="${LEN}" type="application/octet-stream" />

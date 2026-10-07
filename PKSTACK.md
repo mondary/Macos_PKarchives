@@ -11,9 +11,10 @@ quand une nouvelle skill intervient sur le projet.
 | `pkhomebrew` | Cask Homebrew du tap | `Casks/pkarchives.rb` du dépôt `mondary/homebrew-tap` (URL versionnée + SHA-256 du DMG publié) ; commandes `brew` de la landing et des README |
 | `pk-commits` | Convention commits & versioning | Préfixes `ADD`/`FIX`/`REFACTO`/`MAJ` ; CalVer `YYYY.MM.PATCH` avec `CHANGELOG.md` comme source de vérité ; checklist Ko-fi (READMEs + landing + app) et exigence landing bilingue |
 | `fixing-accessibility` | Corrections accessibilité | `aria-label` des boutons et contrôles icône seule ; sémantique du menu 📦 (`role="menu"`, `aria-expanded`, fermeture au clic extérieur) ; navigation clavier et focus visibles ; contrastes |
-| `sparkle-github-updates` | Mises à jour automatiques | `Sparkle.framework` embarqué par `scripts/build.sh` ; `SUPublicEDKey`/`SUFeedURL` dans l'app ; appcast neutralisé dans `appcast.xml` en attente d'une vraie signature |
+| `sparkle-github-updates` | Mises à jour automatiques | `Sparkle.framework` embarqué par `scripts/build.sh` ; feed Stable/Dev ; comparaison du `CFBundleVersion` sans proposer de build plus ancienne ; vérification EdDSA et identification du bundle versionné par version + bundle ID avant installation manuelle |
 | `pk-settings-shell` | À propos et crédits | Rubrique localisée « Crédits & inspirations » dans About ; technologies, dépendances et références sont distinctes, vérifiées depuis le code et liées |
 | `app-presence-sync` | Documentation produit | README FR/EN synchronisés pour la nouvelle rubrique de crédits |
+| `macos-build` | Validation native | Parse Swift des vues de réglages ; build complet indisponible car Xcode et le plugin SwiftUI macros sont absents |
 
 ## Outils annexes (hors hub, sans skill dédiée)
 
@@ -26,5 +27,4 @@ quand une nouvelle skill intervient sur le projet.
 
 - Landing bilingue FR/EN avec détection `navigator.language` + bascule manuelle
   (`premium-promo-media` § bilingue) — non implémentée à ce jour.
-- Signature EdDSA Sparkle : aucune mise à jour n'est annoncée tant que le secret
-  `SPARKLE_PRIVATE_KEY` n'est pas configuré (`sparkle-github-updates`).
+- Release suivante : le secret `SPARKLE_PRIVATE_KEY` reste requis pour signer et publier le nouvel appcast (`sparkle-github-updates`). Les entrées déjà présentes dans les appcasts sont signées.
