@@ -1,10 +1,17 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" standalone="yes"?>
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
-  <channel>
-    <title>PKarchives</title>
-    <link>https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast.xml</link>
-    <description>Dernières mises à jour de PKarchives</description>
-    <language>fr</language>
-    <!-- Le feed reste vide tant qu'aucune release ZIP signée avec une signature valide n'est publiée. -->
-  </channel>
+    <channel>
+        <title>PKarchives</title>
+        <link>https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast.xml</link>
+        <description>Dernières mises à jour de PKarchives</description>
+        <language>fr</language>
+        <item>
+            <title>Version 2026.10.27</title>
+            <pubDate>Wed, 07 Oct 2026 12:13:09 +0000</pubDate>
+            <sparkle:version>1791375155</sparkle:version>
+            <sparkle:shortVersionString>2026.10.27</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/mondary/Macos_PKarchives/releases/download/v2026.10.27/PKarchives-2026.10.27.zip" sparkle:edSignature="qbL0No6dR4829bzpOsJFlvWeBqBSHj2uzGoWhLbr4K8UPEeckatRNJJoVrz9+TFOimlZME8WTtp9srwjdTSICg==" length="6518508" type="application/octet-stream" />
+        </item>
+    </channel>
 </rss>
