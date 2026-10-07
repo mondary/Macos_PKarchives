@@ -47,6 +47,7 @@ jobs:
           [[ -d "$APP" ]] || { echo "App versionnée introuvable : $APP" >&2; exit 1; }
           INFO_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")
           [[ "$INFO_VERSION" == "$VERSION" ]] || { echo "Bundle $INFO_VERSION ≠ tag $VERSION" >&2; exit 1; }
+          BUILD_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")
           ZIP=""
           SIGNATURE=""
           LENGTH=""
@@ -80,6 +81,7 @@ jobs:
           echo "pkg=$PKG" >> "$GITHUB_OUTPUT"
           echo "signature=$SIGNATURE" >> "$GITHUB_OUTPUT"
           echo "length=$LENGTH" >> "$GITHUB_OUTPUT"
+          echo "build_version=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
           MOUNT="$RUNNER_TEMP/pkarchives-dmg-mount"
           mkdir -p "$MOUNT"
           hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT" "release/$DMG" >/dev/null
@@ -107,6 +109,7 @@ jobs:
           ZIP: ${{ steps.sign.outputs.zip }}
           SIGNATURE: ${{ steps.sign.outputs.signature }}
           LENGTH: ${{ steps.sign.outputs.length }}
+          BUILD_VERSION: ${{ steps.sign.outputs.build_version }}
         run: |
           PUB_DATE=$(date -u '+%a, %d %b %Y %H:%M:%S %z')
           cat > "$RUNNER_TEMP/appcast.xml" << EOF
@@ -120,7 +123,7 @@ jobs:
                   <item>
                       <title>Version ${VERSION}</title>
                       <pubDate>${PUB_DATE}</pubDate>
-                      <sparkle:version>${VERSION}</sparkle:version>
+                      <sparkle:version>${BUILD_VERSION}</sparkle:version>
                       <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
                       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
                       <enclosure url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/${ZIP}" sparkle:edSignature="${SIGNATURE}" length="${LENGTH}" type="application/octet-stream" />

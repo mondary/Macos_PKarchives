@@ -3,6 +3,7 @@
 // cartes animées qui s'envolent vers le Drive puis se dissolvent (suppression).
 import SwiftUI
 import AppKit
+import Combine
 import WebKit
 import QuickLookThumbnailing
 import CoreServices
@@ -293,7 +294,9 @@ private enum ArchiveLanguage: String, CaseIterable {
 private struct ArchivePreferencesView: View {
     let delegate: AppDelegate
     @ObservedObject var navigation: ArchivePreferencesNavigation
+    @ObservedObject private var updater = ArchiveUpdaterManager.shared
     @AppStorage("app-language") private var language = "fr"
+    @AppStorage("updateChannel") private var updateChannel = "stable"
     @State private var query = ""
     @State private var folder = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
     @State private var desktop = desktopPath()
@@ -349,13 +352,17 @@ private struct ArchivePreferencesView: View {
         "about.thanks":["fr":"Merci de l’utiliser et de soutenir les projets indépendants.","en":"Thanks for using it and supporting independent projects.","es":"Gracias por usarla y apoyar proyectos independientes.","de":"Danke, dass du die App nutzt und unabhängige Projekte unterstützt."],
         "about.updates":["fr":"Mises à jour","en":"Updates","es":"Actualizaciones","de":"Aktualisierungen"],
         "about.stable":["fr":"Canal Stable","en":"Stable channel","es":"Canal estable","de":"Stable-Kanal"],
+        "about.dev":["fr":"Canal Dev","en":"Dev channel","es":"Canal Dev","de":"Dev-Kanal"],
+        "about.notPublished":["fr":"Non publiée","en":"Not published","es":"No publicada","de":"Nicht veröffentlicht"],
+        "about.channel.stable":["fr":"Versions publiées et testées. Les mises à jour arrivent avec une release Stable.","en":"Published, tested releases. Stable updates arrive with a published release.","es":"Versiones publicadas y probadas. Las actualizaciones llegan con una release estable.","de":"Veröffentlichte, getestete Versionen. Stable-Updates erscheinen mit einem Release."],
+        "about.channel.dev":["fr":"Builds automatiques de main. En Dev, les mises à jour sont téléchargées et installées automatiquement.","en":"Automatic builds from main. Dev updates download and install automatically.","es":"Builds automáticas de main. En Dev, las actualizaciones se descargan e instalan automáticamente.","de":"Automatische Builds von main. Dev-Updates werden automatisch geladen und installiert."],
         "about.check":["fr":"Rechercher les mises à jour…","en":"Check for Updates…","es":"Buscar actualizaciones…","de":"Nach Updates suchen…"],
         "about.version":["fr":"Version installée","en":"Installed version","es":"Versión instalada","de":"Installierte Version"],
         "footer.kofi":["fr":"Soutenir sur Ko-fi","en":"Support on Ko-fi","es":"Apoyar en Ko-fi","de":"Auf Ko-fi unterstützen"],
         "byPK":["fr":"Par PK","en":"By PK","es":"Por PK","de":"Von PK"],
         "macApp":["fr":"Application macOS","en":"macOS app","es":"Aplicación macOS","de":"macOS-App"],
         "settings.subtitle":["fr":"Configurez la source et la destination de vos archives.","en":"Configure your archive source and destination.","es":"Configura el origen y el destino de tus archivos.","de":"Konfiguriere Quelle und Ziel deiner Archive."],
-        "updates.caption":["fr":"Cette installation suit les versions publiées. Le canal Dev n’est pas encore distribué par PKarchives.","en":"This installation follows published releases. PKarchives does not currently distribute a Dev channel.","es":"Esta instalación usa versiones publicadas. PKarchives aún no distribuye un canal Dev.","de":"Diese Installation verwendet veröffentlichte Versionen. PKarchives bietet derzeit keinen Dev-Kanal an."]
+        "updates.caption":["fr":"Choisissez le canal de mise à jour qui vous convient.","en":"Choose the update channel that works for you.","es":"Elige el canal de actualización que prefieras.","de":"Wähle den passenden Update-Kanal."]
     ] }
     private func text(_ key: String) -> String { copy[key]?[language] ?? copy[key]?["en"] ?? key }
     private var filtered: [(String,String)] {
@@ -371,6 +378,8 @@ private struct ArchivePreferencesView: View {
     private var otherProjects: [ArchiveProject] { Array(projects.dropFirst()) }
     private var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—" }
     private var build: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—" }
+    private var isDevBuild: Bool { version.localizedCaseInsensitiveContains("-dev") }
+    private var effectiveUpdateChannel: String { isDevBuild ? "dev" : updateChannel }
     private var githubURL: URL { URL(string: "https://github.com/mondary/Macos_PKarchives")! }
     private var issuesURL: URL { URL(string: "https://github.com/mondary/Macos_PKarchives/issues")! }
     private var githubProfileURL: URL { URL(string: "https://github.com/mondary")! }
@@ -419,7 +428,10 @@ private struct ArchivePreferencesView: View {
                 .padding(.top, 12)
                 .padding(.trailing, 18)
             }
-        }.frame(minWidth: 760, minHeight: 540).background(Color(nsColor: .windowBackgroundColor))
+        }
+        .frame(minWidth: 760, minHeight: 540)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear { updater.refreshAvailableVersions() }
     }
 
     private var archiveSettings: some View {
@@ -528,17 +540,45 @@ private struct ArchivePreferencesView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(text("about.updates")).font(.headline)
             HStack(spacing: 12) {
-                Label(text("about.stable"), systemImage: "checkmark.seal").font(.subheadline.weight(.medium))
+                Text(language == "fr" ? "Canal" : "Channel").font(.subheadline.weight(.medium))
+                Picker(text("about.updates"), selection: updateChannelBinding) {
+                    Text("Stable").tag("stable")
+                    Text("Dev").tag("dev")
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 190).disabled(isDevBuild)
                 Spacer()
                 Text(version).font(.system(size: 12, weight: .medium, design: .monospaced))
             }
-            Text(text("updates.caption"))
+            Text(text(effectiveUpdateChannel == "dev" ? "about.channel.dev" : "about.channel.stable"))
                 .font(.caption).foregroundStyle(.secondary)
-            Button { delegate.checkForUpdates() } label: { Label(text("about.check"), systemImage: "arrow.triangle.2.circlepath") }
+            HStack(alignment: .top, spacing: 0) {
+                updateVersionColumn(title: text("about.stable"), value: updater.latestStableVersion ?? text("about.notPublished"), symbol: "checkmark.seal", installed: !isDevBuild)
+                Divider().frame(height: 42)
+                updateVersionColumn(title: text("about.dev"), value: updater.latestDevVersion ?? text("about.notPublished"), symbol: "hammer", installed: isDevBuild)
+            }
+            .padding(.vertical, 12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.045)))
+            Button { updater.refreshAvailableVersions(); delegate.checkForUpdates() } label: { Label(text("about.check"), systemImage: "arrow.triangle.2.circlepath") }
                 .buttonStyle(.bordered).disabled(delegate.updaterController == nil)
         }
         .padding(16).background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(0.025)))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+    }
+
+    private var updateChannelBinding: Binding<String> {
+        Binding(get: { effectiveUpdateChannel }, set: { newValue in
+            guard !isDevBuild else { return }
+            updateChannel = newValue
+            NotificationCenter.default.post(name: .pkUpdateChannelDidChange, object: nil)
+        })
+    }
+
+    private func updateVersionColumn(title: String, value: String, symbol: String, installed: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(title, systemImage: symbol).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(value).font(.system(size: 12, weight: .medium, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.75).help(value)
+            if installed { Label(text("about.version"), systemImage: "checkmark.circle.fill").font(.system(size: 10, weight: .medium)).foregroundStyle(.green).padding(.top, 2) }
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8)
     }
 
     private var kofiImage: NSImage? { Bundle.main.url(forResource: "kofi-logo", withExtension: "png").flatMap(NSImage.init(contentsOf:)) }
@@ -677,6 +717,109 @@ private struct SettingsSectionHeader: View {
     }
 }
 
+extension Notification.Name {
+    static let pkUpdateChannelDidChange = Notification.Name("PKUpdateChannelDidChange")
+}
+
+private final class ArchiveChannelFeedProvider: NSObject, SPUUpdaterDelegate {
+    nonisolated func feedURLString(for updater: SPUUpdater) -> String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let devBuild = version.localizedCaseInsensitiveContains("-dev")
+        let devChannel = devBuild || UserDefaults.standard.string(forKey: "updateChannel") == "dev"
+        return devChannel
+            ? "https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast-dev.xml"
+            : "https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast.xml"
+    }
+}
+
+final class ArchiveUpdaterManager: NSObject, ObservableObject {
+    static let shared = ArchiveUpdaterManager()
+    static let stableFeedURL = "https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast.xml"
+    static let devFeedURL = "https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast-dev.xml"
+
+    let controller: SPUStandardUpdaterController
+    @Published private(set) var latestStableVersion: String?
+    @Published private(set) var latestDevVersion: String?
+    private let feedProvider = ArchiveChannelFeedProvider()
+    private var channelObserver: NSObjectProtocol?
+    private var started = false
+
+    private override init() {
+        controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: feedProvider, userDriverDelegate: nil)
+        super.init()
+    }
+
+    func start() {
+        guard !started else { return }
+        started = true
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        if version.localizedCaseInsensitiveContains("-dev") {
+            UserDefaults.standard.set("dev", forKey: "updateChannel")
+        }
+        applyChannelPreference()
+        channelObserver = NotificationCenter.default.addObserver(forName: .pkUpdateChannelDidChange, object: nil, queue: .main) { [weak self] _ in
+            self?.applyChannelPreference()
+        }
+        controller.startUpdater()
+    }
+
+    private func applyChannelPreference() {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let devBuild = version.localizedCaseInsensitiveContains("-dev")
+        controller.updater.automaticallyDownloadsUpdates = devBuild || UserDefaults.standard.string(forKey: "updateChannel") == "dev"
+    }
+
+    func checkForUpdates() {
+        NSApp.activate(ignoringOtherApps: true)
+        controller.checkForUpdates(nil)
+    }
+
+    func refreshAvailableVersions() {
+        fetchVersion(from: Self.stableFeedURL) { [weak self] in self?.latestStableVersion = $0 }
+        fetchVersion(from: Self.devFeedURL) { [weak self] in self?.latestDevVersion = $0 }
+    }
+
+    private func fetchVersion(from address: String, completion: @escaping (String?) -> Void) {
+        guard let url = URL(string: address) else { completion(nil); return }
+        URLSession.shared.dataTask(with: url) { data, response, _ in
+            guard let data, (response as? HTTPURLResponse)?.statusCode == 200 else {
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
+            let parser = ArchiveAppcastParser()
+            let xml = XMLParser(data: data)
+            xml.delegate = parser
+            let parsed = xml.parse() ? parser.version : nil
+            DispatchQueue.main.async { completion(parsed) }
+        }.resume()
+    }
+}
+
+private final class ArchiveAppcastParser: NSObject, XMLParserDelegate {
+    private var inShortVersion = false
+    private var inVersion = false
+    private var current = ""
+    private(set) var version: String?
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
+        let name = qName ?? elementName
+        if name == "sparkle:shortVersionString" { inShortVersion = true; current = "" }
+        else if name == "sparkle:version" { inVersion = true; current = "" }
+    }
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if inShortVersion || inVersion { current += string }
+    }
+    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+        let name = qName ?? elementName
+        if name == "sparkle:shortVersionString" {
+            version = current.trimmingCharacters(in: .whitespacesAndNewlines); inShortVersion = false
+        } else if name == "sparkle:version" {
+            if version == nil { version = current.trimmingCharacters(in: .whitespacesAndNewlines) }
+            inVersion = false
+        }
+    }
+}
+
 // MARK: - App delegate + pont WebView
 
 class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate {
@@ -766,7 +909,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         }
     }
     @objc func checkForUpdates() {
-        updaterController?.checkForUpdates(nil)
+        ArchiveUpdaterManager.shared.checkForUpdates()
     }
     private func makeMenuItem(_ title: String, action: Selector, symbol: String, key: String = "") -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
@@ -798,8 +941,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
 
     private func setupUpdater() {
         guard Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else { return } // désactivé hors release
-        let ctrl = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
-        updaterController = ctrl
+        ArchiveUpdaterManager.shared.start()
+        updaterController = ArchiveUpdaterManager.shared.controller
     }
 
     private func createMainWindowIfNeeded() {
@@ -1290,7 +1433,14 @@ extension Notification.Name {
 }
 
 @main
-struct PKarchivesV2App: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    var body: some Scene { Settings { EmptyView() } }
+struct PKarchivesV2App {
+    private static var retainedDelegate: AppDelegate?
+
+    static func main() {
+        let application = NSApplication.shared
+        let delegate = AppDelegate()
+        retainedDelegate = delegate
+        application.delegate = delegate
+        application.run()
+    }
 }

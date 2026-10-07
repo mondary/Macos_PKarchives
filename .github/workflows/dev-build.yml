@@ -1,0 +1,103 @@
+name: Dev build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  dev:
+    # The appcast commit must not start another dev build.
+    if: ${{ !contains(github.event.head_commit.message, 'appcast dev') }}
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build dev app
+        env:
+          PK_DEV_BUILD: "1"
+        run: ./scripts/build.sh
+
+      - name: Package and sign Sparkle update
+        id: update
+        shell: bash
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          BASE_VERSION="$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' CHANGELOG.md | head -1)"
+          APP="$(find release/macos -maxdepth 1 -type d -name "PKarchives-${BASE_VERSION}-dev.*.app" | sort | tail -1)"
+          [[ -n "$APP" && -d "$APP" ]] || { echo "Dev app bundle not found" >&2; exit 1; }
+          SHORT_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")
+          BUILD_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")
+          ZIP="release/PKarchives-dev.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+          KEY_FILE="$RUNNER_TEMP/sparkle-private-key"
+          [[ -n "$SPARKLE_PRIVATE_KEY" ]] || { echo "SPARKLE_PRIVATE_KEY repository secret is required" >&2; exit 1; }
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          SIGNATURE=$(release/sparkle/bin/sign_update -f "$KEY_FILE" "$ZIP" | sed -E 's/.*edSignature="([^"]+)".*/\1/')
+          [[ -n "$SIGNATURE" ]] || { echo "Sparkle signature was empty" >&2; exit 1; }
+          LENGTH=$(stat -f%z "$ZIP")
+          echo "short=$SHORT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "signature=$SIGNATURE" >> "$GITHUB_OUTPUT"
+          echo "length=$LENGTH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to permanent dev release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create dev --prerelease --title "PKarchives Dev" \
+            --notes "Build automatique du canal Dev depuis main." || true
+          gh release upload dev release/PKarchives-dev.zip --clobber
+
+      - name: Generate dev appcast
+        env:
+          VERSION: ${{ steps.update.outputs.short }}
+          BUILD_VERSION: ${{ steps.update.outputs.build }}
+          SIGNATURE: ${{ steps.update.outputs.signature }}
+          LENGTH: ${{ steps.update.outputs.length }}
+        run: |
+          PUB_DATE=$(date -u '+%a, %d %b %Y %H:%M:%S %z')
+          cat > "$RUNNER_TEMP/appcast-dev.xml" << EOF
+          <?xml version="1.0" standalone="yes"?>
+          <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+            <channel>
+              <title>PKarchives Dev</title>
+              <link>https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast-dev.xml</link>
+              <description>Builds automatiques du canal Dev.</description>
+              <language>fr</language>
+              <item>
+                <title>PKarchives ${VERSION}</title>
+                <pubDate>${PUB_DATE}</pubDate>
+                <sparkle:version>${BUILD_VERSION}</sparkle:version>
+                <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                <description>Build Dev automatique depuis main.</description>
+                <enclosure url="https://github.com/mondary/Macos_PKarchives/releases/download/dev/PKarchives-dev.zip" sparkle:edSignature="${SIGNATURE}" length="${LENGTH}" type="application/octet-stream" />
+              </item>
+            </channel>
+          </rss>
+          EOF
+
+      - name: Publish dev appcast on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git switch --create publish-dev-appcast origin/main
+          cp "$RUNNER_TEMP/appcast-dev.xml" appcast-dev.xml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add appcast-dev.xml
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "MAJ: appcast dev ${GITHUB_SHA::7}"
+          git push origin HEAD:main

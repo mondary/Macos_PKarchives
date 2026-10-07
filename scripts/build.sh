@@ -7,11 +7,17 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "${DIR}/.." && pwd)"
 
 # Version : source de vérité = dernier en-tête versionné de CHANGELOG.md
-APP_VERSION="$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' "${ROOT}/CHANGELOG.md" | head -1)"
-if [[ -z "${APP_VERSION}" ]]; then
+BASE_VERSION="$(sed -nE 's/^### \[([0-9]{4}\.[0-9]{2}\.[0-9]+)\].*/\1/p' "${ROOT}/CHANGELOG.md" | head -1)"
+if [[ -z "${BASE_VERSION}" ]]; then
   echo "❌ Version introuvable dans CHANGELOG.md (en-tête '### [YYYY.MM.PATCH]')" >&2
   exit 1
 fi
+if [[ "${PK_DEV_BUILD:-0}" == "1" ]]; then
+  APP_VERSION="${BASE_VERSION}-dev.$(date -u +%H%M%S)"
+else
+  APP_VERSION="${BASE_VERSION}"
+fi
+BUILD_VERSION="$(date +%s)"
 echo "🔖 Version ${APP_VERSION}"
 
 SPARKLE_VERSION="2.9.6"
@@ -79,7 +85,7 @@ cat > "${MACOS_APP_DIR}/Info.plist" << EOF
     <key>CFBundleShortVersionString</key>
     <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>${APP_VERSION}</string>
+    <string>${BUILD_VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
@@ -157,7 +163,7 @@ cat > "${V2_APP_DIR}/Info.plist" << EOF
     <key>CFBundleShortVersionString</key>
     <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>${APP_VERSION}</string>
+    <string>${BUILD_VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
