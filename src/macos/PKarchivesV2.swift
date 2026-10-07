@@ -292,36 +292,89 @@ private enum ArchiveLanguage: String, CaseIterable {
 
 private struct ArchivePreferencesView: View {
     let delegate: AppDelegate
+    @ObservedObject var navigation: ArchivePreferencesNavigation
     @AppStorage("app-language") private var language = "fr"
-    @State private var section = "archive"
     @State private var query = ""
     @State private var folder = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
     @State private var desktop = desktopPath()
     @State private var remote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
-    private let sections: [(String, String, String)] = [("archive","Archive","archivebox"),("library","Project Library","square.grid.2x2"),("support","Support","heart.fill"),("about","About","info.circle")]
+    private let sections: [(String, String)] = [("archive","archivebox"),("library","square.grid.2x2"),("support","heart.fill"),("about","info.circle")]
     private var copy: [String: [String: String]] { [
         "archive":["fr":"Archivage","en":"Archiving","es":"Archivo","de":"Archivierung"],
         "library":["fr":"Project Library","en":"Project Library","es":"Biblioteca de proyectos","de":"Projektbibliothek"],
         "support":["fr":"Soutenir","en":"Support","es":"Apoyar","de":"Unterstützen"],
         "about":["fr":"À propos","en":"About","es":"Acerca de","de":"Über"],
-        "search":["fr":"Rechercher un réglage","en":"Search settings","es":"Buscar ajustes","de":"Einstellungen suchen"],
-        "save":["fr":"Enregistrer","en":"Save","es":"Guardar","de":"Speichern"],
-        "destination":["fr":"Dossier Google Drive","en":"Google Drive folder","es":"Carpeta de Google Drive","de":"Google-Drive-Ordner"],
-        "source":["fr":"Dossier source","en":"Source folder","es":"Carpeta de origen","de":"Quellordner"],
+        "search":["fr":"Rechercher dans les réglages","en":"Search settings","es":"Buscar ajustes","de":"Einstellungen suchen"],
+        "save":["fr":"Enregistrer les réglages","en":"Save settings","es":"Guardar ajustes","de":"Einstellungen sichern"],
+        "destination":["fr":"Identifiant du dossier Google Drive","en":"Google Drive folder ID","es":"ID de carpeta de Google Drive","de":"Google-Drive-Ordner-ID"],
+        "source":["fr":"Dossier source à archiver","en":"Desktop folder to archive","es":"Carpeta de origen","de":"Zu archivierender Quellordner"],
         "remote":["fr":"Remote rclone","en":"rclone remote","es":"Remote de rclone","de":"rclone-Remote"],
-        "supportText":["fr":"Soutenir le développement de PKarchives","en":"Support the development of PKarchives","es":"Apoya el desarrollo de PKarchives","de":"Unterstütze die Entwicklung von PKarchives"],
-        "libraryText":["fr":"Découvrez les autres projets PK","en":"Discover other PK projects","es":"Descubre otros proyectos PK","de":"Entdecke weitere PK-Projekte"],
-        "latest":["fr":"Version installée","en":"Installed version","es":"Versión instalada","de":"Installierte Version"]
+        "googleDrive":["fr":"Google Drive","en":"Google Drive","es":"Google Drive","de":"Google Drive"],
+        "license":["fr":"Licence MIT · macOS 14+","en":"MIT License · macOS 14+","es":"Licencia MIT · macOS 14+","de":"MIT-Lizenz · macOS 14+"],
+        "group.app":["fr":"APPLICATION","en":"APP","es":"APLICACIÓN","de":"APP"],
+        "group.projects":["fr":"PROJETS PK","en":"PK PROJECTS","es":"PROYECTOS PK","de":"PK-PROJEKTE"],
+        "search.none":["fr":"Aucun réglage trouvé","en":"No setting found","es":"No se encontró ningún ajuste","de":"Keine Einstellung gefunden"],
+        "library.title":["fr":"Project Library","en":"Project Library","es":"Biblioteca de proyectos","de":"Projekt-Bibliothek"],
+        "library.subtitle":["fr":"Découvrez les autres outils et projets que je développe.","en":"Discover the other tools and projects I build.","es":"Descubre las demás herramientas y proyectos que creo.","de":"Entdecke die anderen Tools und Projekte, die ich baue."],
+        "library.more":["fr":"Plus de projets","en":"More projects","es":"Más proyectos","de":"Weitere Projekte"],
+        "library.star":["fr":"Étoiler sur GitHub","en":"Star on GitHub","es":"Añadir estrella en GitHub","de":"Auf GitHub markieren"],
+        "library.viewAll":["fr":"Voir tous les dépôts sur GitHub","en":"View all repositories on GitHub","es":"Ver todos los repositorios en GitHub","de":"Alle Repositories auf GitHub ansehen"],
+        "kind.macos":["fr":"APP MACOS","en":"MACOS APP","es":"APP MACOS","de":"MACOS-APP"],
+        "kind.chrome":["fr":"EXTENSION CHROME","en":"CHROME EXTENSION","es":"EXTENSIÓN CHROME","de":"CHROME-ERWEITERUNG"],
+        "kind.cross":["fr":"CHROME / MACOS / WINDOWS / LINUX","en":"CHROME / MACOS / WINDOWS / LINUX","es":"CHROME / MACOS / WINDOWS / LINUX","de":"CHROME / MACOS / WINDOWS / LINUX"],
+        "desc.PKwindowsManagement":["fr":"Gérez vos fenêtres au clavier, organisez vos sessions en Rooms et lancez vite vos applications depuis la barre de menus.","en":"Manage windows by keyboard, organize sessions in Rooms and launch apps quickly from the menu bar.","es":"Gestiona ventanas con el teclado, organiza sesiones en Rooms y lanza apps desde la barra de menús.","de":"Fenster per Tastatur verwalten, Sitzungen in Rooms organisieren und Apps über die Menüleiste starten."],
+        "desc.PKbrain":["fr":"App de notes avec calcul intégré, palette de commandes et raccourcis clavier en priorité.","en":"Notes app with inline calculation, command palette, and keyboard-first shortcuts.","es":"App de notas con cálculo integrado, paleta de comandos y atajos de teclado.","de":"Notizen-App mit integrierter Berechnung, Befehlspalette und Tastaturkürzeln."],
+        "desc.MonoCodePK":["fr":"Tous vos agents de code dans une app native — Claude Code, Codex, Cursor, OpenCode et plus.","en":"All your coding agents in one native app — Claude Code, Codex, Cursor, OpenCode and more.","es":"Todos tus agentes de código en una app nativa: Claude Code, Codex, Cursor, OpenCode y más.","de":"Alle Coding-Agenten in einer nativen App — Claude Code, Codex, Cursor, OpenCode und mehr."],
+        "desc.PKMediaDownloader":["fr":"Téléchargeur vidéo propulsé par yt-dlp — YouTube, Instagram, X, TikTok et des milliers d'autres.","en":"Video downloader powered by yt-dlp — YouTube, Instagram, X, TikTok and thousands more.","es":"Descargador de vídeo con yt-dlp: YouTube, Instagram, X, TikTok y miles más.","de":"Video-Downloader mit yt-dlp — YouTube, Instagram, X, TikTok und Tausende mehr."],
+        "desc.PKarchives":["fr":"Archivez votre Bureau vers Google Drive avec rclone, via une interface macOS native ou en CLI/TUI.","en":"Archive your Desktop to Google Drive with rclone, using a native macOS interface or CLI/TUI.","es":"Archiva el Escritorio en Google Drive con rclone, desde macOS o la CLI/TUI.","de":"Desktop mit rclone über die native macOS-App oder CLI/TUI in Google Drive archivieren."],
+        "desc.PKmonitor":["fr":"CPU, GPU, RAM, réseau et disque dans la barre de menus.","en":"CPU, GPU, RAM, network and disk metrics in the menu bar.","es":"Métricas de CPU, GPU, RAM, red y disco en la barra de menús.","de":"CPU-, GPU-, RAM-, Netzwerk- und Festplattenwerte in der Menüleiste."],
+        "desc.PKpowerlines":["fr":"Une powerline native multi-écrans affichant RAM, CPU, réseau ou batterie en temps réel.","en":"A native multi-display powerline showing RAM, CPU, network or battery in real time.","es":"Powerline nativa multidispositivo con RAM, CPU, red o batería en tiempo real.","de":"Native Multi-Display-Powerline mit RAM, CPU, Netzwerk oder Akku in Echtzeit."],
+        "desc.LaunchPad":["fr":"Analysez les agents utilisateur et démons système avec une analyse de sécurité locale.","en":"Scan and audit user agents and system daemons with local security analysis.","es":"Audita agentes de usuario y demonios del sistema con análisis local de seguridad.","de":"Benutzeragenten und System-Daemons lokal auf Sicherheit prüfen."],
+        "desc.PKMail":["fr":"Client mail IMAP immersif avec interface HTML vanilla et workflows façon Gmail.","en":"An immersive IMAP mail client with a vanilla HTML interface and Gmail-style workflows.","es":"Cliente de correo IMAP con interfaz HTML y flujos de trabajo al estilo Gmail.","de":"Immersiver IMAP-Mailclient mit HTML-Oberfläche und Gmail-ähnlichen Abläufen."],
+        "desc.PKChromeShortcuts":["fr":"Contrôlez onglets, navigation et split view au clavier.","en":"Control tabs, navigation and split view with keyboard shortcuts.","es":"Controla pestañas, navegación y pantalla dividida con atajos de teclado.","de":"Tabs, Navigation und geteilte Ansicht per Tastenkürzeln steuern."],
+        "support.title":["fr":"Soutenir PKarchives","en":"Support PKarchives","es":"Apoyar PKarchives","de":"PKarchives unterstützen"],
+        "support.subtitle":["fr":"Si cette application vous est utile, vous pouvez soutenir son développement.","en":"If you enjoy using this app, consider supporting its development."],
+        "support.coffee":["fr":"Offrir un café au développeur","en":"Support the developer with a coffee","es":"Invita un café al desarrollador","de":"Unterstütze den Entwickler mit einem Kaffee"],
+        "support.donate":["fr":"Soutenir sur Ko-fi","en":"Support on Ko-fi","es":"Apoyar en Ko-fi","de":"Auf Ko-fi unterstützen"],
+        "support.github.subtitle":["fr":"Code source et versions","en":"Source code and releases","es":"Código fuente y versiones","de":"Quellcode und Releases"],
+        "support.issues.title":["fr":"Signaler un problème","en":"Report an issue","es":"Informar de un problema","de":"Problem melden"],
+        "support.issues.subtitle":["fr":"Bugs, demandes de fonctionnalités, retours","en":"Bugs, feature requests, feedback","es":"Errores, solicitudes y comentarios","de":"Fehler, Funktionswünsche, Feedback"],
+        "support.profile.title":["fr":"PK sur GitHub","en":"PK on GitHub","es":"PK en GitHub","de":"PK auf GitHub"],
+        "support.profile.subtitle":["fr":"Le reste de la collection de projets","en":"The rest of the project collection","es":"El resto de la colección de proyectos","de":"Der Rest der Projektsammlung"],
+        "about.greeting":["fr":"Salut l’ami,","en":"Hey friend,","es":"Hola, amiga/o:","de":"Hallo!"],
+        "about.pitch":["fr":"PKarchives est né d’une envie simple : garder un Bureau net sans perdre ses fichiers, en les archivant proprement sur Google Drive.","en":"PKarchives was born from a simple idea: keep your Desktop clean without losing files, by archiving them safely to Google Drive.","es":"PKarchives nació de una idea sencilla: mantener el Escritorio limpio sin perder archivos, archivándolos en Google Drive.","de":"PKarchives entstand aus einer einfachen Idee: den Schreibtisch aufgeräumt halten und Dateien sicher in Google Drive archivieren."],
+        "about.body":["fr":"L’application repère les fichiers et dossiers du Bureau, les envoie dans une archive mensuelle via rclone, puis garde un historique consultable. Une interface macOS et une CLI/TUI sont disponibles.","en":"The app scans Desktop files and folders, sends them to a monthly archive through rclone, and keeps a browsable history. A macOS app and CLI/TUI are available.","es":"La app detecta archivos y carpetas del Escritorio, los envía a un archivo mensual mediante rclone y conserva un historial. Incluye app para macOS y CLI/TUI.","de":"Die App erkennt Dateien und Ordner auf dem Schreibtisch, archiviert sie monatlich mit rclone und führt einen Verlauf. Verfügbar für macOS und als CLI/TUI."],
+        "about.care":["fr":"Conçu pour automatiser sans masquer ce qui se passe : destination, progression et historique restent visibles.","en":"Built to automate without hiding what happens: destination, progress and history stay visible.","es":"Automatiza sin ocultar lo que ocurre: destino, progreso e historial siguen visibles.","de":"Automatisiert, ohne Abläufe zu verbergen: Ziel, Fortschritt und Verlauf bleiben sichtbar."],
+        "about.thanks":["fr":"Merci de l’utiliser et de soutenir les projets indépendants.","en":"Thanks for using it and supporting independent projects.","es":"Gracias por usarla y apoyar proyectos independientes.","de":"Danke, dass du die App nutzt und unabhängige Projekte unterstützt."],
+        "about.updates":["fr":"Mises à jour","en":"Updates","es":"Actualizaciones","de":"Aktualisierungen"],
+        "about.stable":["fr":"Canal Stable","en":"Stable channel","es":"Canal estable","de":"Stable-Kanal"],
+        "about.check":["fr":"Rechercher les mises à jour…","en":"Check for Updates…","es":"Buscar actualizaciones…","de":"Nach Updates suchen…"],
+        "about.version":["fr":"Version installée","en":"Installed version","es":"Versión instalada","de":"Installierte Version"],
+        "footer.kofi":["fr":"Soutenir sur Ko-fi","en":"Support on Ko-fi","es":"Apoyar en Ko-fi","de":"Auf Ko-fi unterstützen"],
+        "byPK":["fr":"Par PK","en":"By PK","es":"Por PK","de":"Von PK"],
+        "macApp":["fr":"Application macOS","en":"macOS app","es":"Aplicación macOS","de":"macOS-App"],
+        "settings.subtitle":["fr":"Configurez la source et la destination de vos archives.","en":"Configure your archive source and destination.","es":"Configura el origen y el destino de tus archivos.","de":"Konfiguriere Quelle und Ziel deiner Archive."],
+        "updates.caption":["fr":"Cette installation suit les versions publiées. Le canal Dev n’est pas encore distribué par PKarchives.","en":"This installation follows published releases. PKarchives does not currently distribute a Dev channel.","es":"Esta instalación usa versiones publicadas. PKarchives aún no distribuye un canal Dev.","de":"Diese Installation verwendet veröffentlichte Versionen. PKarchives bietet derzeit keinen Dev-Kanal an."]
     ] }
     private func text(_ key: String) -> String { copy[key]?[language] ?? copy[key]?["en"] ?? key }
     private var filtered: [(String,String,String)] {
         guard !query.isEmpty else { return sections }
         let terms = query.lowercased().split(separator: " ").map(String.init)
         return sections.filter { item in
-            let synonyms = item.0 == "archive" ? "drive bureau desktop folder dossier source rclone remote destination destination google sauvegarde archivage" : item.0 == "library" ? "projects projets github apps applications" : item.0 == "support" ? "kofi donate donation don" : "version stable dev update mise à jour about versionning"
+            let synonyms = item.0 == "archive" ? "drive bureau desktop folder dossier source rclone remote destination google sauvegarde archivage" : item.0 == "library" ? "projects projets github apps applications" : item.0 == "support" ? "kofi ko-fi donate donation don" : "version stable dev update mise à jour about versionning"
             return terms.allSatisfy { (text(item.0) + " " + synonyms).lowercased().contains($0) }
         }
     }
+    private let projects: [ArchiveProject] = ArchiveProject.catalog
+    private var featuredProject: ArchiveProject { projects[0] }
+    private var otherProjects: [ArchiveProject] { Array(projects.dropFirst()) }
+    private var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—" }
+    private var build: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—" }
+    private var githubURL: URL { URL(string: "https://github.com/mondary/Macos_PKarchives")! }
+    private var issuesURL: URL { URL(string: "https://github.com/mondary/Macos_PKarchives/issues")! }
+    private var githubProfileURL: URL { URL(string: "https://github.com/mondary")! }
+    private var kofiURL: URL { URL(string: "https://ko-fi.com/pouark")! }
+
     var body: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
@@ -331,10 +384,13 @@ private struct ArchivePreferencesView: View {
                 }.padding(.top, 22).padding(.bottom, 8)
                 TextField(text("search"), text: $query).textFieldStyle(.roundedBorder)
                 ForEach(filtered, id: \.0) { item in
-                    Button { section = item.0 } label: {
-                        Label(text(item.0), systemImage: item.2).frame(maxWidth: .infinity, alignment: .leading).padding(8)
-                            .background(section == item.0 ? Color.accentColor.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 8))
+                    Button { navigation.section = item.0 } label: {
+                        Label(text(item.0), systemImage: item.1).frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                            .background(navigation.section == item.0 ? Color.accentColor.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 8))
                     }.buttonStyle(.plain)
+                }
+                if !query.isEmpty && filtered.isEmpty {
+                    Text(text("search.none")).font(.caption).foregroundStyle(.tertiary).padding(.horizontal, 8)
                 }
                 Spacer()
                 HStack(spacing: 8) { ForEach(ArchiveLanguage.allCases, id: \.rawValue) { lang in
@@ -344,52 +400,269 @@ private struct ArchivePreferencesView: View {
                     .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary).padding(.bottom, 14)
             }.padding(.horizontal, 16).frame(width: 230).background(.regularMaterial)
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(text(section)).font(.system(size: 26, weight: .bold, design: .rounded))
-                    if section == "archive" {
-                        GroupBox("Google Drive") {
-                            VStack(alignment: .leading, spacing: 12) {
-                                labeled(text("destination"), value: $folder)
-                                labeled(text("source"), value: $desktop)
-                                labeled(text("remote"), value: $remote)
-                                HStack { Spacer(); Button(text("save")) {
-                                    delegate.saveSettings(folderId: folder, desktop: desktop, remote: remote, permanent: (loadEnv("PKARCHIVES_DELETE_MODE") ?? "trash") == "delete")
-                                    delegate.sendDest(); delegate.refreshItems(mode: "files")
-                                }.keyboardShortcut(.defaultAction) }
-                            }.padding(8)
-                        }
-                        Text(language == "fr" ? "Ces paramètres contrôlent la source analysée et la destination d’archivage." : "These settings control the scanned source and archive destination.").foregroundStyle(.secondary)
-                    } else if section == "library" {
-                        Text(text("libraryText")).foregroundStyle(.secondary)
-                        libraryCard("PKwindowsManagement", "https://github.com/mondary/Macos_PKwindowsManagement")
-                        libraryCard("PKmonitor", "https://github.com/mondary/Macos_PKmonitor")
-                        libraryCard("PKbrain", "https://github.com/mondary/PKbrain")
-                        libraryCard("PKMediaDownloader", "https://github.com/mondary/PKMediaDownloader")
-                    } else if section == "support" {
-                        Text(text("supportText")).foregroundStyle(.secondary)
-                        Button { delegate.openKofi() } label: { Label("Soutenir sur Ko-fi", systemImage: "heart.fill").padding(12) }.tint(Color(red: 1, green: 0.37, blue: 0.36))
-                    } else {
-                        HStack(spacing: 16) { Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72).clipShape(RoundedRectangle(cornerRadius: 16)); VStack(alignment: .leading) { Text("PKarchives").font(.title2.bold()); Text("Desktop archive / Google Drive").foregroundStyle(.secondary); Text("© Pouark · MIT").font(.caption).foregroundStyle(.tertiary) } }
-                        GroupBox("Updates") {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Stable")
-                                Text("\(text("latest")) · \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")").font(.caption).foregroundStyle(.secondary)
-                                Button("Rechercher les mises à jour…") { delegate.checkForUpdates() }.disabled(delegate.updaterController == nil)
-                            }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
-                        }
-                        HStack { link("GitHub", "https://github.com/mondary/Macos_PKarchives"); link("Issues", "https://github.com/mondary/Macos_PKarchives/issues") }
-                    }
-                }.padding(28).frame(maxWidth: .infinity, alignment: .leading)
-            }
+            Group {
+                switch navigation.section {
+                case "library": projectLibrary
+                case "support": supportView
+                case "about": aboutView
+                default: archiveSettings
+                }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }.frame(minWidth: 760, minHeight: 540).background(Color(nsColor: .windowBackgroundColor))
     }
+
+    private var archiveSettings: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                SettingsSectionHeader(title: text("archive"), subtitle: text("settings.subtitle"), icon: "archivebox")
+                GroupBox(text("googleDrive")) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        labeled(text("destination"), value: $folder)
+                        labeled(text("source"), value: $desktop)
+                        labeled(text("remote"), value: $remote)
+                        HStack { Spacer(); Button(text("save")) {
+                            delegate.saveSettings(folderId: folder, desktop: desktop, remote: remote, permanent: (loadEnv("PKARCHIVES_DELETE_MODE") ?? "trash") == "delete")
+                            delegate.sendDest(); delegate.refreshItems(mode: "files")
+                        }.keyboardShortcut(.defaultAction) }
+                    }.padding(8)
+                }
+            }.padding(28).frame(maxWidth: 760, alignment: .leading).frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    private var projectLibrary: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                SettingsSectionHeader(title: text("library.title"), subtitle: text("library.subtitle"), icon: "square.grid.2x2")
+                featuredCard(featuredProject)
+                Text(text("library.more")).font(.system(size: 18, weight: .bold, design: .rounded))
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
+                    ForEach(otherProjects) { projectCard($0) }
+                }
+                Link(destination: githubProfileURL) { Label(text("library.viewAll"), systemImage: "arrow.up.right.square") }
+                    .buttonStyle(.borderedProminent).padding(.top, 6)
+            }.padding(28).frame(maxWidth: 860).frame(maxWidth: .infinity)
+        }
+    }
+
+    private var supportView: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                VStack(spacing: 8) {
+                    Image(systemName: "heart.fill").font(.system(size: 36)).foregroundStyle(Color(red: 1, green: 0.37, blue: 0.36))
+                    Text(text("support.title")).font(.system(size: 20, weight: .bold))
+                    Text(text("support.subtitle")).font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                }.padding(.top, 36).padding(.bottom, 24)
+                VStack(spacing: 16) {
+                    HStack(spacing: 12) {
+                        Image(nsImage: kofiImage ?? NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Ko-fi")!)
+                            .resizable().interpolation(.high).scaledToFit().frame(width: 28, height: 28).frame(width: 36)
+                        VStack(alignment: .leading, spacing: 2) { Text("Ko-fi").font(.system(size: 14, weight: .semibold)); Text(text("support.coffee")).font(.system(size: 12)).foregroundStyle(.secondary) }
+                        Spacer()
+                        Link(destination: kofiURL) {
+                            Text(text("support.donate")).font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
+                                .padding(.horizontal, 16).padding(.vertical, 7)
+                                .background(Color(red: 1, green: 0.37, blue: 0.36), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }.buttonStyle(.plain)
+                    }.padding(16).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    VStack(spacing: 0) {
+                        supportLink(icon: "network", title: "GitHub", subtitle: text("support.github.subtitle"), url: githubURL)
+                        Divider().padding(.leading, 52)
+                        supportLink(icon: "exclamationmark.bubble", title: text("support.issues.title"), subtitle: text("support.issues.subtitle"), url: issuesURL)
+                        Divider().padding(.leading, 52)
+                        supportLink(icon: "person.crop.circle", title: text("support.profile.title"), subtitle: text("support.profile.subtitle"), url: githubProfileURL)
+                    }.background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }.frame(maxWidth: 480).padding(.bottom, 32)
+            }.frame(maxWidth: .infinity)
+        }
+    }
+
+    private var aboutView: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 0) {
+                    Image(nsImage: NSApp.applicationIconImage).resizable().interpolation(.high).frame(width: 88, height: 88)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)).padding(.top, 36).padding(.bottom, 16)
+                    Text("PKarchives").font(.system(size: 24, weight: .bold))
+                    Text("Version \(version) (\(build))").font(.system(size: 13)).foregroundStyle(.secondary).padding(.top, 4)
+                    Text(text("byPK")).font(.system(size: 13)).foregroundStyle(.secondary).padding(.top, 2).padding(.bottom, 32)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text(text("about.greeting")).italic().font(.system(size: 13))
+                        Text(text("about.pitch")).font(.system(size: 13)).foregroundStyle(.secondary)
+                        Text(text("about.body")).font(.system(size: 13)).foregroundStyle(.secondary)
+                        Text(text("about.care")).font(.system(size: 13)).foregroundStyle(.secondary)
+                        Text(text("about.thanks")).font(.system(size: 13)).foregroundStyle(.secondary).padding(.top, 8)
+                        Text("— PK").font(.system(size: 13)).foregroundStyle(.secondary)
+                    }.frame(maxWidth: 480, alignment: .leading).padding(.bottom, 28)
+                    updatesCard.frame(maxWidth: 480).padding(.bottom, 30)
+                }.frame(maxWidth: .infinity)
+            }
+            Divider()
+            HStack(spacing: 16) {
+                Link(destination: githubURL) { Label("GitHub", systemImage: "network").font(.caption).foregroundStyle(.secondary) }
+                Link(destination: issuesURL) { Label("Issues", systemImage: "exclamationmark.bubble").font(.caption).foregroundStyle(.secondary) }
+                Link(destination: kofiURL) {
+                    HStack(spacing: 4) {
+                        if let logo = kofiImage { Image(nsImage: logo).resizable().frame(width: 12, height: 12) }
+                        Text(text("footer.kofi"))
+                    }.font(.caption).foregroundStyle(Color(red: 1, green: 0.37, blue: 0.36))
+                }
+                Spacer()
+                Text(text("license")).font(.caption).foregroundStyle(.tertiary)
+            }.padding(.horizontal, 24).padding(.vertical, 14)
+        }
+    }
+
+    private var updatesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(text("about.updates")).font(.headline)
+            HStack(spacing: 12) {
+                Label(text("about.stable"), systemImage: "checkmark.seal").font(.subheadline.weight(.medium))
+                Spacer()
+                Text(version).font(.system(size: 12, weight: .medium, design: .monospaced))
+            }
+            Text(text("updates.caption"))
+                .font(.caption).foregroundStyle(.secondary)
+            Button { delegate.checkForUpdates() } label: { Label(text("about.check"), systemImage: "arrow.triangle.2.circlepath") }
+                .buttonStyle(.bordered).disabled(delegate.updaterController == nil)
+        }
+        .padding(16).background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(0.025)))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+    }
+
+    private var kofiImage: NSImage? { Bundle.main.url(forResource: "kofi-logo", withExtension: "png").flatMap(NSImage.init(contentsOf:)) }
+
+    private func supportLink(icon: String, title: String, subtitle: String, url: URL) -> some View {
+        Link(destination: url) {
+            HStack(spacing: 12) {
+                Image(systemName: icon).font(.system(size: 16)).foregroundStyle(.secondary).frame(width: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 13, weight: .medium))
+                    Text(subtitle).font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right").font(.system(size: 11)).foregroundStyle(.tertiary)
+            }.padding(.horizontal, 16).padding(.vertical, 10).contentShape(Rectangle())
+        }.buttonStyle(.plain)
+    }
+
+    private func assetImage(_ name: String, directory: String) -> NSImage? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: directory) else { return nil }
+        return NSImage(contentsOf: url)
+    }
+
+    private func featuredCard(_ project: ArchiveProject) -> some View {
+        Link(destination: project.url) {
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        projectIcon(project).frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(project.title).font(.system(size: 24, weight: .bold, design: .rounded))
+                            Text(text(project.kindKey)).font(.system(size: 10, weight: .bold)).foregroundStyle(project.tint)
+                        }
+                    }
+                    Text(text(project.descriptionKey)).font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(3)
+                    Label(text("library.star"), systemImage: "star.fill").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                        .padding(.horizontal, 12).padding(.vertical, 7).background(Color.accentColor, in: Capsule())
+                }.padding(22).frame(maxWidth: 340, alignment: .topLeading)
+                if let shotName = project.screenshot, let shot = assetImage(shotName, directory: "ProjectScreenshots") {
+                    GeometryReader { geo in Image(nsImage: shot).resizable().interpolation(.high).scaledToFill().frame(width: geo.size.width, height: geo.size.height).clipped() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .overlay(alignment: .leading) { LinearGradient(colors: [Color(nsColor: .controlBackgroundColor), .clear], startPoint: .leading, endPoint: .trailing).frame(width: 60) }
+                }
+            }.frame(height: 210).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color(nsColor: .separatorColor).opacity(0.55), lineWidth: 0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }.buttonStyle(.plain)
+    }
+
+    private func projectCard(_ project: ArchiveProject) -> some View {
+        Link(destination: project.url) {
+            VStack(alignment: .leading, spacing: 0) {
+                Group {
+                    if let shotName = project.screenshot, let shot = assetImage(shotName, directory: "ProjectScreenshots") {
+                        Image(nsImage: shot).resizable().interpolation(.high).scaledToFill().frame(height: 150).clipped()
+                    } else {
+                        ZStack {
+                            LinearGradient(colors: [project.tint.opacity(0.75), project.tint.opacity(0.35)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            projectIcon(project).frame(width: 74, height: 74).shadow(color: .black.opacity(0.25), radius: 8, y: 3)
+                        }.frame(height: 150)
+                    }
+                }.frame(maxWidth: .infinity).clipped().overlay(alignment: .topLeading) {
+                    Text(text(project.kindKey)).font(.system(size: 9, weight: .bold)).foregroundStyle(.white)
+                        .padding(.horizontal, 8).padding(.vertical, 4).background(.ultraThinMaterial, in: Capsule()).padding(10)
+                }
+                HStack(alignment: .top, spacing: 10) {
+                    projectIcon(project).frame(width: 30, height: 30).clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(project.title).font(.system(size: 14, weight: .semibold))
+                        Text(text(project.descriptionKey)).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.tertiary)
+                }.padding(14)
+            }.background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(Color(nsColor: .separatorColor).opacity(0.55), lineWidth: 0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        }.buttonStyle(.plain)
+    }
+
+    @ViewBuilder private func projectIcon(_ project: ArchiveProject) -> some View {
+        if let image = assetImage(project.iconAsset, directory: "ProjectIcons") {
+            Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+        } else {
+            Image(nsImage: NSApp.applicationIconImage).resizable().scaledToFit()
+        }
+    }
+
     private func labeled(_ title: String, value: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 5) { Text(title).font(.caption).foregroundStyle(.secondary); TextField(title, text: value).textFieldStyle(.roundedBorder) }
     }
-    private func link(_ title: String, _ url: String) -> some View { Link(title, destination: URL(string: url)!) }
-    private func libraryCard(_ name: String, _ url: String) -> some View {
-        Link(destination: URL(string: url)!) { HStack { Image(systemName: "app.dashed").font(.title2); Text(name).font(.headline); Spacer(); Image(systemName: "arrow.up.right") }.padding(14).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10)) }.buttonStyle(.plain)
+}
+
+private final class ArchivePreferencesNavigation: ObservableObject {
+    @Published var section = "archive"
+}
+
+private struct ArchiveProject: Identifiable {
+    let id: String
+    let title: String
+    let kindKey: String
+    let descriptionKey: String
+    let iconAsset: String
+    let screenshot: String?
+    let tint: Color
+    var url: URL { URL(string: "https://github.com/mondary/\(id)")! }
+
+    static let catalog = [
+        ArchiveProject(id: "PKmonitor", title: "PKMonitor", kindKey: "kind.macos", descriptionKey: "desc.PKmonitor", iconAsset: "PKmonitor", screenshot: "PKmonitor", tint: Color(red: 0.055, green: 0.647, blue: 0.914)),
+        ArchiveProject(id: "PKwindowsManagement", title: "PKwindowsManagement", kindKey: "kind.macos", descriptionKey: "desc.PKwindowsManagement", iconAsset: "PKwindowsManagement", screenshot: nil, tint: Color(red: 0.976, green: 0.451, blue: 0.086)),
+        ArchiveProject(id: "PKbrain", title: "PKbrain", kindKey: "kind.macos", descriptionKey: "desc.PKbrain", iconAsset: "PKbrain", screenshot: nil, tint: Color(red: 0.388, green: 0.400, blue: 0.945)),
+        ArchiveProject(id: "monocode", title: "MonoCode PK", kindKey: "kind.macos", descriptionKey: "desc.MonoCodePK", iconAsset: "MonoCodePK", screenshot: nil, tint: Color(red: 0.133, green: 0.827, blue: 0.933)),
+        ArchiveProject(id: "media-downloader", title: "PKMediaDownloader", kindKey: "kind.macos", descriptionKey: "desc.PKMediaDownloader", iconAsset: "PKMediaDownloader", screenshot: nil, tint: Color(red: 0.957, green: 0.259, blue: 0.369)),
+        ArchiveProject(id: "Macos_PKarchives", title: "PKarchives", kindKey: "kind.macos", descriptionKey: "desc.PKarchives", iconAsset: "PKarchives", screenshot: "PKarchives", tint: Color(red: 0.545, green: 0.361, blue: 0.965)),
+        ArchiveProject(id: "Macos_PKpowerlines", title: "PKpowerlines", kindKey: "kind.macos", descriptionKey: "desc.PKpowerlines", iconAsset: "PKpowerlines", screenshot: "PKpowerlines", tint: Color(red: 0.063, green: 0.725, blue: 0.506)),
+        ArchiveProject(id: "PKmac-cleanup", title: "LaunchPad", kindKey: "kind.macos", descriptionKey: "desc.LaunchPad", iconAsset: "PKmac-cleanup", screenshot: nil, tint: Color(red: 0.925, green: 0.282, blue: 0.600)),
+        ArchiveProject(id: "Chrome_SimpleGMAIL", title: "PKMail", kindKey: "kind.cross", descriptionKey: "desc.PKMail", iconAsset: "PKMail", screenshot: nil, tint: Color(red: 0.918, green: 0.263, blue: 0.208)),
+        ArchiveProject(id: "Chrome_PKshortcuts", title: "PK Chrome Shortcuts", kindKey: "kind.chrome", descriptionKey: "desc.PKChromeShortcuts", iconAsset: "PKshortcuts", screenshot: nil, tint: Color(red: 0.961, green: 0.620, blue: 0.043))
+    ]
+}
+
+private struct SettingsSectionHeader: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon).font(.system(size: 20, weight: .medium)).foregroundStyle(Color.accentColor)
+                .frame(width: 42, height: 42).background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.system(size: 22, weight: .bold, design: .rounded))
+                Text(subtitle).font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }.padding(.bottom, 6)
     }
 }
 
@@ -400,6 +673,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     var statusMenu: NSMenu?
     var window: NSWindow?
     var preferencesWindow: NSWindow?
+    let preferencesNavigation = ArchivePreferencesNavigation()
     var webView: WKWebView?
 
     // état du run
@@ -459,7 +733,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         }
         menu.addItem(kofiItem)
         menu.addItem(makeMenuItem("Rechercher les mises à jour…", action: #selector(checkForUpdates), symbol: "arrow.down.circle"))
-        menu.addItem(makeMenuItem("À propos de PKarchives", action: #selector(openPreferences), symbol: "info.circle"))
+        menu.addItem(makeMenuItem("À propos de PKarchives", action: #selector(openAbout), symbol: "info.circle"))
         menu.addItem(.separator())
         menu.addItem(makeMenuItem("Quitter PKarchives", action: #selector(quitApp), symbol: "power", key: "q"))
         statusMenu = menu
@@ -499,13 +773,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
                              backing: .buffered, defer: false)
             w.title = "PKarchives — Réglages"
-            w.contentView = NSHostingView(rootView: ArchivePreferencesView(delegate: self))
+            w.contentView = NSHostingView(rootView: ArchivePreferencesView(delegate: self, navigation: preferencesNavigation))
             w.minSize = NSSize(width: 760, height: 540)
             w.center()
             preferencesWindow = w
         }
         preferencesWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+    @objc func openAbout() {
+        preferencesNavigation.section = "about"
+        openPreferences()
     }
     @objc func openKofi() {
         NSWorkspace.shared.open(URL(string: "https://ko-fi.com/pouark")!)

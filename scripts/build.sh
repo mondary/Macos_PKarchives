@@ -118,11 +118,15 @@ swiftc "${ROOT}/src/macos/PKarchivesV2.swift" "${ROOT}/src/macos/KofiLogo.swift"
 
 V2_APP_PATH="${ROOT}/release/macos/PKarchives-${APP_VERSION}.app"
 V2_APP_DIR="${V2_APP_PATH}/Contents"
-mkdir -p "${V2_APP_DIR}/MacOS" "${V2_APP_DIR}/Resources/web"
+mkdir -p "${V2_APP_DIR}/MacOS" "${V2_APP_DIR}/Resources/web" \
+  "${V2_APP_DIR}/Resources/ProjectIcons" "${V2_APP_DIR}/Resources/ProjectScreenshots"
 cp PKarchives2 "${V2_APP_DIR}/MacOS/PKarchives"
 cp "${ROOT}/src/shared/archive.sh" "${V2_APP_DIR}/MacOS/"
 cp "${ROOT}/src/shared/archive.sh" "${V2_APP_DIR}/Resources/"
 cp "${ROOT}/src/macos/v2/web/index.html" "${ROOT}/src/macos/v2/web/app.js" "${ROOT}/icon.png" "${ROOT}/src/macos/v2/web/logo-drive.svg" "${ROOT}/src/macos/v2/web/logo-finder.png" "${V2_APP_DIR}/Resources/web/"
+cp "${ROOT}/src/macos/Resources/kofi-logo.png" "${V2_APP_DIR}/Resources/"
+cp "${ROOT}/src/macos/Resources/ProjectIcons/"*.png "${V2_APP_DIR}/Resources/ProjectIcons/"
+cp "${ROOT}/src/macos/Resources/ProjectScreenshots/"*.png "${V2_APP_DIR}/Resources/ProjectScreenshots/"
 V2_VERSION="${APP_VERSION}"
 sed -i '' "s/__VERSION__/${V2_VERSION}/g" "${V2_APP_DIR}/Resources/web/index.html"
 chmod +x "${V2_APP_DIR}/MacOS/"*
