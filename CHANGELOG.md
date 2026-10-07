@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
+Statut : `2026.10.36` (landing Ultra Crea 3, palette teal du fond fourni)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,13 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.36] - 2026-10-07
+#### Fixed
+- Fenêtre principale conservée lors de sa fermeture ; Réglages et menus peuvent la rouvrir sans relire une référence NSWindow libérée.
+- « Project Library » traduit en « Bibliothèque de projets » en français.
+#### Changed
+- Les builds du canal Dev sont désormais produits depuis la branche `dev`.
 
 ### [2026.10.35] - 2026-10-07
 #### Fixed
