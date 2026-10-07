@@ -19,7 +19,7 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
 
-### [2026.10.25] - 2026-10-07
+### [2026.10.26] - 2026-10-07
 #### Added
 - Fenêtre native de réglages inspirée du shell PK : navigation filtrable, réglages d’archivage, choix de langue, Project Library, soutien et À propos.
 - Accès aux réglages depuis l’icône de la barre de menus et le bouton de l’interface.
@@ -27,6 +27,7 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 #### Changed
 - Project Library, Soutenir et À propos reprennent les composants visuels PKmonitor ; cartes, captures, traductions et liens vérifiés sont embarqués dans l’app.
 - Le build copie maintenant les visuels et le logo Ko-fi dans les ressources du bundle.
+- Réglages, À propos et Project Library basculent dans l’unique fenêtre principale ; le lancement et « Retour à l’archive » ramènent à l’interface d’archivage.
 
 ---
 

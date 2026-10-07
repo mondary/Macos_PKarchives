@@ -305,6 +305,7 @@ private struct ArchivePreferencesView: View {
         "support":["fr":"Soutenir","en":"Support","es":"Apoyar","de":"Unterstützen"],
         "about":["fr":"À propos","en":"About","es":"Acerca de","de":"Über"],
         "search":["fr":"Rechercher dans les réglages","en":"Search settings","es":"Buscar ajustes","de":"Einstellungen suchen"],
+        "back.archive":["fr":"Retour à l’archive","en":"Back to archive","es":"Volver al archivo","de":"Zurück zum Archiv"],
         "save":["fr":"Enregistrer les réglages","en":"Save settings","es":"Guardar ajustes","de":"Einstellungen sichern"],
         "destination":["fr":"Identifiant du dossier Google Drive","en":"Google Drive folder ID","es":"ID de carpeta de Google Drive","de":"Google-Drive-Ordner-ID"],
         "source":["fr":"Dossier source à archiver","en":"Desktop folder to archive","es":"Carpeta de origen","de":"Zu archivierender Quellordner"],
@@ -407,7 +408,17 @@ private struct ArchivePreferencesView: View {
                 case "about": aboutView
                 default: archiveSettings
                 }
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
+                Button { delegate.showWindow() } label: {
+                    Label(text("back.archive"), systemImage: "arrow.left")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.bordered)
+                .padding(.top, 12)
+                .padding(.trailing, 18)
+            }
         }.frame(minWidth: 760, minHeight: 540).background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -672,8 +683,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     var statusItem: NSStatusItem?
     var statusMenu: NSMenu?
     var window: NSWindow?
-    var preferencesWindow: NSWindow?
     let preferencesNavigation = ArchivePreferencesNavigation()
+    private var preferencesHost: NSHostingView<ArchivePreferencesView>?
     var webView: WKWebView?
 
     // état du run
@@ -768,17 +779,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         return item
     }
     @objc func openPreferences() {
-        if preferencesWindow == nil {
-            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 620),
-                             styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                             backing: .buffered, defer: false)
-            w.title = "PKarchives — Réglages"
-            w.contentView = NSHostingView(rootView: ArchivePreferencesView(delegate: self, navigation: preferencesNavigation))
-            w.minSize = NSSize(width: 760, height: 540)
-            w.center()
-            preferencesWindow = w
+        createMainWindowIfNeeded()
+        if preferencesHost == nil {
+            preferencesHost = NSHostingView(rootView: ArchivePreferencesView(delegate: self, navigation: preferencesNavigation))
         }
-        preferencesWindow?.makeKeyAndOrderFront(nil)
+        window?.title = "PKarchives — Réglages"
+        window?.contentView = preferencesHost
+        window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
     @objc func openAbout() {
@@ -795,34 +802,45 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         updaterController = ctrl
     }
 
-    @objc func showWindow() {
-        if window == nil {
-            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 780),
-                             styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                             backing: .buffered, defer: false)
-            let cfg = WKWebViewConfiguration()
-            cfg.userContentController.add(self, name: "pk")
-            let wv = WKWebView(frame: w.contentLayoutRect, configuration: cfg)
-            wv.autoresizingMask = [.width, .height]
-            wv.navigationDelegate = self
-            wv.setValue(false, forKey: "drawsBackground")
-            w.backgroundColor = NSColor(red: 0.027, green: 0.035, blue: 0.05, alpha: 1)
-            w.title = "PKarchives"
-            w.contentView = wv
-            if let res = Bundle.main.resourcePath {
-                let webDir = URL(fileURLWithPath: "\(res)/web", isDirectory: true)
-                let index = webDir.appendingPathComponent("index.html")
-                if FileManager.default.fileExists(atPath: index.path) {
-                    wv.loadFileURL(index, allowingReadAccessTo: webDir)
-                } else {
-                    wv.loadHTMLString("<body style='background:#07090d;color:#fff;font-family:sans-serif;padding:40px'>Interface web introuvable dans l'app.</body>", baseURL: nil)
-                }
+    private func createMainWindowIfNeeded() {
+        guard window == nil else { return }
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 780),
+                         styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                         backing: .buffered, defer: false)
+        let cfg = WKWebViewConfiguration()
+        cfg.userContentController.add(self, name: "pk")
+        let wv = WKWebView(frame: w.contentLayoutRect, configuration: cfg)
+        wv.autoresizingMask = [.width, .height]
+        wv.navigationDelegate = self
+        wv.setValue(false, forKey: "drawsBackground")
+        w.backgroundColor = NSColor(red: 0.027, green: 0.035, blue: 0.05, alpha: 1)
+        w.title = "PKarchives"
+        w.contentView = wv
+        window = w
+        webView = wv
+        if let res = Bundle.main.resourcePath {
+            let webDir = URL(fileURLWithPath: "\(res)/web", isDirectory: true)
+            let index = webDir.appendingPathComponent("index.html")
+            if FileManager.default.fileExists(atPath: index.path) {
+                wv.loadFileURL(index, allowingReadAccessTo: webDir)
+            } else {
+                wv.loadHTMLString("<body style='background:#07090d;color:#fff;font-family:sans-serif;padding:40px'>Interface web introuvable dans l'app.</body>", baseURL: nil)
             }
-            w.center()
-            window = w
-            webView = wv
         }
-        window?.makeKeyAndOrderFront(nil)
+        w.center()
+    }
+
+    @objc func showWindow() {
+        createMainWindowIfNeeded()
+        if let webView, window?.contentView !== webView {
+            window?.contentView = webView
+        }
+        window?.title = "PKarchives"
+        guard let window else {
+            NSLog("PKarchives: main window failed to initialize")
+            return
+        }
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
