@@ -301,7 +301,7 @@ private struct ArchivePreferencesView: View {
     @State private var folder = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
     @State private var desktop = desktopPath()
     @State private var remote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
-    private let sections: [(String, String)] = [("archive","archivebox"),("library","square.grid.2x2"),("support","heart.fill"),("credits","text.book.closed"),("about","info.circle")]
+    private let sections: [(String, String)] = [("archive","archivebox"),("library","square.grid.2x2"),("credits","text.book.closed"),("support","heart.fill"),("about","info.circle")]
     private var copy: [String: [String: String]] { [
         "archive":["fr":"Archivage","en":"Archiving","es":"Archivo","de":"Archivierung"],
         "library":["fr":"Project Library","en":"Project Library","es":"Biblioteca de proyectos","de":"Projektbibliothek"],
@@ -351,16 +351,15 @@ private struct ArchivePreferencesView: View {
         "about.body":["fr":"L’application repère les fichiers et dossiers du Bureau, les envoie dans une archive mensuelle via rclone, puis garde un historique consultable. Une interface macOS et une CLI/TUI sont disponibles.","en":"The app scans Desktop files and folders, sends them to a monthly archive through rclone, and keeps a browsable history. A macOS app and CLI/TUI are available.","es":"La app detecta archivos y carpetas del Escritorio, los envía a un archivo mensual mediante rclone y conserva un historial. Incluye app para macOS y CLI/TUI.","de":"Die App erkennt Dateien und Ordner auf dem Schreibtisch, archiviert sie monatlich mit rclone und führt einen Verlauf. Verfügbar für macOS und als CLI/TUI."],
         "about.care":["fr":"Conçu pour automatiser sans masquer ce qui se passe : destination, progression et historique restent visibles.","en":"Built to automate without hiding what happens: destination, progress and history stay visible.","es":"Automatiza sin ocultar lo que ocurre: destino, progreso e historial siguen visibles.","de":"Automatisiert, ohne Abläufe zu verbergen: Ziel, Fortschritt und Verlauf bleiben sichtbar."],
         "about.credits.title":["fr":"Crédits & inspirations","en":"Credits & inspirations","es":"Créditos e inspiraciones","de":"Credits & Inspirationen"],
-        "about.credits.intro":["fr":"Les outils et projets qui rendent PKarchives possible, ou qui ont inspiré certaines de ses interfaces.","en":"The tools and projects behind PKarchives, and the interfaces that inspired parts of it.","es":"Las herramientas y proyectos que hacen posible PKarchives y que inspiraron algunas de sus interfaces.","de":"Die Werkzeuge und Projekte hinter PKarchives sowie Inspirationen für Teile der Oberfläche."],
-        "about.credit.rclone":["fr":"Moteur open source des transferts et du montage Google Drive.","en":"Open-source engine for Google Drive transfers and mounting.","es":"Motor de código abierto para transferencias y montaje de Google Drive.","de":"Open-Source-Engine für Google-Drive-Übertragungen und -Einbindung."],
-        "about.credit.apple":["fr":"Socle natif de l’app macOS : Swift, SwiftUI, AppKit et WebKit.","en":"Native macOS app foundation: Swift, SwiftUI, AppKit, and WebKit.","es":"Base nativa de la app macOS: Swift, SwiftUI, AppKit y WebKit.","de":"Native macOS-Grundlage: Swift, SwiftUI, AppKit und WebKit."],
+        "about.credits.intro":["fr":"Les composants et outils utilisés par PKarchives, avec les inspirations visuelles clairement séparées.","en":"The components and tools used by PKarchives, with visual inspirations clearly separated.","es":"Los componentes y herramientas de PKarchives, con las inspiraciones visuales claramente separadas.","de":"Die von PKarchives verwendeten Komponenten und Tools, mit klar getrennten visuellen Inspirationen."],
+        "about.credit.rclone":["fr":"Transferts de fichiers vers Google Drive.","en":"File transfers to Google Drive.","es":"Transferencias de archivos a Google Drive.","de":"Dateiübertragungen zu Google Drive."],
         "about.credit.sparkle":["fr":"Mises à jour intégrées de l’app macOS.","en":"In-app updates for the macOS app.","es":"Actualizaciones integradas de la app macOS.","de":"Integrierte Updates für die macOS-App."],
-        "about.credit.charm":["fr":"Bibliothèques Go utilisées par l’interface terminale (TUI).","en":"Go libraries used by the terminal interface (TUI).","es":"Bibliotecas Go utilizadas por la interfaz de terminal (TUI).","de":"Go-Bibliotheken für die Terminal-Oberfläche (TUI)."],
-        "about.credit.fuse":["fr":"Options système externes pour monter un remote comme volume macOS (installation séparée).","en":"External system options for mounting a remote as a macOS volume (installed separately).","es":"Opciones externas del sistema para montar un remote como volumen macOS (instalación aparte).","de":"Externe Systemoptionen, um ein Remote als macOS-Volume einzubinden (separat zu installieren)."],
-        "about.credit.riptide":["fr":"Inspiration visuelle pour la TUI : navigation, cartes et présentation terminale.","en":"Visual inspiration for the TUI: navigation, cards, and terminal presentation.","es":"Inspiración visual para la TUI: navegación, tarjetas y presentación en terminal.","de":"Visuelle Inspiration für die TUI: Navigation, Karten und Terminaldarstellung."],
-        "about.credit.pkmonitor":["fr":"Référence de composition pour À propos, Soutenir et Project Library.","en":"Layout reference for About, Support, and the Project Library.","es":"Referencia de composición para Acerca de, Apoyar y Project Library.","de":"Layout-Referenz für Über, Support und Project Library."],
-        "about.credit.pkwm":["fr":"Référence pour le menu natif et certaines vues de réglages et de soutien.","en":"Reference for the native menu and some settings and support views.","es":"Referencia para el menú nativo y algunas vistas de ajustes y apoyo.","de":"Referenz für das native Menü sowie einige Einstellungs- und Supportansichten."],
-        "about.credit.pulse":["fr":"Exemple qui a inspiré cette rubrique de crédits et d’attributions.","en":"The example that inspired this credits and attribution section.","es":"El ejemplo que inspiró esta sección de créditos y atribuciones.","de":"Das Beispiel, das diese Credits- und Attributionsrubrik angeregt hat."],
+        "about.credit.fuse":["fr":"Prérequis externe, à installer séparément, pour monter un remote comme volume macOS.","en":"External prerequisite, installed separately, for mounting a remote as a macOS volume.","es":"Requisito externo, de instalación separada, para montar un remote como volumen macOS.","de":"Externe, separat zu installierende Voraussetzung, um ein Remote als macOS-Volume einzubinden."],
+        "about.credit.charm":["fr":"Bibliothèques Go utilisées pour construire l’interface terminale (TUI).","en":"Go libraries used to build the terminal interface (TUI).","es":"Bibliotecas Go utilizadas para construir la interfaz de terminal (TUI).","de":"Go-Bibliotheken für die Terminal-Oberfläche (TUI)."],
+        "about.credit.riptide":["fr":"Inspiration pour la navigation et les panneaux de la TUI.","en":"Inspiration for the TUI navigation and panels.","es":"Inspiración para la navegación y los paneles de la TUI.","de":"Inspiration für Navigation und Panels der TUI."],
+        "credits.components":["fr":"Composants & outils","en":"Components & tools","es":"Componentes y herramientas","de":"Komponenten & Tools"],
+        "credits.inspiration":["fr":"Inspiration d’interface","en":"Interface inspiration","es":"Inspiración de interfaz","de":"Interface-Inspiration"],
+        "credits.footer":["fr":"Merci aux auteurs et équipes qui développent ces outils.","en":"Thanks to the authors and teams behind these tools.","es":"Gracias a los autores y equipos que desarrollan estas herramientas.","de":"Danke an die Autorinnen, Autoren und Teams hinter diesen Tools."],
         "about.thanks":["fr":"Merci de l’utiliser et de soutenir les projets indépendants.","en":"Thanks for using it and supporting independent projects.","es":"Gracias por usarla y apoyar proyectos independientes.","de":"Danke, dass du die App nutzt und unabhängige Projekte unterstützt."],
         "about.updates":["fr":"Mises à jour","en":"Updates","es":"Actualizaciones","de":"Aktualisierungen"],
         "about.stable":["fr":"Canal Stable","en":"Stable channel","es":"Canal estable","de":"Stable-Kanal"],
@@ -407,9 +406,12 @@ private struct ArchivePreferencesView: View {
                 TextField(text("search"), text: $query).textFieldStyle(.roundedBorder)
                 ForEach(filtered, id: \.0) { item in
                     Button { navigation.section = item.0 } label: {
-                        Label(text(item.0), systemImage: item.1).frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                        HStack(spacing: 9) {
+                            Image(systemName: item.1).foregroundStyle(sectionIconTint(item.0) ?? (navigation.section == item.0 ? Color.accentColor : Color.secondary)).frame(width: 18)
+                            Text(text(item.0)).foregroundStyle(navigation.section == item.0 ? Color.accentColor : Color.primary)
+                        }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
                             .background(navigation.section == item.0 ? Color.accentColor.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 8))
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.plain).accessibilityLabel(text(item.0))
                 }
                 if !query.isEmpty && filtered.isEmpty {
                     Text(text("search.none")).font(.caption).foregroundStyle(.tertiary).padding(.horizontal, 8)
@@ -579,35 +581,56 @@ private struct ArchivePreferencesView: View {
     }
 
     private var creditsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(text("about.credits.title"), systemImage: "heart.text.square")
-                .font(.headline)
-            Text(text("about.credits.intro"))
-                .font(.caption).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Divider().padding(.vertical, 2)
-            creditLink(name: "Apple · Swift / SwiftUI / AppKit / WebKit", description: text("about.credit.apple"), url: "https://developer.apple.com/")
-            creditLink(name: "rclone", description: text("about.credit.rclone"), url: "https://rclone.org/")
-            creditLink(name: "Sparkle", description: text("about.credit.sparkle"), url: "https://sparkle-project.org/")
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Charmbracelet").font(.system(size: 13, weight: .semibold))
-                Text(text("about.credit.charm")).font(.caption).foregroundStyle(.secondary)
-                HStack(spacing: 10) {
-                    creditProjectLink("Bubble Tea", url: "https://github.com/charmbracelet/bubbletea")
-                    creditProjectLink("Bubbles", url: "https://github.com/charmbracelet/bubbles")
-                    creditProjectLink("Lip Gloss", url: "https://github.com/charmbracelet/lipgloss")
-                }.font(.caption)
-            }.padding(.vertical, 4)
-            creditLink(name: "FUSE-T · macFUSE", description: text("about.credit.fuse"), url: "https://github.com/macos-fuse-t/fuse-t")
-            Divider().padding(.vertical, 2)
-            creditLink(name: "Riptide", description: text("about.credit.riptide"), url: "https://www.reddit.com/r/tui/comments/1usjmvd/riptide_a_polished_terminal_speed_test_live/")
-            creditLink(name: "PKmonitor", description: text("about.credit.pkmonitor"), url: "https://github.com/mondary/PKmonitor")
-            creditLink(name: "PKwindowsManagement", description: text("about.credit.pkwm"), url: "https://github.com/mondary/PKwindowsManagement")
-            creditLink(name: "Pulse", description: text("about.credit.pulse"), url: "https://github.com/qunqin24/Pulse")
+        VStack(alignment: .leading, spacing: 24) {
+            creditGroup(title: text("credits.components")) {
+                creditRow(symbol: "arrow.triangle.2.circlepath", tint: Color(red: 0.20, green: 0.62, blue: 0.43), name: "rclone", detail: text("about.credit.rclone"), url: "https://rclone.org/")
+                creditRow(symbol: "sparkles", tint: Color(red: 0.48, green: 0.38, blue: 0.86), name: "Sparkle", detail: text("about.credit.sparkle"), url: "https://sparkle-project.org/")
+                creditRow(symbol: "terminal", tint: Color(red: 0.88, green: 0.48, blue: 0.20), name: "Bubble Tea · Bubbles · Lip Gloss", detail: text("about.credit.charm"), url: "https://github.com/charmbracelet")
+                creditRow(symbol: "externaldrive.connected.to.line.below", tint: Color(red: 0.18, green: 0.58, blue: 0.72), name: "FUSE-T", detail: text("about.credit.fuse"), url: "https://github.com/macos-fuse-t/fuse-t", secondaryName: "macFUSE", secondaryURL: "https://github.com/macfuse/macfuse")
+            }
+            creditGroup(title: text("credits.inspiration")) {
+                creditRow(symbol: "rectangle.split.2x1", tint: Color.secondary, name: "Riptide", detail: text("about.credit.riptide"), url: "https://www.reddit.com/r/tui/comments/1usjmvd/riptide_a_polished_terminal_speed_test_live/")
+            }
+            Text(text("credits.footer")).font(.caption).foregroundStyle(.tertiary)
         }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(0.025)))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+        .padding(20)
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color(nsColor: .controlBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+    }
+
+    private func creditGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title.uppercased()).font(.system(size: 10, weight: .semibold)).tracking(0.8).foregroundStyle(.secondary)
+            VStack(spacing: 0, content: content)
+        }
+    }
+
+    private func creditRow(symbol: String, tint: Color, name: String, detail: String, url: String, secondaryName: String? = nil, secondaryURL: String? = nil) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 15, weight: .semibold)).foregroundStyle(tint)
+                .frame(width: 34, height: 34)
+                .background(tint.opacity(0.11), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Link(name, destination: URL(string: url)!).font(.system(size: 13, weight: .semibold))
+                    if let secondaryName, let secondaryURL {
+                        Link(secondaryName, destination: URL(string: secondaryURL)!).font(.system(size: 13, weight: .semibold))
+                    }
+                }
+                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
+    }
+
+    private func sectionIconTint(_ section: String) -> Color? {
+        switch section {
+        case "support": Color(red: 1, green: 0.37, blue: 0.36)
+        case "about": .accentColor
+        default: nil
+        }
     }
 
     private var creditsView: some View {
@@ -619,19 +642,6 @@ private struct ArchivePreferencesView: View {
             .frame(maxWidth: 560, alignment: .leading)
             .padding(28)
             .frame(maxWidth: .infinity)
-        }
-    }
-
-    private func creditLink(name: String, description: String, url: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            creditProjectLink(name, url: url).font(.system(size: 13, weight: .semibold))
-            Text(description).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-        }.padding(.vertical, 3)
-    }
-
-    private func creditProjectLink(_ name: String, url: String) -> some View {
-        Link(destination: URL(string: url)!) {
-            Label(name, systemImage: "arrow.up.right.square")
         }
     }
 
