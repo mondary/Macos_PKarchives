@@ -282,12 +282,124 @@ func scanDesktop(mode: String = "files") throws -> [DeskItem] {
     return items
 }
 
+// MARK: - Réglages natifs
+
+private enum ArchiveLanguage: String, CaseIterable {
+    case fr, en, es, de
+    var flag: String { ["fr":"🇫🇷", "en":"🇬🇧", "es":"🇪🇸", "de":"🇩🇪"][rawValue]! }
+    var name: String { ["fr":"Français", "en":"English", "es":"Español", "de":"Deutsch"][rawValue]! }
+}
+
+private struct ArchivePreferencesView: View {
+    let delegate: AppDelegate
+    @AppStorage("app-language") private var language = "fr"
+    @State private var section = "archive"
+    @State private var query = ""
+    @State private var folder = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
+    @State private var desktop = desktopPath()
+    @State private var remote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
+    private let sections: [(String, String, String)] = [("archive","Archive","archivebox"),("library","Project Library","square.grid.2x2"),("support","Support","heart.fill"),("about","About","info.circle")]
+    private var copy: [String: [String: String]] { [
+        "archive":["fr":"Archivage","en":"Archiving","es":"Archivo","de":"Archivierung"],
+        "library":["fr":"Project Library","en":"Project Library","es":"Biblioteca de proyectos","de":"Projektbibliothek"],
+        "support":["fr":"Soutenir","en":"Support","es":"Apoyar","de":"Unterstützen"],
+        "about":["fr":"À propos","en":"About","es":"Acerca de","de":"Über"],
+        "search":["fr":"Rechercher un réglage","en":"Search settings","es":"Buscar ajustes","de":"Einstellungen suchen"],
+        "save":["fr":"Enregistrer","en":"Save","es":"Guardar","de":"Speichern"],
+        "destination":["fr":"Dossier Google Drive","en":"Google Drive folder","es":"Carpeta de Google Drive","de":"Google-Drive-Ordner"],
+        "source":["fr":"Dossier source","en":"Source folder","es":"Carpeta de origen","de":"Quellordner"],
+        "remote":["fr":"Remote rclone","en":"rclone remote","es":"Remote de rclone","de":"rclone-Remote"],
+        "supportText":["fr":"Soutenir le développement de PKarchives","en":"Support the development of PKarchives","es":"Apoya el desarrollo de PKarchives","de":"Unterstütze die Entwicklung von PKarchives"],
+        "libraryText":["fr":"Découvrez les autres projets PK","en":"Discover other PK projects","es":"Descubre otros proyectos PK","de":"Entdecke weitere PK-Projekte"],
+        "latest":["fr":"Version installée","en":"Installed version","es":"Versión instalada","de":"Installierte Version"]
+    ] }
+    private func text(_ key: String) -> String { copy[key]?[language] ?? copy[key]?["en"] ?? key }
+    private var filtered: [(String,String,String)] {
+        guard !query.isEmpty else { return sections }
+        let terms = query.lowercased().split(separator: " ").map(String.init)
+        return sections.filter { item in
+            let synonyms = item.0 == "archive" ? "drive bureau desktop folder dossier source rclone remote destination destination google sauvegarde archivage" : item.0 == "library" ? "projects projets github apps applications" : item.0 == "support" ? "kofi donate donation don" : "version stable dev update mise à jour about versionning"
+            return terms.allSatisfy { (text(item.0) + " " + synonyms).lowercased().contains($0) }
+        }
+    }
+    var body: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 36, height: 36).clipShape(RoundedRectangle(cornerRadius: 9))
+                    VStack(alignment: .leading) { Text("PKarchives").font(.headline); Text("Desktop archive / Google Drive").font(.caption).foregroundStyle(.secondary) }
+                }.padding(.top, 22).padding(.bottom, 8)
+                TextField(text("search"), text: $query).textFieldStyle(.roundedBorder)
+                ForEach(filtered, id: \.0) { item in
+                    Button { section = item.0 } label: {
+                        Label(text(item.0), systemImage: item.2).frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                            .background(section == item.0 ? Color.accentColor.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 8))
+                    }.buttonStyle(.plain)
+                }
+                Spacer()
+                HStack(spacing: 8) { ForEach(ArchiveLanguage.allCases, id: \.rawValue) { lang in
+                    Button(lang.flag) { language = lang.rawValue }.buttonStyle(.plain).opacity(language == lang.rawValue ? 1 : 0.55).help(lang.name)
+                } }
+                Text("PKarchives  \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
+                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary).padding(.bottom, 14)
+            }.padding(.horizontal, 16).frame(width: 230).background(.regularMaterial)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(text(section)).font(.system(size: 26, weight: .bold, design: .rounded))
+                    if section == "archive" {
+                        GroupBox("Google Drive") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                labeled(text("destination"), value: $folder)
+                                labeled(text("source"), value: $desktop)
+                                labeled(text("remote"), value: $remote)
+                                HStack { Spacer(); Button(text("save")) {
+                                    delegate.saveSettings(folderId: folder, desktop: desktop, remote: remote, permanent: (loadEnv("PKARCHIVES_DELETE_MODE") ?? "trash") == "delete")
+                                    delegate.sendDest(); delegate.refreshItems(mode: "files")
+                                }.keyboardShortcut(.defaultAction) }
+                            }.padding(8)
+                        }
+                        Text(language == "fr" ? "Ces paramètres contrôlent la source analysée et la destination d’archivage." : "These settings control the scanned source and archive destination.").foregroundStyle(.secondary)
+                    } else if section == "library" {
+                        Text(text("libraryText")).foregroundStyle(.secondary)
+                        libraryCard("PKwindowsManagement", "https://github.com/mondary/Macos_PKwindowsManagement")
+                        libraryCard("PKmonitor", "https://github.com/mondary/Macos_PKmonitor")
+                        libraryCard("PKbrain", "https://github.com/mondary/PKbrain")
+                        libraryCard("PKMediaDownloader", "https://github.com/mondary/PKMediaDownloader")
+                    } else if section == "support" {
+                        Text(text("supportText")).foregroundStyle(.secondary)
+                        Button { delegate.openKofi() } label: { Label("Soutenir sur Ko-fi", systemImage: "heart.fill").padding(12) }.tint(Color(red: 1, green: 0.37, blue: 0.36))
+                    } else {
+                        HStack(spacing: 16) { Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72).clipShape(RoundedRectangle(cornerRadius: 16)); VStack(alignment: .leading) { Text("PKarchives").font(.title2.bold()); Text("Desktop archive / Google Drive").foregroundStyle(.secondary); Text("© Pouark · MIT").font(.caption).foregroundStyle(.tertiary) } }
+                        GroupBox("Updates") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Stable")
+                                Text("\(text("latest")) · \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")").font(.caption).foregroundStyle(.secondary)
+                                Button("Rechercher les mises à jour…") { delegate.checkForUpdates() }.disabled(delegate.updaterController == nil)
+                            }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                        }
+                        HStack { link("GitHub", "https://github.com/mondary/Macos_PKarchives"); link("Issues", "https://github.com/mondary/Macos_PKarchives/issues") }
+                    }
+                }.padding(28).frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }.frame(minWidth: 760, minHeight: 540).background(Color(nsColor: .windowBackgroundColor))
+    }
+    private func labeled(_ title: String, value: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 5) { Text(title).font(.caption).foregroundStyle(.secondary); TextField(title, text: value).textFieldStyle(.roundedBorder) }
+    }
+    private func link(_ title: String, _ url: String) -> some View { Link(title, destination: URL(string: url)!) }
+    private func libraryCard(_ name: String, _ url: String) -> some View {
+        Link(destination: URL(string: url)!) { HStack { Image(systemName: "app.dashed").font(.title2); Text(name).font(.headline); Spacer(); Image(systemName: "arrow.up.right") }.padding(14).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10)) }.buttonStyle(.plain)
+    }
+}
+
 // MARK: - App delegate + pont WebView
 
 class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate {
     var statusItem: NSStatusItem?
     var statusMenu: NSMenu?
     var window: NSWindow?
+    var preferencesWindow: NSWindow?
     var webView: WKWebView?
 
     // état du run
@@ -315,19 +427,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             button.title = "📦"
         }
         statusItem = item
+        NSApp.applicationIconImage = NSImage(named: NSImage.applicationIconName)
         let menu = NSMenu()
         let versionString = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "?"
         let versionItem = NSMenuItem(title: "Version " + versionString, action: nil, keyEquivalent: "")
         versionItem.isEnabled = false
         menu.addItem(versionItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Ouvrir PKarchives", action: #selector(showWindow), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Archiver (fichiers)", action: #selector(quickFiles), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Archiver (tout)", action: #selector(quickAll), keyEquivalent: ""))
+        menu.addItem(makeMenuItem("Ouvrir PKarchives", action: #selector(showWindow), symbol: "archivebox"))
+        menu.addItem(makeMenuItem("Réglages…", action: #selector(openPreferences), symbol: "gearshape", key: ","))
+        menu.addItem(makeMenuItem("Archiver (fichiers)", action: #selector(quickFiles), symbol: "doc"))
+        menu.addItem(makeMenuItem("Archiver (tout)", action: #selector(quickAll), symbol: "archivebox.fill"))
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Ouvrir Google Drive", action: #selector(openDrive), keyEquivalent: ""))
+        menu.addItem(makeMenuItem("Ouvrir Google Drive", action: #selector(openDrive), symbol: "externaldrive"))
         // Ko-fi : item standard avec image (rendu correct via l'attachement natif du menu)
         let kofiItem = NSMenuItem(title: "Soutenir sur Ko-fi", action: #selector(openKofi), keyEquivalent: "")
+        kofiItem.target = self
         if let data = Data(base64Encoded: kofiLogoBase64, options: .ignoreUnknownCharacters),
            let src = NSImage(data: data),
            let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 32, pixelsHigh: 32, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
@@ -343,9 +458,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             kofiItem.image = kofi
         }
         menu.addItem(kofiItem)
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Rechercher les mises à jour…", action: #selector(checkForUpdates), keyEquivalent: "u"))
-        menu.addItem(NSMenuItem(title: "Quitter", action: #selector(quitApp), keyEquivalent: "q"))
+        menu.addItem(makeMenuItem("Rechercher les mises à jour…", action: #selector(checkForUpdates), symbol: "arrow.down.circle"))
+        menu.addItem(makeMenuItem("À propos de PKarchives", action: #selector(openPreferences), symbol: "info.circle"))
+        menu.addItem(.separator())
+        menu.addItem(makeMenuItem("Quitter PKarchives", action: #selector(quitApp), symbol: "power", key: "q"))
         statusMenu = menu
         statusItem?.menu = menu
         showWindow()
@@ -366,6 +482,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     }
     @objc func checkForUpdates() {
         updaterController?.checkForUpdates(nil)
+    }
+    private func makeMenuItem(_ title: String, action: Selector, symbol: String, key: String = "") -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = self
+        if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: title) {
+            image.isTemplate = true
+            image.size = NSSize(width: 16, height: 16)
+            item.image = image
+        }
+        return item
+    }
+    @objc func openPreferences() {
+        if preferencesWindow == nil {
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 620),
+                             styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                             backing: .buffered, defer: false)
+            w.title = "PKarchives — Réglages"
+            w.contentView = NSHostingView(rootView: ArchivePreferencesView(delegate: self))
+            w.minSize = NSSize(width: 760, height: 540)
+            w.center()
+            preferencesWindow = w
+        }
+        preferencesWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
     @objc func openKofi() {
         NSWorkspace.shared.open(URL(string: "https://ko-fi.com/pouark")!)
@@ -459,6 +599,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             refreshItems(mode: body["mode"] as? String ?? "files")
         case "settingsReq":
             sendSettings()
+        case "openPreferences":
+            openPreferences()
         case "historyReq":
             sendHistory()
         case "saveSettings":
