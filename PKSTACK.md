@@ -12,6 +12,8 @@ quand une nouvelle skill intervient sur le projet.
 | `pk-commits` | Convention commits & versioning | Préfixes `ADD`/`FIX`/`REFACTO`/`MAJ` ; CalVer `YYYY.MM.PATCH` avec `CHANGELOG.md` comme source de vérité ; checklist Ko-fi (READMEs + landing + app) et exigence landing bilingue |
 | `fixing-accessibility` | Corrections accessibilité | `aria-label` des boutons et contrôles icône seule ; sémantique du menu 📦 (`role="menu"`, `aria-expanded`, fermeture au clic extérieur) ; navigation clavier et focus visibles ; contrastes |
 | `sparkle-github-updates` | Mises à jour automatiques | `Sparkle.framework` embarqué par `scripts/build.sh` ; `SUPublicEDKey`/`SUFeedURL` dans l'app ; appcast neutralisé dans `appcast.xml` en attente d'une vraie signature |
+| `pk-settings-shell` | À propos et crédits | Rubrique localisée « Crédits & inspirations » dans About ; technologies, dépendances et références sont distinctes, vérifiées depuis le code et liées |
+| `app-presence-sync` | Documentation produit | README FR/EN synchronisés pour la nouvelle rubrique de crédits |
 
 ## Outils annexes (hors hub, sans skill dédiée)
 

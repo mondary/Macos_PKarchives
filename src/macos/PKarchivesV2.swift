@@ -349,6 +349,17 @@ private struct ArchivePreferencesView: View {
         "about.pitch":["fr":"PKarchives est né d’une envie simple : garder un Bureau net sans perdre ses fichiers, en les archivant proprement sur Google Drive.","en":"PKarchives was born from a simple idea: keep your Desktop clean without losing files, by archiving them safely to Google Drive.","es":"PKarchives nació de una idea sencilla: mantener el Escritorio limpio sin perder archivos, archivándolos en Google Drive.","de":"PKarchives entstand aus einer einfachen Idee: den Schreibtisch aufgeräumt halten und Dateien sicher in Google Drive archivieren."],
         "about.body":["fr":"L’application repère les fichiers et dossiers du Bureau, les envoie dans une archive mensuelle via rclone, puis garde un historique consultable. Une interface macOS et une CLI/TUI sont disponibles.","en":"The app scans Desktop files and folders, sends them to a monthly archive through rclone, and keeps a browsable history. A macOS app and CLI/TUI are available.","es":"La app detecta archivos y carpetas del Escritorio, los envía a un archivo mensual mediante rclone y conserva un historial. Incluye app para macOS y CLI/TUI.","de":"Die App erkennt Dateien und Ordner auf dem Schreibtisch, archiviert sie monatlich mit rclone und führt einen Verlauf. Verfügbar für macOS und als CLI/TUI."],
         "about.care":["fr":"Conçu pour automatiser sans masquer ce qui se passe : destination, progression et historique restent visibles.","en":"Built to automate without hiding what happens: destination, progress and history stay visible.","es":"Automatiza sin ocultar lo que ocurre: destino, progreso e historial siguen visibles.","de":"Automatisiert, ohne Abläufe zu verbergen: Ziel, Fortschritt und Verlauf bleiben sichtbar."],
+        "about.credits.title":["fr":"Crédits & inspirations","en":"Credits & inspirations","es":"Créditos e inspiraciones","de":"Credits & Inspirationen"],
+        "about.credits.intro":["fr":"Les outils et projets qui rendent PKarchives possible, ou qui ont inspiré certaines de ses interfaces.","en":"The tools and projects behind PKarchives, and the interfaces that inspired parts of it.","es":"Las herramientas y proyectos que hacen posible PKarchives y que inspiraron algunas de sus interfaces.","de":"Die Werkzeuge und Projekte hinter PKarchives sowie Inspirationen für Teile der Oberfläche."],
+        "about.credit.rclone":["fr":"Moteur open source des transferts et du montage Google Drive.","en":"Open-source engine for Google Drive transfers and mounting.","es":"Motor de código abierto para transferencias y montaje de Google Drive.","de":"Open-Source-Engine für Google-Drive-Übertragungen und -Einbindung."],
+        "about.credit.apple":["fr":"Socle natif de l’app macOS : Swift, SwiftUI, AppKit et WebKit.","en":"Native macOS app foundation: Swift, SwiftUI, AppKit, and WebKit.","es":"Base nativa de la app macOS: Swift, SwiftUI, AppKit y WebKit.","de":"Native macOS-Grundlage: Swift, SwiftUI, AppKit und WebKit."],
+        "about.credit.sparkle":["fr":"Mises à jour intégrées de l’app macOS.","en":"In-app updates for the macOS app.","es":"Actualizaciones integradas de la app macOS.","de":"Integrierte Updates für die macOS-App."],
+        "about.credit.charm":["fr":"Bibliothèques Go utilisées par l’interface terminale (TUI).","en":"Go libraries used by the terminal interface (TUI).","es":"Bibliotecas Go utilizadas por la interfaz de terminal (TUI).","de":"Go-Bibliotheken für die Terminal-Oberfläche (TUI)."],
+        "about.credit.fuse":["fr":"Options système externes pour monter un remote comme volume macOS (installation séparée).","en":"External system options for mounting a remote as a macOS volume (installed separately).","es":"Opciones externas del sistema para montar un remote como volumen macOS (instalación aparte).","de":"Externe Systemoptionen, um ein Remote als macOS-Volume einzubinden (separat zu installieren)."],
+        "about.credit.riptide":["fr":"Inspiration visuelle pour la TUI : navigation, cartes et présentation terminale.","en":"Visual inspiration for the TUI: navigation, cards, and terminal presentation.","es":"Inspiración visual para la TUI: navegación, tarjetas y presentación en terminal.","de":"Visuelle Inspiration für die TUI: Navigation, Karten und Terminaldarstellung."],
+        "about.credit.pkmonitor":["fr":"Référence de composition pour À propos, Soutenir et Project Library.","en":"Layout reference for About, Support, and the Project Library.","es":"Referencia de composición para Acerca de, Apoyar y Project Library.","de":"Layout-Referenz für Über, Support und Project Library."],
+        "about.credit.pkwm":["fr":"Référence pour le menu natif et certaines vues de réglages et de soutien.","en":"Reference for the native menu and some settings and support views.","es":"Referencia para el menú nativo y algunas vistas de ajustes y apoyo.","de":"Referenz für das native Menü sowie einige Einstellungs- und Supportansichten."],
+        "about.credit.pulse":["fr":"Exemple qui a inspiré cette rubrique de crédits et d’attributions.","en":"The example that inspired this credits and attribution section.","es":"El ejemplo que inspiró esta sección de créditos y atribuciones.","de":"Das Beispiel, das diese Credits- und Attributionsrubrik angeregt hat."],
         "about.thanks":["fr":"Merci de l’utiliser et de soutenir les projets indépendants.","en":"Thanks for using it and supporting independent projects.","es":"Gracias por usarla y apoyar proyectos independientes.","de":"Danke, dass du die App nutzt und unabhängige Projekte unterstützt."],
         "about.updates":["fr":"Mises à jour","en":"Updates","es":"Actualizaciones","de":"Aktualisierungen"],
         "about.stable":["fr":"Canal Stable","en":"Stable channel","es":"Canal estable","de":"Stable-Kanal"],
@@ -518,6 +529,7 @@ private struct ArchivePreferencesView: View {
                         Text("— PK").font(.system(size: 13)).foregroundStyle(.secondary)
                     }.frame(maxWidth: 480, alignment: .leading).padding(.bottom, 28)
                     updatesCard.frame(maxWidth: 480).padding(.bottom, 30)
+                    creditsCard.frame(maxWidth: 480).padding(.bottom, 30)
                 }.frame(maxWidth: .infinity)
             }
             Divider()
@@ -563,6 +575,51 @@ private struct ArchivePreferencesView: View {
         }
         .padding(16).background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(0.025)))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+    }
+
+    private var creditsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(text("about.credits.title"), systemImage: "heart.text.square")
+                .font(.headline)
+            Text(text("about.credits.intro"))
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Divider().padding(.vertical, 2)
+            creditLink(name: "Apple · Swift / SwiftUI / AppKit / WebKit", description: text("about.credit.apple"), url: "https://developer.apple.com/")
+            creditLink(name: "rclone", description: text("about.credit.rclone"), url: "https://rclone.org/")
+            creditLink(name: "Sparkle", description: text("about.credit.sparkle"), url: "https://sparkle-project.org/")
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Charmbracelet").font(.system(size: 13, weight: .semibold))
+                Text(text("about.credit.charm")).font(.caption).foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    creditProjectLink("Bubble Tea", url: "https://github.com/charmbracelet/bubbletea")
+                    creditProjectLink("Bubbles", url: "https://github.com/charmbracelet/bubbles")
+                    creditProjectLink("Lip Gloss", url: "https://github.com/charmbracelet/lipgloss")
+                }.font(.caption)
+            }.padding(.vertical, 4)
+            creditLink(name: "FUSE-T · macFUSE", description: text("about.credit.fuse"), url: "https://github.com/macos-fuse-t/fuse-t")
+            Divider().padding(.vertical, 2)
+            creditLink(name: "Riptide", description: text("about.credit.riptide"), url: "https://www.reddit.com/r/tui/comments/1usjmvd/riptide_a_polished_terminal_speed_test_live/")
+            creditLink(name: "PKmonitor", description: text("about.credit.pkmonitor"), url: "https://github.com/mondary/PKmonitor")
+            creditLink(name: "PKwindowsManagement", description: text("about.credit.pkwm"), url: "https://github.com/mondary/PKwindowsManagement")
+            creditLink(name: "Pulse", description: text("about.credit.pulse"), url: "https://github.com/qunqin24/Pulse")
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(0.025)))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+    }
+
+    private func creditLink(name: String, description: String, url: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            creditProjectLink(name, url: url).font(.system(size: 13, weight: .semibold))
+            Text(description).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }.padding(.vertical, 3)
+    }
+
+    private func creditProjectLink(_ name: String, url: String) -> some View {
+        Link(destination: URL(string: url)!) {
+            Label(name, systemImage: "arrow.up.right.square")
+        }
     }
 
     private var updateChannelBinding: Binding<String> {
