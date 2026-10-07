@@ -1,9 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>PKarchives Dev</title>
     <link>https://raw.githubusercontent.com/mondary/Macos_PKarchives/main/appcast-dev.xml</link>
     <description>Builds automatiques du canal Dev.</description>
     <language>fr</language>
+    <item>
+      <title>PKarchives 2026.10.27-dev.120943</title>
+      <pubDate>Wed, 07 Oct 2026 12:10:08 +0000</pubDate>
+      <sparkle:version>1791374983</sparkle:version>
+      <sparkle:shortVersionString>2026.10.27-dev.120943</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description>Build Dev automatique depuis main.</description>
+      <enclosure url="https://github.com/mondary/Macos_PKarchives/releases/download/dev/PKarchives-dev.zip" sparkle:edSignature="ojqiO8aOHMG3/Gowd1pz006lN2GxDJJqgV4cdCTXJE/btOziOrRryEyTCp82f/3X4NkKHxEhcX/2KARV/kUlAA==" length="6522788" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
