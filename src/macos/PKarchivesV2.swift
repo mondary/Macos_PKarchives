@@ -357,7 +357,7 @@ private struct ArchivePreferencesView: View {
         "updates.caption":["fr":"Cette installation suit les versions publiées. Le canal Dev n’est pas encore distribué par PKarchives.","en":"This installation follows published releases. PKarchives does not currently distribute a Dev channel.","es":"Esta instalación usa versiones publicadas. PKarchives aún no distribuye un canal Dev.","de":"Diese Installation verwendet veröffentlichte Versionen. PKarchives bietet derzeit keinen Dev-Kanal an."]
     ] }
     private func text(_ key: String) -> String { copy[key]?[language] ?? copy[key]?["en"] ?? key }
-    private var filtered: [(String,String,String)] {
+    private var filtered: [(String,String)] {
         guard !query.isEmpty else { return sections }
         let terms = query.lowercased().split(separator: " ").map(String.init)
         return sections.filter { item in
@@ -621,7 +621,7 @@ private struct ArchivePreferencesView: View {
     }
 }
 
-private final class ArchivePreferencesNavigation: ObservableObject {
+final class ArchivePreferencesNavigation: ObservableObject {
     @Published var section = "archive"
 }
 
