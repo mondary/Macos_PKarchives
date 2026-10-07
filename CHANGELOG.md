@@ -19,6 +19,10 @@ Statut : `2026.09.25` (landing Ultra Crea 3, palette teal du fond fourni)
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
 
+### [2026.10.29] - 2026-10-07
+#### Changed
+- Déplacement des crédits et inspirations d’À propos vers une rubrique dédiée dans la navigation des réglages.
+
 ### [2026.10.28] - 2026-10-07
 #### Added
 - Rubrique Crédits & inspirations dans À propos : outils, dépendances, prérequis de montage et références d’interface, avec liens directs.

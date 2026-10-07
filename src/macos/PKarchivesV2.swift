@@ -301,11 +301,12 @@ private struct ArchivePreferencesView: View {
     @State private var folder = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
     @State private var desktop = desktopPath()
     @State private var remote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
-    private let sections: [(String, String)] = [("archive","archivebox"),("library","square.grid.2x2"),("support","heart.fill"),("about","info.circle")]
+    private let sections: [(String, String)] = [("archive","archivebox"),("library","square.grid.2x2"),("support","heart.fill"),("credits","text.book.closed"),("about","info.circle")]
     private var copy: [String: [String: String]] { [
         "archive":["fr":"Archivage","en":"Archiving","es":"Archivo","de":"Archivierung"],
         "library":["fr":"Project Library","en":"Project Library","es":"Biblioteca de proyectos","de":"Projektbibliothek"],
         "support":["fr":"Soutenir","en":"Support","es":"Apoyar","de":"Unterstützen"],
+        "credits":["fr":"Crédits","en":"Credits","es":"Créditos","de":"Credits"],
         "about":["fr":"À propos","en":"About","es":"Acerca de","de":"Über"],
         "search":["fr":"Rechercher dans les réglages","en":"Search settings","es":"Buscar ajustes","de":"Einstellungen suchen"],
         "back.archive":["fr":"Retour à l’archive","en":"Back to archive","es":"Volver al archivo","de":"Zurück zum Archiv"],
@@ -380,7 +381,7 @@ private struct ArchivePreferencesView: View {
         guard !query.isEmpty else { return sections }
         let terms = query.lowercased().split(separator: " ").map(String.init)
         return sections.filter { item in
-            let synonyms = item.0 == "archive" ? "drive bureau desktop folder dossier source rclone remote destination google sauvegarde archivage" : item.0 == "library" ? "projects projets github apps applications" : item.0 == "support" ? "kofi ko-fi donate donation don" : "version stable dev update mise à jour about versionning"
+             let synonyms = item.0 == "archive" ? "drive bureau desktop folder dossier source rclone remote destination google sauvegarde archivage" : item.0 == "library" ? "projects projets github apps applications" : item.0 == "support" ? "kofi ko-fi donate donation don" : item.0 == "credits" ? "inspirations dépendances dependencies tools outils technologies références references" : "version stable dev update mise à jour about versionning"
             return terms.allSatisfy { (text(item.0) + " " + synonyms).lowercased().contains($0) }
         }
     }
@@ -425,6 +426,7 @@ private struct ArchivePreferencesView: View {
                 switch navigation.section {
                 case "library": projectLibrary
                 case "support": supportView
+                case "credits": creditsView
                 case "about": aboutView
                 default: archiveSettings
                 }
@@ -529,7 +531,6 @@ private struct ArchivePreferencesView: View {
                         Text("— PK").font(.system(size: 13)).foregroundStyle(.secondary)
                     }.frame(maxWidth: 480, alignment: .leading).padding(.bottom, 28)
                     updatesCard.frame(maxWidth: 480).padding(.bottom, 30)
-                    creditsCard.frame(maxWidth: 480).padding(.bottom, 30)
                 }.frame(maxWidth: .infinity)
             }
             Divider()
@@ -607,6 +608,18 @@ private struct ArchivePreferencesView: View {
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(0.025)))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+    }
+
+    private var creditsView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                SettingsSectionHeader(title: text("credits"), subtitle: text("about.credits.intro"), icon: "text.book.closed")
+                creditsCard
+            }
+            .frame(maxWidth: 560, alignment: .leading)
+            .padding(28)
+            .frame(maxWidth: .infinity)
+        }
     }
 
     private func creditLink(name: String, description: String, url: String) -> some View {

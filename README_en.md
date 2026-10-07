@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Project version: 2026.10.28** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.10.29** · Available app: 2026.10.29 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -34,7 +34,7 @@ release/
 - Real-time progress bar
 - Native settings with search, language selection, PK project library, support, and version information
 - Stable and Dev update channels in About
-- Credits and inspirations linking to the tools, dependencies, and reference projects
+- Dedicated Credits & Inspirations settings section linking to tools, dependencies, and reference projects
 
 ![Main view: Desktop archived to Google Drive](store/media/01-promo-vue-principale.png)
 
