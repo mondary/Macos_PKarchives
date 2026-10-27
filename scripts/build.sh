@@ -110,7 +110,7 @@ fi
 
 # --- v2 : interface moderne WKWebView ---
 echo "🔨 Compilation v2 (WKWebView + Sparkle)..."
-swiftc "${ROOT}/src/macos/PKarchivesV2.swift" "${ROOT}/src/macos/KofiLogo.swift" \
+swiftc "${ROOT}/src/macos/PKarchivesV2.swift" "${ROOT}/src/macos/PKSync.swift" "${ROOT}/src/macos/KofiLogo.swift" \
   -F "${SPARKLE_DIR}" \
   -parse-as-library \
   -target arm64-apple-macos14.0 \

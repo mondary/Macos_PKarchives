@@ -19,6 +19,14 @@ Statut : `2026.10.36` (landing Ultra Crea 3, palette teal du fond fourni)
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
 
+### [2026.10.37] - 2026-10-27
+#### Added
+- Mode « Dossiers synchronisés » : paires dossier local ↔ Google Drive en ⇄ bidirectionnel (rclone bisync, conflits résolus), ↑ vers Drive ou ↓ depuis Drive. Moteur rclone court-lived — un seul processus à la fois, jamais résident : ~0 Mo au repos.
+- Journal de synchronisation lisible (`~/Library/Logs/PKarchives/sync.log`) et visionneuse intégrée dans les réglages. Toute erreur reste visible, reprend automatiquement (backoff 2→60 min) et est relançable d'un clic : rien n'est marqué synchronisé sans vérification rclone.
+- Barre des menus : état de synchronisation en direct (⟳ %, ⏸, ⚠️), « Synchroniser tout » et pause d'une heure.
+#### Changed
+- Le build v2 compile désormais `src/macos/PKSync.swift` (module Sync séparé du fichier principal).
+
 ### [2026.10.36] - 2026-10-07
 #### Fixed
 - Fenêtre principale conservée lors de sa fermeture ; Réglages et menus peuvent la rouvrir sans relire une référence NSWindow libérée.

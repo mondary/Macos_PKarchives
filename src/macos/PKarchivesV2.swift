@@ -302,9 +302,10 @@ private struct ArchivePreferencesView: View {
     @State private var folder = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
     @State private var desktop = desktopPath()
     @State private var remote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
-    private let sections: [(String, String)] = [("archive","archivebox"),("library","square.grid.2x2"),("credits","text.book.closed"),("support","heart.fill"),("about","info.circle")]
+    private let sections: [(String, String)] = [("archive","archivebox"),("sync","arrow.triangle.2.circlepath"),("library","square.grid.2x2"),("credits","text.book.closed"),("support","heart.fill"),("about","info.circle")]
     private var copy: [String: [String: String]] { [
         "archive":["fr":"Archivage","en":"Archiving","es":"Archivo","de":"Archivierung"],
+        "sync":["fr":"Dossiers","en":"Folders","es":"Carpetas","de":"Ordner"],
         "library":["fr":"Bibliothèque de projets","en":"Project Library","es":"Biblioteca de proyectos","de":"Projektbibliothek"],
         "support":["fr":"Soutenir","en":"Support","es":"Apoyar","de":"Unterstützen"],
         "credits":["fr":"Crédits","en":"Credits","es":"Créditos","de":"Credits"],
@@ -393,7 +394,9 @@ private struct ArchivePreferencesView: View {
         guard !query.isEmpty else { return sections }
         let terms = query.lowercased().split(separator: " ").map(String.init)
         return sections.filter { item in
-             let synonyms = item.0 == "archive" ? "drive bureau desktop folder dossier source rclone remote destination google sauvegarde archivage" : item.0 == "library" ? "projects projets github apps applications" : item.0 == "support" ? "kofi ko-fi donate donation don" : item.0 == "credits" ? "inspirations dépendances dependencies tools outils technologies références references" : "version stable dev update mise à jour about versionning"
+             let synonyms = item.0 == "archive" ? "drive bureau desktop folder dossier source rclone remote destination google sauvegarde archivage"
+                : item.0 == "sync" ? "sync synchronisation paires pairs bidirectionnel two-way drive dossiers folders push pull"
+                : item.0 == "library" ? "projects projets github apps applications" : item.0 == "support" ? "kofi ko-fi donate donation don" : item.0 == "credits" ? "inspirations dépendances dependencies tools outils technologies références references" : "version stable dev update mise à jour about versionning"
             return terms.allSatisfy { (text(item.0) + " " + synonyms).lowercased().contains($0) }
         }
     }
@@ -460,6 +463,7 @@ private struct ArchivePreferencesView: View {
                 case "support": supportView
                 case "credits": creditsView
                 case "about": aboutView
+                case "sync": SyncSectionView()
                 default: archiveSettings
                 }
             }
@@ -837,7 +841,7 @@ private struct ArchiveProject: Identifiable {
     ]
 }
 
-private struct SettingsSectionHeader: View {
+struct SettingsSectionHeader: View {
     let title: String
     let subtitle: String
     let icon: String
@@ -1238,6 +1242,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         menu.addItem(makeMenuItem("Archiver (fichiers)", action: #selector(quickFiles), symbol: "doc"))
         menu.addItem(makeMenuItem("Archiver (tout)", action: #selector(quickAll), symbol: "archivebox.fill"))
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(makeMenuItem("Synchroniser tout", action: #selector(syncAllNow), symbol: "arrow.triangle.2.circlepath"))
+        menu.addItem(makeMenuItem("Pause synchronisation 1 h", action: #selector(pauseSyncOneHour), symbol: "pause.circle"))
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(makeMenuItem("Ouvrir Google Drive", action: #selector(openDrive), symbol: "externaldrive"))
         // Ko-fi : item standard avec image (rendu correct via l'attachement natif du menu)
         let kofiItem = NSMenuItem(title: "Soutenir sur Ko-fi", action: #selector(openKofi), keyEquivalent: "")
@@ -1278,6 +1285,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                 self?.startArchive(mode: auto)
             }
         }
+
+        // Test/e2e : PKARCHIVES_SYNC_AUTOSTART=1 lance une synchronisation au démarrage
+        if (loadEnv("PKARCHIVES_SYNC_AUTOSTART") ?? "") == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                SyncEngine.shared.syncAll()
+            }
+        }
+
+        // Barre des menus réfléchit l'état du moteur de synchronisation
+        SyncEngine.shared.$statusBadgeSubject
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] badge in
+                self?.statusItem?.button?.title = badge
+            }
+            .store(in: &statusCancellables)
+    }
+
+    private var statusCancellables: Set<AnyCancellable> = []
+
+    @objc func syncAllNow() {
+        SyncEngine.shared.syncAll()
+        if SyncEngine.shared.pairs.isEmpty { openPreferences(); preferencesNavigation.section = "sync" }
+    }
+    @objc func pauseSyncOneHour() {
+        SyncEngine.shared.pauseForHours(1)
     }
     @objc @MainActor func checkForUpdates() {
         ArchiveUpdaterManager.shared.checkForUpdates()
