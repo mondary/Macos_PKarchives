@@ -20,6 +20,15 @@ fi
 BUILD_VERSION="$(date +%s)"
 echo "🔖 Version ${APP_VERSION}"
 
+# CLT 27 ships SwiftUI.State as a macro without the matching plugin. The installed
+# 26.5 SDK still exposes the compatible property wrapper; no system toolchain changes.
+SDK_FLAGS=()
+if [[ -n "${PK_MACOS_SDK:-}" ]]; then
+  SDK_FLAGS=(-sdk "${PK_MACOS_SDK}")
+elif [[ "$(xcode-select -p)" == *CommandLineTools* && -d /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk ]]; then
+  SDK_FLAGS=(-sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk)
+fi
+
 SPARKLE_VERSION="2.9.6"
 SPARKLE_SHA256="52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192"
 SPARKLE_DIR="${ROOT}/release/sparkle"
@@ -43,6 +52,7 @@ CLI_RELEASE_DIR="${ROOT}/release/cli"
   echo "🔨 Compilation..."
 
   swiftc "${ROOT}/src/macos/PKarchives.swift" \
+  "${SDK_FLAGS[@]}" \
   -parse-as-library \
   -o PKarchives \
   -framework SwiftUI \
@@ -110,7 +120,8 @@ fi
 
 # --- v2 : interface moderne WKWebView ---
 echo "🔨 Compilation v2 (WKWebView + Sparkle)..."
-swiftc "${ROOT}/src/macos/PKarchivesV2.swift" "${ROOT}/src/macos/PKSync.swift" "${ROOT}/src/macos/KofiLogo.swift" \
+swiftc "${ROOT}/src/macos/PKarchivesV2.swift" "${ROOT}/src/macos/PKSync.swift" "${ROOT}/src/macos/PKSyncEngine.swift" "${ROOT}/src/macos/PKWorkspace.swift" "${ROOT}/src/macos/KofiLogo.swift" \
+  "${SDK_FLAGS[@]}" \
   -F "${SPARKLE_DIR}" \
   -parse-as-library \
   -target arm64-apple-macos14.0 \

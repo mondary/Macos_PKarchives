@@ -44,3 +44,25 @@ décommissionner la v1 avant validation de la v2.
 - Fréquence exacte du scan périodique : 1, 5 ou 15 minutes après mesure du coût.
 - Affichage du compteur : nombre brut, badge sur l'icône, ou entrée détaillée dans le menu.
 - Mode affiché par défaut : fichiers seuls ou dernier mode utilisé.
+
+## Mode Synchronisation — Dev 2026.10.46
+
+- [x] Paires natives macOS, directions ⇄/↑/↓ et exclusions.
+- [x] Deux onglets principaux Archivage/Synchronisation, navigation directe et panneau de barre des menus au clic/droit/survol.
+- [x] Version installée complète visible dans le panneau de l’icône, y compris le suffixe Dev.
+- [x] Archivage en premier et par défaut au démarrage ; Synchronisation en second, indépendante de l’onglet affiché.
+- [x] Simulation par paire/globale, sans modification des fichiers ni des listings actifs.
+- [x] Première fusion explicite, conflits et copies de récupération séparées.
+- [x] Contrôle après transfert ; aucun état vérifié sans taille et empreinte disponibles.
+- [x] Journal lisible, rapports durables et historique relançable.
+- [x] Activité avec causes lisibles, détails techniques repliés et quota API distinct d’un besoin de reconstruction bisync ; attente de 15 min par connexion.
+- [x] Section Synchronisation dans les Réglages (pause globale, mode par défaut des nouvelles paires, réglages par paire) et segment Statut dédié par paire dans l’onglet Synchronisation.
+- [x] Suivi live par exécution : phase, fichiers et volume, vitesse, temps restant, push/pull/suppressions prévus et réalisés.
+- [x] Inventaire par paire dans Statut : comptages locaux/distants (rclone size, mêmes exclusions), écart mis en évidence, estimation de durée annoncée comme approximation, file d’attente visible.
+- [x] Reprises temporisées, queue séquentielle, annulation et garde-fous de persistance/interruption.
+- [x] FSEvents, délai local de 45 s, contrôle distant horaire/au réveil.
+- [x] Build Dev locale et tests d’intégration sur remotes locaux isolés.
+- [x] Petite paire réelle Google Drive : simulation, première fusion, réconciliation bidirectionnelle et contrôle à 0 différence (27/10, dossier de test purgé).
+- [ ] Validation restante : gros dossiers, OAuth expiré, coupure réseau et quota sous charge, sans utiliser les archives personnelles.
+- [ ] Mesures RAM/CPU représentatives et QA interactive complète des réglages.
+- [ ] Validation utilisateur avant publication Stable et mise à jour des supports publics.

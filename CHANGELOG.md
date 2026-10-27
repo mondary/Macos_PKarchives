@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.36` (landing Ultra Crea 3, palette teal du fond fourni)
+Statut : `2026.10.46` (suivi live push/pull/suppressions, volume et temps restant)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,75 @@ Statut : `2026.10.36` (landing Ultra Crea 3, palette teal du fond fourni)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.46] - 2026-10-27
+#### Added
+- Bandeau de progression live pendant une exécution : sens en cours (analyse, envoi Mac → Drive, rapatriement Drive → Mac, suppressions, vérification), fichiers faits / prévus, volume écoulé / total avec pourcentage, vitesse, temps écoulé et temps restant estimé par rclone.
+- Opérations prévues vs réalisées par sens : nombre de push, de pull et de suppressions, lus dans les journaux bisync (`Queue copy to Path1/Path2`, `Queue delete`, `Copied`, `Deleted`) — aucun chiffre inventé.
+- Compteurs également visibles dans la carte de la paire pendant son exécution ; bouton d'arrêt direct.
+
+### [2026.10.45] - 2026-10-27
+#### Fixed
+- Les refus de quota Google (403 RATE_LIMIT_EXCEEDED, limite par minute) ne font plus abandonner bisync en 2 s : 12 tentatives avec backoff progressif au lieu de 3, pour laisser passer la fenêtre de saturation partagée.
+#### Validated
+- Paire de test réelle créée sur Google Drive (dossier bidon, 5 fichiers) : simulation 2 s, première fusion 62 s, réconciliation bidirectionnelle 7 s (modification, suppression et ajout dans les deux sens), `rclone check` à 0 différence. Dossier de test purgé après validation. Le blocage du dossier Documents vient de l'ampleur du crawl complet, pas du moteur.
+
+### [2026.10.44] - 2026-10-27
+#### Added
+- Inventaire réel par paire dans le segment Statut : nombre de fichiers et taille de chaque côté via `rclone size` avec les mêmes exclusions, date de comptage, et bouton « Actualiser les comptes » (global et par paire).
+- Mise en évidence de l’écart (fichiers et taille) : « Alignés » quand les comptes coïncident, écart orange sinon, avec une estimation de durée de résorption à 4 Mo/s de référence explicitement annoncée comme approximation.
+- File d’attente visible en tête du segment Statut : exécution en cours avec progression, paires en attente dans l’ordre avec leur nature (simulation ou synchronisation), ou état « Aucune tâche en attente ».
+- Le comptage respecte la discipline un-seul-rclone et l’attente quota : distant différé pendant 15 min après un refus Google, décomptes locaux toujours possibles ; comptages persistés entre redémarrages.
+
+### [2026.10.43] - 2026-10-27
+#### Added
+- Section **Synchronisation** dans les Réglages : pause globale (1 h), mode par défaut « Simulation uniquement » pour les nouvelles paires, liste des paires avec leurs commutateurs (activation, simulation) et accès au formulaire complet de chaque paire.
+- Segment **Statut** dans l’onglet Synchronisation : un panneau dédié par paire affichant l’état actuel (transfert, file d’attente, pause, attente quota), le mode, la dernière exécution, la date du dernier contrôle vérifié et la prochaine tentative, avec les actions Simuler/Synchroniser/Modifier.
+
+### [2026.10.42] - 2026-10-27
+#### Added
+- Version complète de l’app installée visible et sélectionnable sous « PKarchives » dans le panneau de la barre des menus, dans les deux modes, au clic gauche/droit ou au survol. Le suffixe Dev provient du bundle exécuté, sans requête réseau.
+#### Changed
+- Navigation « Archives / Synchronisation / Réglages » regroupée à droite de la fenêtre, séparée du titre PKarchives. Réglages adopte le même format et le même état sélectionné que les deux autres boutons.
+
+### [2026.10.41] - 2026-10-27
+#### Fixed
+- Les erreurs Google de limite de requêtes (403/429, quota API) sont distinguées d’un besoin de reconstruire la comparaison bisync. La cause réelle prime sur la dernière ligne générique « Must run --resync ».
+- Suppression des codes couleur de terminal dans l’interface et les nouveaux journaux lisibles ; les logs techniques bruts restent conservés.
+- Relecture locale des anciennes tentatives en erreur pour corriger leur diagnostic affiché, sans réécrire les rapports bruts d’origine.
+#### Changed
+- « Historique relançable » devient « Activité » : explication et action concrètes, détails techniques repliés, bouton « Réessayer la simulation » explicite.
+- Attente de 15 minutes par connexion rclone après un quota API, persistée entre redémarrages. Les autres connexions peuvent continuer ; une simulation ne devient jamais un transfert réel.
+- Les explications générales de fonctionnement sont repliées et les rapports ouverts depuis l’interface disposent d’une copie de lecture nettoyée.
+- L’ouverture normale affiche Archivage même lorsque des dossiers de synchronisation existent ; le démarrage sans fenêtre reste possible avec `--background`.
+
+### [2026.10.40] - 2026-10-27
+#### Changed
+- Archivage devient le premier onglet et le mode initial à chaque démarrage ; la dernière sélection de Synchronisation ne change plus cet accueil.
+- Synchronisation devient le second onglet, avec la mention « En arrière-plan » ; raccourcis alignés : ⌘1 Archivage, ⌘2 Synchronisation.
+- Le retour des réglages conserve l’onglet courant pendant la session. Les tâches de synchronisation restent indépendantes de l’onglet affiché.
+- Formulaire Drive explicite : connexion rclone séparée du dossier, bouton « Ouvrir Google Drive », instructions de copie et collage du lien du dossier avec extraction/validation automatique de son identifiant. Le chemin rclone reste une méthode avancée.
+- Commandes natives Édition (dont ⌘V) disponibles pour coller le lien dans le formulaire.
+- Les destinations choisies par lien gardent leurs copies de récupération dans un sous-dossier réservé, exclu des transferts et contrôles, sur le même endpoint rclone.
+
+### [2026.10.39] - 2026-10-27
+#### Changed
+- Synchronisation et Archivage deviennent deux onglets principaux persistants dans la même fenêtre ; les réglages ne servent plus de navigation entre les modes.
+- Panneau natif de barre des menus au clic gauche/droit et au survol différé : deux modes, vrais états des dossiers, activité, simulation/pause et accès direct aux fenêtres et rapports.
+- Retour des réglages vers le mode courant, raccourcis ⌘1/⌘2 et chargement de l’interface d’archivage uniquement lorsque nécessaire.
+
+### [2026.10.38] - 2026-10-27
+#### Added
+- Simulation (dry run) par paire et globale, avec listings bisync isolés : aucun fichier source/destination modifié, aucun statut de sauvegarde validé par la simulation.
+- Mode « Simulation uniquement » activé par défaut pour les nouvelles paires : le scheduler et les actions globales respectent ce mode sans activer les transferts réels.
+- Historique relançable, rapports Markdown et journaux JSONL par exécution. La relance réconcilie la paire actuelle plutôt que rejouer une commande périmée.
+- Contrôle après transfert (`rclone check`, taille et empreinte), états distincts vérifié/non vérifié/échec/à vérifier, reprises temporisées, verrou inter-instance et récupération après interruption.
+- Surveillance FSEvents, regroupement des modifications locales (45 s), contrôle distant horaire/au réveil, ordonnanceur unique sans polling fréquent.
+- Démarrage Sync sans WebKit ni scan du Bureau ; montage FUSE automatique désormais opt-in (`PKARCHIVES_AUTO_MOUNT=1`).
+- Copies de récupération séparées avant remplacement/suppression, sans purge automatique ; garde-fous sur les dossiers et destinations qui se chevauchent.
+#### Fixed
+- Compilation locale via le SDK 26.5 disponible lorsque les CLT 27 ne fournissent pas SwiftUIMacros.
+- Paramètres rclone de filtrage, première fusion explicite, isolation des jobs de simulation et suppression des faux statuts de vérification du prototype.
 
 ### [2026.10.37] - 2026-10-27
 #### Added

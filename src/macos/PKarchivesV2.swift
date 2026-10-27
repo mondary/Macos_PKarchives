@@ -302,10 +302,23 @@ private struct ArchivePreferencesView: View {
     @State private var folder = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") ?? ""
     @State private var desktop = desktopPath()
     @State private var remote = loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive"
+    @ObservedObject private var syncEngine = SyncEngine.shared
+    @AppStorage("sync-default-preview-only") private var defaultPreviewOnly = true
+    @State private var editingSyncPair: SyncPair?
     private let sections: [(String, String)] = [("archive","archivebox"),("sync","arrow.triangle.2.circlepath"),("library","square.grid.2x2"),("credits","text.book.closed"),("support","heart.fill"),("about","info.circle")]
     private var copy: [String: [String: String]] { [
         "archive":["fr":"Archivage","en":"Archiving","es":"Archivo","de":"Archivierung"],
-        "sync":["fr":"Dossiers","en":"Folders","es":"Carpetas","de":"Ordner"],
+        "sync":["fr":"Synchronisation","en":"Synchronization","es":"Sincronización","de":"Synchronisierung"],
+        "sync.subtitle":["fr":"Pause globale, mode par défaut des nouvelles paires et réglages de chaque paire.","en":"Global pause, default mode for new pairs and each pair’s settings.","es":"Pausa global, modo predeterminado de nuevas parejas y ajustes de cada pareja.","de":"Globale Pause, Standardmodus für neue Paare und Einstellungen jedes Paares."],
+        "sync.global":["fr":"Général","en":"General","es":"General","de":"Allgemein"],
+        "sync.pauseAll":["fr":"Suspendre toutes les synchronisations (1 h)","en":"Pause all synchronization (1 h)","es":"Pausar toda la sincronización (1 h)","de":"Synchronisierung pausieren (1 Std.)"],
+        "sync.defaultPreview":["fr":"Nouvelles paires en simulation uniquement","en":"New pairs start preview-only","es":"Nuevas parejas solo en simulación","de":"Neue Paare starten nur als Vorschau"],
+        "sync.defaultPreviewNote":["fr":"S’applique aux paires créées ensuite. Une paire existante reste modifiable depuis son formulaire ou l’onglet Synchronisation.","en":"Applies to pairs created afterwards. Existing pairs stay editable from their form or the Synchronization tab.","es":"Se aplica a las parejas creadas después. Las existentes se editan desde su formulario o la pestaña Sincronización.","de":"Gilt für neu erstellte Paare. Bestehende Paare bleiben über ihr Formular oder den Tab bearbeitbar."],
+        "sync.pairs":["fr":"Paires configurées","en":"Configured pairs","es":"Parejas configuradas","de":"Konfigurierte Paare"],
+        "sync.noPairs":["fr":"Aucune paire configurée. Ajoutez-en une depuis l’onglet Synchronisation.","en":"No pair configured. Add one from the Synchronization tab.","es":"Ninguna pareja configurada. Añade una desde la pestaña Sincronización.","de":"Kein Paar eingerichtet. Im Tab Synchronisierung hinzufügen."],
+        "sync.openTab":["fr":"Ouvrir l’onglet Synchronisation","en":"Open the Synchronization tab","es":"Abrir la pestaña Sincronización","de":"Tab Synchronisierung öffnen"],
+        "sync.mode":["fr":"Mode","en":"Mode","es":"Modo","de":"Modus"],
+        "sync.realTransfers":["fr":"Transferts réels","en":"Real transfers","es":"Transferencias reales","de":"Echte Übertragungen"],
         "library":["fr":"Bibliothèque de projets","en":"Project Library","es":"Biblioteca de proyectos","de":"Projektbibliothek"],
         "support":["fr":"Soutenir","en":"Support","es":"Apoyar","de":"Unterstützen"],
         "credits":["fr":"Crédits","en":"Credits","es":"Créditos","de":"Credits"],
@@ -463,14 +476,14 @@ private struct ArchivePreferencesView: View {
                 case "support": supportView
                 case "credits": creditsView
                 case "about": aboutView
-                case "sync": SyncSectionView()
+                case "sync": syncSettings
                 default: archiveSettings
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(alignment: .topTrailing) {
                 Button { delegate.showWindow() } label: {
-                    Label(text("back.archive"), systemImage: "arrow.left")
+                    Label(workspaceText("back"), systemImage: "arrow.left")
                         .font(.system(size: 12, weight: .medium))
                 }
                 .buttonStyle(.bordered)
@@ -500,6 +513,71 @@ private struct ArchivePreferencesView: View {
                 }
             }.padding(28).frame(maxWidth: 760, alignment: .leading).frame(maxWidth: .infinity, alignment: .center)
         }
+    }
+
+    private var syncSettings: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                SettingsSectionHeader(title: text("sync"), subtitle: text("sync.subtitle"), icon: "arrow.triangle.2.circlepath")
+                GroupBox(text("sync.global")) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle(text("sync.pauseAll"), isOn: Binding(
+                            get: { syncEngine.isPaused },
+                            set: { if $0 { syncEngine.pauseForHours(1) } else { syncEngine.resume() } }))
+                        Text(syncText("pauseNote")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        Divider()
+                        Toggle(text("sync.defaultPreview"), isOn: $defaultPreviewOnly)
+                        Text(text("sync.defaultPreviewNote")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Spacer()
+                            Button { delegate.presentWorkspace(.sync) } label: {
+                                Label(text("sync.openTab"), systemImage: "arrow.up.right.square")
+                            }.keyboardShortcut(.defaultAction)
+                        }
+                    }.padding(8)
+                }
+                GroupBox(text("sync.pairs")) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if syncEngine.pairs.isEmpty {
+                            Text(text("sync.noPairs")).font(.callout).foregroundStyle(.secondary)
+                        } else {
+                            ForEach(syncEngine.pairs) { pair in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(alignment: .top) {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(pair.name).font(.headline)
+                                            Text("\(shortPath(pair.localPath))  \(pair.direction.arrow)  \(pair.destinationDescription)")
+                                                .font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
+                                            Text("\(text("sync.mode")) : \(pair.previewOnly ? syncText("previewOnly") : text("sync.realTransfers")) · \(pair.direction.label)")
+                                                .font(.caption).foregroundStyle(.secondary)
+                                        }
+                                        Spacer(minLength: 12)
+                                        Toggle(syncText("previewOnly"), isOn: pairBinding(pair, \.previewOnly))
+                                            .toggleStyle(.switch).controlSize(.mini).labelsHidden()
+                                            .help(syncText("previewOnly")).accessibilityLabel(syncText("previewOnly"))
+                                        Toggle(syncText("enabled"), isOn: pairBinding(pair, \.enabled))
+                                            .toggleStyle(.switch).controlSize(.mini).labelsHidden()
+                                            .help(syncText("enabled")).accessibilityLabel(syncText("enabled"))
+                                        Button { editingSyncPair = pair } label: { Label(syncText("edit"), systemImage: "slider.horizontal.3") }
+                                            .controlSize(.small).accessibilityLabel(syncText("edit"))
+                                    }
+                                    if pair.id != syncEngine.pairs.last?.id { Divider() }
+                                }
+                            }
+                            Text(syncText("previewOnlyNote")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }.padding(8)
+                }
+            }.padding(28).frame(maxWidth: 760, alignment: .leading).frame(maxWidth: .infinity, alignment: .center)
+        }
+        .sheet(item: $editingSyncPair) { SyncPairForm(original: $0, engine: syncEngine) }
+    }
+    private func pairBinding(_ pair: SyncPair, _ keyPath: WritableKeyPath<SyncPair, Bool>) -> Binding<Bool> {
+        Binding(get: { pair[keyPath: keyPath] }, set: { value in
+            var updated = pair
+            updated[keyPath: keyPath] = value
+            _ = syncEngine.savePair(updated)
+        })
     }
 
     private var projectLibrary: some View {
@@ -1197,10 +1275,22 @@ private final class ArchiveAppcastParser: NSObject, XMLParserDelegate {
 
 // MARK: - App delegate + pont WebView
 
-class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate, NSPopoverDelegate {
     var statusItem: NSStatusItem?
     var statusMenu: NSMenu?
     var window: NSWindow?
+    let workspaceNavigation = WorkspaceNavigation()
+    private var workspaceRoot: NSView?
+    private var workspaceContent: NSView?
+    private var workspaceHeader: NSHostingView<WorkspaceHeaderView>?
+    private var syncHost: NSHostingView<SyncSectionView>?
+    private let statusPopover = NSPopover()
+    private var statusHover: StatusHoverView?
+    private var hoverTimer: Timer?
+    private var hideTimer: Timer?
+    private var overStatusButton = false
+    private var overStatusPanel = false
+    private var panelPinned = false
     let preferencesNavigation = ArchivePreferencesNavigation()
     private var preferencesHost: NSHostingView<ArchivePreferencesView>?
     var webView: WKWebView?
@@ -1208,10 +1298,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     // état du run
     var process: Process?
     var timer: Timer?
-    var isRunning = false
+    var isRunning = false { didSet { workspaceNavigation.archiveRunning = isRunning } }
     var selectedMode = "all"
-    var lastTotal = 0
-    var deletedCount = 0
+    var lastTotal = 0 { didSet { workspaceNavigation.archiveTotal = lastTotal } }
+    var deletedCount = 0 { didSet { workspaceNavigation.archiveCount = deletedCount } }
     var uploadedBytes: Int64 = 0
     var eventOffset = 0
     var sizeByName: [String: Int64] = [:]
@@ -1223,11 +1313,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
 
 
     @MainActor func applicationDidFinishLaunching(_ notification: Notification) {
+        setupApplicationMenu()
         setupUpdater()
-        // Menu attaché nativement (comme PKwindowsManagement) : rendu système fiable, images d'items incluses
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = item.button {
-            button.title = "📦"
+            button.image = NSImage(systemSymbolName: "archivebox", accessibilityDescription: "PKarchives")
+            button.image?.isTemplate = true
+            button.target = self
+            button.action = #selector(toggleStatusPanel)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            let tracker = StatusHoverView(frame: button.bounds)
+            tracker.autoresizingMask = [.width, .height]
+            tracker.entered = { [weak self] in self?.statusPointerEntered() }
+            tracker.exited = { [weak self] in self?.statusPointerExited() }
+            button.addSubview(tracker)
+            statusHover = tracker
         }
         statusItem = item
         NSApp.applicationIconImage = NSImage(named: NSImage.applicationIconName)
@@ -1243,6 +1343,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         menu.addItem(makeMenuItem("Archiver (tout)", action: #selector(quickAll), symbol: "archivebox.fill"))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(makeMenuItem("Synchroniser tout", action: #selector(syncAllNow), symbol: "arrow.triangle.2.circlepath"))
+        menu.addItem(makeMenuItem("Simuler les synchronisations…", action: #selector(previewSyncAll), symbol: "eye"))
+        menu.addItem(makeMenuItem("Dossiers synchronisés…", action: #selector(openSyncFolders), symbol: "folder.badge.gearshape"))
         menu.addItem(makeMenuItem("Pause synchronisation 1 h", action: #selector(pauseSyncOneHour), symbol: "pause.circle"))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(makeMenuItem("Ouvrir Google Drive", action: #selector(openDrive), symbol: "externaldrive"))
@@ -1269,27 +1371,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         menu.addItem(.separator())
         menu.addItem(makeMenuItem("Quitter PKarchives", action: #selector(quitApp), symbol: "power", key: "q"))
         statusMenu = menu
-        statusItem?.menu = menu
-        showWindow()
+        // Click, right-click and delayed hover all expose the same two-mode panel.
+        statusPopover.behavior = .transient
+        statusPopover.animates = false
+        statusPopover.delegate = self
+        if CommandLine.arguments.contains("--qa-screen") {
+            Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { _ in NSApp.terminate(nil) }
+        }
+        // Keep the sync-only startup genuinely light: no WebKit subprocess, no Desktop scan.
+        if let index = CommandLine.arguments.firstIndex(of: "--open-mode"), CommandLine.arguments.indices.contains(index + 1),
+           let mode = WorkspaceMode(rawValue: CommandLine.arguments[index + 1]) { presentWorkspace(mode) }
+        else if !CommandLine.arguments.contains("--background") { showWindow() }
 
-        // Montage automatique du Drive au démarrage (désactivable : PKARCHIVES_AUTO_MOUNT=0)
-        if (loadEnv("PKARCHIVES_AUTO_MOUNT") ?? "1") != "0" {
+        // FUSE is optional and never needed by sync. Explicit opt-in, not a resident default.
+        if !CommandLine.arguments.contains("--qa-screen"), loadEnv("PKARCHIVES_AUTO_MOUNT") == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.mountDrive()
             }
         }
 
         // Test/e2e : PKARCHIVES_AUTOSTART=files|all lance l'archivage au démarrage
-        if let auto = loadEnv("PKARCHIVES_AUTOSTART"), !auto.isEmpty {
+        if !CommandLine.arguments.contains("--qa-screen"), let auto = loadEnv("PKARCHIVES_AUTOSTART"), !auto.isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
                 self?.startArchive(mode: auto)
-            }
-        }
-
-        // Test/e2e : PKARCHIVES_SYNC_AUTOSTART=1 lance une synchronisation au démarrage
-        if (loadEnv("PKARCHIVES_SYNC_AUTOSTART") ?? "") == "1" {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                SyncEngine.shared.syncAll()
             }
         }
 
@@ -1297,19 +1401,134 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         SyncEngine.shared.$statusBadgeSubject
             .receive(on: DispatchQueue.main)
             .sink { [weak self] badge in
-                self?.statusItem?.button?.title = badge
+                let symbol = SyncEngine.shared.busy ? "arrow.triangle.2.circlepath" : SyncEngine.shared.isPaused ? "pause.circle" : badge == "⚠︎" ? "exclamationmark.triangle" : "archivebox"
+                self?.statusItem?.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "PKarchives")
+                self?.statusItem?.button?.image?.isTemplate = true
+                self?.statusItem?.button?.title = ""
+                self?.statusItem?.button?.toolTip = "PKarchives — \(SyncEngine.shared.progressText)"
+                if let menu = self?.statusMenu {
+                    for item in menu.items where item.action == #selector(AppDelegate.pauseSyncOneHour) {
+                        item.title = SyncEngine.shared.isPaused ? "Reprendre la synchronisation" : "Pause synchronisation 1 h"
+                    }
+                }
             }
             .store(in: &statusCancellables)
     }
 
     private var statusCancellables: Set<AnyCancellable> = []
 
+    private func setupApplicationMenu() {
+        // NSApplication.run() is used directly (no SwiftUI App scene). Supply the standard
+        // first-responder editing commands explicitly so ⌘V works in the folder-link field.
+        let main = NSMenu()
+        let applicationItem = NSMenuItem()
+        let application = NSMenu(title: "PKarchives")
+        let settings = application.addItem(withTitle: workspaceText("settings"), action: #selector(openPreferences), keyEquivalent: ",")
+        settings.target = self
+        application.addItem(.separator())
+        application.addItem(withTitle: workspaceText("quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        applicationItem.submenu = application
+        main.addItem(applicationItem)
+        let editItem = NSMenuItem()
+        let edit = NSMenu(title: workspaceText("editMenu"))
+        for (key, action, equivalent) in [("undo", "undo:", "z"), ("redo", "redo:", "Z"), ("cut", "cut:", "x"), ("copy", "copy:", "c"), ("paste", "paste:", "v"), ("selectAll", "selectAll:", "a")] {
+            edit.addItem(withTitle: workspaceText(key), action: Selector(action), keyEquivalent: equivalent)
+        }
+        editItem.submenu = edit
+        main.addItem(editItem)
+        NSApp.mainMenu = main
+    }
+
+    @objc private func toggleStatusPanel() {
+        hoverTimer?.invalidate(); hideTimer?.invalidate()
+        if statusPopover.isShown {
+            if panelPinned { closeStatusPanel() } else { panelPinned = true }
+        } else { showStatusPanel(pinned: true) }
+    }
+
+    private func showStatusPanel(pinned: Bool) {
+        guard let button = statusItem?.button, !statusPopover.isShown, NSApp.modalWindow == nil else { return }
+        panelPinned = pinned
+        let panel = WorkspacePopoverView(engine: .shared, navigation: workspaceNavigation,
+            open: { [weak self] mode, history in self?.presentWorkspace(mode, history: history) },
+            settings: { [weak self] in self?.openPreferences() },
+            support: { [weak self] in self?.closeStatusPanel(); self?.openKofi() },
+            updates: { [weak self] in self?.closeStatusPanel(); self?.checkForUpdates() },
+            about: { [weak self] in self?.closeStatusPanel(); self?.openAbout() },
+            quit: { [weak self] in self?.quitApp() },
+            hoverChanged: { [weak self] inside in
+                self?.overStatusPanel = inside
+                if inside { self?.hideTimer?.invalidate() } else { self?.schedulePanelHide() }
+            })
+        let controller = NSHostingController(rootView: panel)
+        controller.sizingOptions = [.preferredContentSize]
+        statusPopover.contentViewController = controller
+        statusPopover.contentSize = NSSize(width: 400, height: max(400, min(controller.view.fittingSize.height, 640)))
+        statusPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        button.highlight(true)
+    }
+
+    private func closeStatusPanel() {
+        hoverTimer?.invalidate(); hideTimer?.invalidate()
+        statusPopover.performClose(nil)
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        panelPinned = false; overStatusPanel = false
+        statusItem?.button?.highlight(false)
+        // Do not retain a live view/subscriptions while the panel is closed.
+        statusPopover.contentViewController = nil
+    }
+
+    private func statusPointerEntered() {
+        overStatusButton = true
+        hideTimer?.invalidate()
+        guard UserDefaults.standard.object(forKey: "menu-panel-on-hover") as? Bool ?? true else { return }
+        hoverTimer?.invalidate()
+        hoverTimer = Timer.scheduledTimer(withTimeInterval: 0.55, repeats: false) { [weak self] _ in
+            guard let self, self.overStatusButton else { return }
+            self.showStatusPanel(pinned: false)
+        }
+    }
+
+    private func statusPointerExited() {
+        overStatusButton = false
+        hoverTimer?.invalidate()
+        schedulePanelHide()
+    }
+
+    private func schedulePanelHide() {
+        guard statusPopover.isShown, !panelPinned else { return }
+        hideTimer?.invalidate()
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 0.65, repeats: false) { [weak self] _ in
+            guard let self, !self.overStatusButton, !self.overStatusPanel, !self.panelPinned else { return }
+            self.closeStatusPanel()
+        }
+    }
+
     @objc func syncAllNow() {
         SyncEngine.shared.syncAll()
-        if SyncEngine.shared.pairs.isEmpty { openPreferences(); preferencesNavigation.section = "sync" }
+        if SyncEngine.shared.pairs.isEmpty { openSyncFolders() }
     }
     @objc func pauseSyncOneHour() {
-        SyncEngine.shared.pauseForHours(1)
+        if SyncEngine.shared.isPaused { SyncEngine.shared.resume() }
+        else { SyncEngine.shared.pauseForHours(1) }
+    }
+    @objc func openSyncFolders() { presentWorkspace(.sync) }
+    @objc func previewSyncAll() { SyncEngine.shared.syncAll(dryRun: true); openSyncFolders() }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        SyncEngine.shared.shutdown()
+        // Wait for rclone's SIGINT cleanup and durable interrupted/cancelled report.
+        if SyncEngine.shared.busy {
+            var terminationObserver: AnyCancellable?
+            terminationObserver = SyncEngine.shared.$runningPairID.dropFirst().filter { $0 == nil }.prefix(1).sink { _ in
+                sender.reply(toApplicationShouldTerminate: true)
+                terminationObserver?.cancel()
+            }
+            return .terminateLater
+        }
+        return .terminateNow
     }
     @objc @MainActor func checkForUpdates() {
         ArchiveUpdaterManager.shared.checkForUpdates()
@@ -1325,14 +1544,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         return item
     }
     @objc func openPreferences() {
-        createMainWindowIfNeeded()
+        closeStatusPanel()
+        createMainWindowIfNeeded(archiveUI: false)
         if preferencesHost == nil {
             preferencesHost = NSHostingView(rootView: ArchivePreferencesView(delegate: self, navigation: preferencesNavigation))
         }
-        window?.title = "PKarchives — Réglages"
-        window?.contentView = preferencesHost
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        workspaceNavigation.showingSettings = true
+        window?.title = "PKarchives — \(workspaceText("settings"))"
+        if let preferencesHost { installWorkspaceContent(preferencesHost) }
+        // The native sync/settings UI does not need a hidden archive browser in RAM.
+        if !isRunning {
+            webView?.stopLoading()
+            webView?.configuration.userContentController.removeScriptMessageHandler(forName: "pk")
+            webView = nil
+        }
+        revealMainWindow()
     }
     @objc func openAbout() {
         preferencesNavigation.section = "about"
@@ -1343,27 +1569,46 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     }
 
     @MainActor private func setupUpdater() {
+        guard !CommandLine.arguments.contains("--qa-screen") else { return }
         guard Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else { return } // désactivé hors release
         ArchiveUpdaterManager.shared.start()
         updaterController = ArchiveUpdaterManager.shared.controller
     }
 
-    private func createMainWindowIfNeeded() {
-        guard window == nil else { return }
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 780),
+    private func createMainWindowIfNeeded(archiveUI: Bool = true) {
+        if window == nil {
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 780),
                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
                          backing: .buffered, defer: false)
-        w.isReleasedWhenClosed = false
+            w.isReleasedWhenClosed = false
+            w.title = "PKarchives"
+            window = w
+            w.center()
+            w.minSize = NSSize(width: 1000, height: 680)
+            let root = NSView(frame: w.contentLayoutRect)
+            let content = NSView()
+            let header = NSHostingView(rootView: WorkspaceHeaderView(navigation: workspaceNavigation,
+                select: { [weak self] mode in self?.presentWorkspace(mode) },
+                settings: { [weak self] in self?.openPreferences() }))
+            for view in [header, content] as [NSView] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
+            NSLayoutConstraint.activate([
+                header.topAnchor.constraint(equalTo: root.topAnchor), header.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+                header.trailingAnchor.constraint(equalTo: root.trailingAnchor), header.heightAnchor.constraint(equalToConstant: 80),
+                content.topAnchor.constraint(equalTo: header.bottomAnchor), content.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+                content.trailingAnchor.constraint(equalTo: root.trailingAnchor), content.bottomAnchor.constraint(equalTo: root.bottomAnchor)
+            ])
+            workspaceRoot = root; workspaceContent = content; workspaceHeader = header
+            w.contentView = root
+        }
+        guard archiveUI, webView == nil, let w = window else { return }
         let cfg = WKWebViewConfiguration()
         cfg.userContentController.add(self, name: "pk")
         let wv = WKWebView(frame: w.contentLayoutRect, configuration: cfg)
         wv.autoresizingMask = [.width, .height]
         wv.navigationDelegate = self
         wv.setValue(false, forKey: "drawsBackground")
-        w.backgroundColor = NSColor(red: 0.027, green: 0.035, blue: 0.05, alpha: 1)
+        w.backgroundColor = .windowBackgroundColor
         w.title = "PKarchives"
-        w.contentView = wv
-        window = w
         webView = wv
         if let res = Bundle.main.resourcePath {
             let webDir = URL(fileURLWithPath: "\(res)/web", isDirectory: true)
@@ -1374,25 +1619,63 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                 wv.loadHTMLString("<body style='background:#07090d;color:#fff;font-family:sans-serif;padding:40px'>Interface web introuvable dans l'app.</body>", baseURL: nil)
             }
         }
-        w.center()
     }
 
     @objc func showWindow() {
-        createMainWindowIfNeeded()
-        if let webView, window?.contentView !== webView {
-            window?.contentView = webView
-        }
-        window?.title = "PKarchives"
-        guard let window else {
-            NSLog("PKarchives: main window failed to initialize")
+        presentWorkspace(workspaceNavigation.mode)
+    }
+
+    func presentWorkspace(_ mode: WorkspaceMode, history: Bool = false) {
+        closeStatusPanel()
+        workspaceNavigation.mode = mode
+        workspaceNavigation.showingSettings = false
+        createMainWindowIfNeeded(archiveUI: mode == .archive)
+        if mode == .sync {
+            if syncHost == nil { syncHost = NSHostingView(rootView: SyncSectionView(initialTab: history ? "history" : "folders")) }
+            if let syncHost { installWorkspaceContent(syncHost) }
+            if !isRunning {
+                webView?.stopLoading()
+                webView?.configuration.userContentController.removeScriptMessageHandler(forName: "pk")
+                webView = nil
+            }
+            if history { DispatchQueue.main.async { NotificationCenter.default.post(name: .pkShowSyncHistory, object: nil) } }
+        } else if let webView { installWorkspaceContent(webView) }
+        window?.title = "PKarchives — \(mode.title)"
+        revealMainWindow()
+    }
+
+    private func installWorkspaceContent(_ view: NSView) {
+        guard let content = workspaceContent else { return }
+        if content.subviews.first === view { return }
+        content.subviews.forEach { $0.removeFromSuperview() }
+        view.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(view)
+        NSLayoutConstraint.activate([
+            view.leadingAnchor.constraint(equalTo: content.leadingAnchor), view.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            view.topAnchor.constraint(equalTo: content.topAnchor), view.bottomAnchor.constraint(equalTo: content.bottomAnchor)
+        ])
+    }
+
+    private func revealMainWindow() {
+        if let i = CommandLine.arguments.firstIndex(of: "--qa-screen"), CommandLine.arguments.indices.contains(i + 1) {
+            let name = CommandLine.arguments[i + 1].lowercased()
+            guard let screen = NSScreen.screens.first(where: { $0.localizedName.lowercased().contains(name) }), let window else {
+                NSLog("QA: virtual screen unavailable; no window opened on the user's screen.")
+                return
+            }
+            let frame = screen.visibleFrame
+            window.setFrame(NSRect(x: frame.midX - 620, y: frame.midY - 410, width: 1240, height: 820), display: true)
+            window.orderFrontRegardless()
             return
         }
-        window.makeKeyAndOrderFront(nil)
+        window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    @objc func quickFiles() { showWindow(); DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.js("window.__pkStart && __pkStart('files')") } }
-    @objc func quickAll() { showWindow(); DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.js("window.__pkStart && __pkStart('all')") } }
+    @objc func showArchive() { presentWorkspace(.archive) }
+
+    @objc func quickFiles() { showArchive(); DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.js("window.__pkStart && __pkStart('files')") } }
+    @objc func quickAll() { showArchive(); DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.js("window.__pkStart && __pkStart('all')") } }
     @objc func openDrive() { if let url = URL(string: driveFolderURL()) { NSWorkspace.shared.open(url) } }
     @objc func openFinder() { NSWorkspace.shared.open(URL(fileURLWithPath: desktopPath())) }
     @objc func quitApp() { NSApp.terminate(nil) }
@@ -1632,7 +1915,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                     var hist = loadHistory()
                     hist.insert(run, at: 0)
                     saveHistory(hist)
-                    self.mountDrive()
+                    if loadEnv("PKARCHIVES_AUTO_MOUNT") == "1" { self.mountDrive() }
                 }
                 try? FileManager.default.removeItem(atPath: statusFile)
                 try? FileManager.default.removeItem(atPath: eventFile)

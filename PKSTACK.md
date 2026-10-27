@@ -13,8 +13,11 @@ quand une nouvelle skill intervient sur le projet.
 | `fixing-accessibility` | Corrections accessibilité | `aria-label` des boutons et contrôles icône seule ; sémantique du menu 📦 (`role="menu"`, `aria-expanded`, fermeture au clic extérieur) ; navigation clavier et focus visibles ; contrastes |
 | `sparkle-github-updates` | Mises à jour automatiques | `Sparkle.framework` embarqué par `scripts/build.sh` ; feed Stable/Dev ; comparaison du `CFBundleVersion` sans proposer de build plus ancienne ; vérification EdDSA et identification du bundle versionné par version + bundle ID avant installation manuelle |
 | `pk-settings-shell` | À propos et crédits | Rubrique localisée « Crédits & inspirations » dans About ; technologies, dépendances et références sont distinctes, vérifiées depuis le code et liées |
-| `app-presence-sync` | Documentation produit | README FR/EN synchronisés pour la nouvelle rubrique de crédits |
-| `macos-build` | Validation native | Parse Swift des vues de réglages ; build complet indisponible car Xcode et le plugin SwiftUI macros sont absents |
+| `app-presence-sync` | Documentation produit | README FR/EN synchronisés pour le mode Dossiers Dev ; supports publics inchangés tant que Drive/Stable ne sont pas validés |
+| `macos-build` | Validation native | Build Dev complète locale avec le SDK 26.5 déjà installé (contournement CLT 27 sans macros SwiftUI) |
+| `macos-patterns` / `macos-settings-ui` | Interface et scheduling natifs | Vue SwiftUI Dossiers, sélecteurs natifs, FSEvents et réveil NSWorkspace ; chargement WebKit différé |
+| `plan-fetch-github` | Cadrage du mode Sync | Recherche préalable et plan validé dans la conversation, puis implémentation locale |
+| `redesign-existing-projects` / `macos-menu-and-settings` | Navigation produit et barre des menus | `PKWorkspace.swift` : deux onglets principaux, panneau natif clic/droit/survol, version installée issue du bundle, vrais états et accès aux modes ; `PKarchivesV2.swift` : section Réglages Synchronisation ; segment Statut par paire dans `PKSync.swift` ; captures natives hors écran et QA sur DeskPad |
 
 ## Outils annexes (hors hub, sans skill dédiée)
 
@@ -24,6 +27,8 @@ quand une nouvelle skill intervient sur le projet.
   débordements, animation du hero, liens de téléchargement).
 
 ## En attente
+
+- Mode Dossiers : validation Google Drive et mesures sur gros dossiers avant publication ; aucun push, tag, upload FTP ni changement du canal Stable durant cette itération locale.
 
 - Landing bilingue FR/EN avec détection `navigator.language` + bascule manuelle
   (`premium-promo-media` § bilingue) — non implémentée à ce jour.
