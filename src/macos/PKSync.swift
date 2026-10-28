@@ -72,6 +72,11 @@ private let syncStrings: [String: [String]] = [
     "toPull": ["À rapatrier vers le Mac", "To bring to the Mac", "A traer al Mac", "Zum Mac holen"],
     "deletions": ["Suppressions", "Deletions", "Borrados", "Löschungen"],
     "conflictsLabel": ["Conflits arbitrés", "Resolved conflicts", "Conflictos resueltos", "Gelöste Konflikte"],
+    "list.push": ["↑ Vers Drive", "↑ To Drive", "↑ a Drive", "↑ Zu Drive"],
+    "list.pull": ["↓ Vers le Mac", "↓ To the Mac", "↓ al Mac", "↓ Zum Mac"],
+    "list.deleteRemote": ["🗑 Sur Drive", "🗑 On Drive", "🗑 En Drive", "🗑 Auf Drive"],
+    "list.deleteLocal": ["🗑 Sur le Mac", "🗑 On the Mac", "🗑 En el Mac", "🗑 Auf dem Mac"],
+    "list.conflicts": ["⚡ Conflits", "⚡ Conflicts", "⚡ Conflictos", "⚡ Konflikte"],
     "pushNewLabel": ["Nouveaux fichiers vers Drive", "New files to Drive", "Archivos nuevos a Drive", "Neue Dateien zu Drive"],
     "pushModifiedLabel": ["Fichiers modifiés vers Drive", "Modified files to Drive", "Archivos modificados a Drive", "Geänderte Dateien zu Drive"],
     "pullNewLabel": ["Nouveaux fichiers vers le Mac", "New files to the Mac", "Archivos nuevos al Mac", "Neue Dateien zum Mac"],
@@ -544,40 +549,121 @@ struct SyncSectionView: View {
     @ViewBuilder private func comparisonSection(_ pair: SyncPair) -> some View {
         Divider().padding(.vertical, 2)
         if let run = engine.previewRun(for: pair.id), let plan = run.plan {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Label(syncText("comparison"), systemImage: "rectangle.split.2x1").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     Spacer()
-                    Text("\(syncText("previewOf")) \((run.finished ?? run.started).formatted(date: .abbreviated, time: .shortened))")
+                    Text((run.finished ?? run.started).formatted(date: .abbreviated, time: .shortened))
                         .font(.caption2).foregroundStyle(.secondary)
                 }
-                HStack(alignment: .top, spacing: 22) {
-                    countChip(plan.unchanged.map(String.init) ?? "—", syncText("identical"), color: .green)
-                    countChip("\(plan.pushNew.count + plan.pushModified.count)", syncText("toPush"), color: .blue)
-                    countChip("\(plan.pullNew.count + plan.pullModified.count)", syncText("toPull"), color: .blue)
-                    countChip("\(plan.deleteRemote.count + plan.deleteLocal.count)", syncText("deletions"),
-                              color: plan.deleteRemote.count + plan.deleteLocal.count > 0 ? .red : .secondary)
-                    if !plan.conflicts.isEmpty { countChip("\(plan.conflicts.count)", syncText("conflictsLabel"), color: .orange) }
+                HStack(spacing: 14) {
+                    if let same = plan.unchanged { opStat("checkmark.circle", same, syncText("identical"), tint: .green) }
+                    opStat("arrow.up", plan.pushNew.count + plan.pushModified.count, syncText("toPush"), tint: .blue)
+                    opStat("arrow.down", plan.pullNew.count + plan.pullModified.count, syncText("toPull"), tint: .blue)
+                    let deletions = plan.deleteRemote.count + plan.deleteLocal.count
+                    opStat("trash", deletions, syncText("deletions"), tint: deletions > 0 ? .red : .secondary)
+                    if !plan.conflicts.isEmpty { opStat("bolt", plan.conflicts.count, syncText("conflictsLabel"), tint: .orange) }
                 }
                 verdict(plan)
+                typeRow(plan)
                 DisclosureGroup(syncText("showDetail")) {
                     planDetail(plan)
                 }.font(.caption).foregroundStyle(.secondary)
-            }
-            if plan.totalOps > 0 {
-                Button { merging = pair } label: { Label(syncText("runForReal"), systemImage: "arrow.triangle.2.circlepath") }
-                    .buttonStyle(.borderedProminent).controlSize(.small)
-                    .disabled(engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
             }
         } else {
             Label(syncText("noComparison"), systemImage: "rectangle.split.2x1")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
-    private func countChip(_ value: String, _ label: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(value).font(.title3.weight(.semibold)).monospacedDigit().foregroundStyle(color)
+
+    /// One compact icon+count+label stat, replacing the oversized number chips.
+    private func opStat(_ icon: String, _ count: Int, _ label: String, tint: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Image(systemName: icon).font(.caption.weight(.semibold)).foregroundStyle(tint)
+            Text("\(count)").font(.callout.weight(.semibold)).monospacedDigit()
             Text(label).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    struct TypeCount: Identifiable {
+        let symbol: String, tint: Color, count: Int
+        var id: String { symbol }
+    }
+
+    /// Picto per file type, derived from the extensions of the planned operations.
+    static func typeComposition(_ plan: PreviewPlan) -> [TypeCount] {
+        let all = plan.pushNew + plan.pushModified + plan.pullNew + plan.pullModified + plan.deleteRemote + plan.deleteLocal
+        var counts: [String: Int] = [:]
+        for name in all { counts[fileTypeSymbol(name).symbol, default: 0] += 1 }
+        return counts.map { key, count in
+            let probe = all.first { fileTypeSymbol($0).symbol == key } ?? ""
+            let meta = fileTypeSymbol(probe)
+            return TypeCount(symbol: meta.symbol, tint: meta.tint, count: count)
+        }.sorted { $0.count == $1.count ? $0.symbol < $1.symbol : $0.count > $1.count }
+    }
+
+    /// Same per-type pictos as the archive view: image, video, audio, pdf, archive, code, text.
+    static func fileTypeSymbol(_ name: String) -> (symbol: String, tint: Color) {
+        switch (name as NSString).pathExtension.lowercased() {
+        case "png", "jpg", "jpeg", "gif", "heic", "webp", "svg", "tiff", "bmp", "raw", "ico": return ("photo", .blue)
+        case "mp4", "mov", "mkv", "avi", "m4v", "webm": return ("film", .purple)
+        case "mp3", "wav", "aac", "flac", "m4a", "aiff", "ogg": return ("music.note", .pink)
+        case "pdf": return ("doc.richtext", .red)
+        case "zip", "dmg", "gz", "rar", "7z", "pkg", "tar", "iso": return ("doc.zipper", .orange)
+        case "swift", "go", "js", "ts", "html", "css", "py", "sh", "json", "yaml", "yml": return ("chevron.left.forwardslash.chevron.right", .teal)
+        case "txt", "md", "csv", "log", "rtf", "doc", "docx", "pages", "xls", "xlsx", "ppt", "pptx", "key": return ("doc.plaintext", .secondary)
+        default: return ("doc", .secondary)
+        }
+    }
+
+    /// A single quiet row of file-type pictos with counts.
+    @ViewBuilder private func typeRow(_ plan: PreviewPlan) -> some View {
+        let types = Self.typeComposition(plan)
+        if !types.isEmpty {
+            HStack(spacing: 12) {
+                ForEach(types.prefix(5)) { type in
+                    HStack(spacing: 4) {
+                        Image(systemName: type.symbol).font(.system(size: 13, weight: .medium)).foregroundStyle(type.tint)
+                        Text("\(type.count)").font(.caption.weight(.medium)).monospacedDigit()
+                    }
+                }
+                if types.count > 5 {
+                    Text("+\(types.count - 5)").font(.caption2).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    /// Flat per-file list: type picto, file name, direction badge — no repeated long category sentences.
+    @ViewBuilder private func planDetail(_ plan: PreviewPlan) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            fileGroup(syncText("list.push"), plan.pushNew + plan.pushModified, badge: "arrow.up", badgeTint: .blue)
+            fileGroup(syncText("list.pull"), plan.pullNew + plan.pullModified, badge: "arrow.down", badgeTint: .blue)
+            fileGroup(syncText("list.deleteRemote"), plan.deleteRemote, badge: "trash", badgeTint: .red)
+            fileGroup(syncText("list.deleteLocal"), plan.deleteLocal, badge: "trash", badgeTint: .red)
+            fileGroup(syncText("list.conflicts"), plan.conflicts, badge: "bolt", badgeTint: .orange)
+            if plan.truncated { Text("Liste tronquée à 5 000 entrées par catégorie.") }
+        }.padding(.top, 6)
+    }
+    @ViewBuilder private func fileGroup(_ title: String, _ items: [String], badge: String, badgeTint: Color) -> some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(title) · \(items.count)").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                ForEach(items.prefix(25), id: \.self) { name in
+                    HStack(spacing: 8) {
+                        Image(systemName: Self.fileTypeSymbol(name).symbol)
+                            .font(.system(size: 11, weight: .medium)).foregroundStyle(Self.fileTypeSymbol(name).tint)
+                            .frame(width: 16).accessibilityHidden(true)
+                        Text((name as NSString).lastPathComponent)
+                            .font(.system(.caption, design: .monospaced)).lineLimit(1).truncationMode(.middle)
+                            .help(name).textSelection(.enabled)
+                        Spacer(minLength: 6)
+                        Image(systemName: badge).font(.caption2.weight(.semibold)).foregroundStyle(badgeTint)
+                    }
+                }
+                if items.count > 25 { Text("… + \(items.count - 25)").font(.caption2) }
+            }
         }
     }
     @ViewBuilder private func verdict(_ plan: PreviewPlan) -> some View {
@@ -596,77 +682,44 @@ struct SyncSectionView: View {
                 .font(.callout.weight(.medium)).foregroundStyle(.orange)
         }
     }
-    @ViewBuilder private func planDetail(_ plan: PreviewPlan) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            planList(syncText("pushNewLabel"), plan.pushNew)
-            planList(syncText("pushModifiedLabel"), plan.pushModified)
-            planList(syncText("pullNewLabel"), plan.pullNew)
-            planList(syncText("pullModifiedLabel"), plan.pullModified)
-            planList(syncText("deleteOnDrive"), plan.deleteRemote)
-            planList(syncText("deleteOnMac"), plan.deleteLocal)
-            planList(syncText("conflictsLabel"), plan.conflicts)
-            if plan.truncated { Text("Liste tronquée à 5 000 entrées par catégorie.") }
-            Text(syncText("gapNote")).fixedSize(horizontal: false, vertical: true)
-        }.padding(.top, 6)
-    }
-    @ViewBuilder private func planList(_ title: String, _ items: [String]) -> some View {
-        if !items.isEmpty {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("\(title) · \(items.count)").font(.caption.weight(.medium)).foregroundStyle(.primary)
-                ForEach(items.prefix(25), id: \.self) { Text($0).font(.system(.caption2, design: .monospaced)).textSelection(.enabled) }
-                if items.count > 25 { Text("… + \(items.count - 25)").font(.caption2) }
-            }
-        }
-    }
-
-    /// Real file/byte counts per side (rclone size, same exclusions), gap highlighted, honest ETA.
+    /// Real file/byte counts per side on one line, gap highlighted, honest ETA.
     @ViewBuilder private func inventoryRows(_ pair: SyncPair) -> some View {
-        let inventory = engine.inventories[pair.id]
         Divider().padding(.vertical, 2)
-        HStack(alignment: .firstTextBaseline) {
-            Text(syncText("inventory")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+        let inventory = engine.inventories[pair.id]
+        HStack {
+            Label(syncText("inventory"), systemImage: "chart.bar.doc.horizontal").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             Spacer()
             Button { engine.refreshInventory(pair.id) } label: { Image(systemName: "arrow.clockwise") }
                 .buttonStyle(.plain).font(.caption).foregroundStyle(Color.accentColor)
                 .help(syncText("refreshCounts")).accessibilityLabel(syncText("refreshCounts"))
                 .disabled(engine.inventoryBusy || engine.busy || engine.storageError != nil)
         }
-        HStack(spacing: 24) {
-            inventorySide(syncText("localSide"), files: inventory?.localFiles, bytes: inventory?.localBytes, at: inventory?.localAt)
-            Image(systemName: pair.direction.arrow == "⇄" ? "arrow.left.arrow.right" : pair.direction.arrow == "↑" ? "arrow.up" : "arrow.down")
-                .font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
-            inventorySide(syncText("remoteSide"), files: inventory?.remoteFiles, bytes: inventory?.remoteBytes, at: inventory?.remoteAt,
-                          deferred: inventory?.remoteDeferred == true)
-        }
-        if let inventory, inventory.gapFiles != nil {
-            if inventory.aligned {
-                Label(syncText("aligned"), systemImage: "checkmark.seal.fill").font(.callout.weight(.medium)).foregroundStyle(.green)
-            } else {
-                VStack(alignment: .leading, spacing: 5) {
-                    Label("\(syncText("gap")) : \(inventory.gapFiles!) \(syncText("files")) · \(Self.byteText(inventory.gapBytes ?? 0))",
-                          systemImage: "exclamationmark.triangle.fill")
-                        .font(.callout.weight(.medium)).foregroundStyle(.orange)
-                    Label("\(syncText("estimateLabel")) : \(Self.etaText(inventory.gapBytes ?? 0))",
-                          systemImage: "clock.badge.checkmark")
-                        .font(.callout).foregroundStyle(.secondary)
-                    Text(syncText("gapNote")).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        if let inventory, inventory.localFiles != nil || inventory.remoteFiles != nil {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 10) {
+                    Text("\(syncText("localSide")) · \(syncFileCount(inventory.localFiles ?? 0)) · \(Self.byteText(inventory.localBytes ?? 0))")
+                    Image(systemName: pair.direction.arrow == "⇄" ? "arrow.left.arrow.right" : pair.direction.arrow == "↑" ? "arrow.up" : "arrow.down")
+                        .font(.caption2).foregroundStyle(.secondary).accessibilityHidden(true)
+                    Text("\(syncText("remoteSide")) · \(inventory.remoteFiles.map { syncFileCount($0) } ?? "—") · \(Self.byteText(inventory.remoteBytes ?? 0))")
+                    Spacer(minLength: 0)
+                }.font(.system(.caption, design: .monospaced))
+                if inventory.remoteDeferred == true, inventory.remoteFiles == nil {
+                    Text(syncText("remoteDeferred")).font(.caption2).foregroundStyle(.secondary)
+                }
+                if inventory.gapFiles != nil {
+                    if inventory.aligned {
+                        Label(syncText("aligned"), systemImage: "checkmark.seal.fill").font(.caption.weight(.medium)).foregroundStyle(.green)
+                    } else {
+                        Label("\(syncText("gap")) : \(inventory.gapFiles!) \(syncText("files")) · \(Self.byteText(inventory.gapBytes ?? 0)) · \(syncText("estimateLabel")) \(Self.etaText(inventory.gapBytes ?? 0))",
+                              systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption.weight(.medium)).foregroundStyle(.orange)
+                    }
                 }
             }
-        } else {
-            Label(syncText("gapMissing"), systemImage: "questionmark.circle").font(.caption).foregroundStyle(.secondary)
-        }
-    }
-    private func inventorySide(_ label: String, files: Int?, bytes: Int64?, at: Date?, deferred: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary)
-            if let files {
-                Text("\(files) \(syncText("files")) · \(Self.byteText(bytes ?? 0))").font(.system(.caption, design: .monospaced))
-                if let at { Text("\(syncText("countedAt")) \(at.formatted(date: .abbreviated, time: .shortened))").font(.caption2).foregroundStyle(.secondary) }
-            } else if deferred {
-                Text(syncText("remoteDeferred")).font(.caption).foregroundStyle(.secondary)
-            } else {
-                Text("—").font(.caption).foregroundStyle(.secondary)
-            }
+        } else if engine.previewRun(for: pair.id)?.plan == nil {
+            // No counts and no comparison to act on: one quiet action instead of a nagging warning.
+            Button { engine.refreshInventory(pair.id) } label: { Label(syncText("refreshCounts"), systemImage: "arrow.clockwise") }
+                .controlSize(.small).disabled(engine.inventoryBusy || engine.busy || engine.storageError != nil)
         }
     }
     static func byteText(_ bytes: Int64) -> String { SyncEngine.byteText(bytes) }

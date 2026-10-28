@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.53` (ergonomie des paires et activité de barre des menus)
+Statut : `2026.10.54` (détails de comparaison compact avec pictos par type de fichier)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,12 @@ Statut : `2026.10.53` (ergonomie des paires et activité de barre des menus)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.54] - 2026-10-28
+#### Changed
+- Comparaison repliée compacte : les compteurs identiques/envois/rapatriements/suppressions tiennent sur une ligne icône + nombre, suivis du verdict et d’une rangée de pictos par type de fichier (image, vidéo, audio, PDF, archive, code, texte) issue des extensions des opérations prévues.
+- Détail fichier par fichier avec picto de type, nom seul et badge de sens (↑ ↓ 🗑 ⚡), groupé par catégories courtes ; plus de bouton « Lancer pour de vrai » dupliqué, l’action de la carte suffit.
+- Inventaire sur une ligne Local ⇄ Distant avec écart et estimation groupés ; l’avertissement « Comptages incomplets » n’apparaît plus quand une comparaison exploitable existe, remplacé par une action discrète sinon.
 
 ### [2026.10.53] - 2026-10-28
 #### Added
