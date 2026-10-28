@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.49` (messages de mise à jour traduits)
+Statut : `2026.10.50` (workflow Dev réparé)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,10 @@ Statut : `2026.10.49` (messages de mise à jour traduits)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.50] - 2026-10-28
+#### Fixed
+- Le script de build ne casse plus quand aucun SDK spécifique n’est sélectionné (tableau `SDK_FLAGS` vide sous `set -u`), ce qui bloquait le workflow Dev sur GitHub Actions.
 
 ### [2026.10.49] - 2026-10-28
 #### Fixed

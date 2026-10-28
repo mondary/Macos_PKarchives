@@ -52,7 +52,7 @@ CLI_RELEASE_DIR="${ROOT}/release/cli"
   echo "🔨 Compilation..."
 
   swiftc "${ROOT}/src/macos/PKarchives.swift" \
-  "${SDK_FLAGS[@]}" \
+  ${SDK_FLAGS[@]+"${SDK_FLAGS[@]}"} \
   -parse-as-library \
   -o PKarchives \
   -framework SwiftUI \
@@ -121,7 +121,7 @@ fi
 # --- v2 : interface moderne WKWebView ---
 echo "🔨 Compilation v2 (WKWebView + Sparkle)..."
 swiftc "${ROOT}/src/macos/PKarchivesV2.swift" "${ROOT}/src/macos/PKSync.swift" "${ROOT}/src/macos/PKSyncEngine.swift" "${ROOT}/src/macos/PKWorkspace.swift" "${ROOT}/src/macos/KofiLogo.swift" \
-  "${SDK_FLAGS[@]}" \
+  ${SDK_FLAGS[@]+"${SDK_FLAGS[@]}"} \
   -F "${SPARKLE_DIR}" \
   -parse-as-library \
   -target arm64-apple-macos14.0 \
