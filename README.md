@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version du projet : 2026.10.52** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
+**Version du projet : 2026.10.53** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
@@ -81,13 +81,21 @@ Le nouveau mode est disponible dans les sources et la build Dev, **pas encore da
 
 **Suivi d’exécution** : pendant une synchronisation, un bandeau affiche le sens en cours, les fichiers faits / prévus, le volume et le pourcentage, la vitesse, le temps écoulé et le temps restant estimé par rclone, ainsi que les opérations prévues et réalisées par sens (↑ push, ↓ pull, suppressions). Pendant une simulation, aucun transfert n’est effectué mais la comparaison et ses volumes restent visibles.
 
-**Barre des menus** : clic gauche, clic droit ou survol de 550 ms ouvrent le même panneau natif, avec ses onglets Synchronisation/Archivage, les vrais états des dossiers, l’activité et les accès directs à la fenêtre et aux rapports. Le survol ne lance aucun transfert. Son ouverture automatique se désactive dans le menu **…** du panneau ; un panneau ouvert au survol se referme quand le pointeur quitte sa zone. Les modes restent accessibles depuis la fenêtre sans repasser par les réglages.
+**Barre des menus** : clic gauche, clic droit ou survol de 550 ms ouvrent le panneau natif, directement sur Synchronisation si des paires sont configurées. Chaque ligne se déplie : emplacements Mac ↔ Drive, état réel, simulation, synchronisation et dernier rapport. L’exécution en cours affiche progression, débit, fichiers restants, temps restant et arrêt direct. **Synchroniser tout** respecte le mode simulation de chaque paire. Le survol ne lance aucun transfert ; son ouverture automatique se désactive dans **…** ou **Réglages → Général**.
+
+**Réglages → Général** : lancement à l’ouverture de session (en arrière-plan, avec approbation macOS si nécessaire) et affichage de barre des menus : **Débit**, **Fichiers restants** ou **Icône seule**. Les chiffres proviennent des statistiques rclone de l’exécution en cours, actualisées environ toutes les 5 s ; les paires encore en attente ne sont pas comptées et le total peut évoluer pendant l’analyse. Analyse, simulation et vérification ont leur propre état ; au repos, seule l’icône reste affichée. L’archivage affiche le nombre d’éléments restants.
+
+**Paires compactes** : chaque carte tient en quatre blocs — nom et statut, emplacements Local ⇄ Distant reliés par la flèche du sens choisi, une seule ligne d’information (ou une bande orange explicite en cas d’attention), actions Simuler / Synchroniser / ⋯. L’activation vit dans le menu **⋯** et le clic droit de la carte ; **Inventaire et comparaison** se déplie à la demande et s’ouvre après une simulation.
 
 **Réglages → Synchronisation** : pause globale de toutes les paires (1 h), mode par défaut « Simulation uniquement » pour les nouvelles paires, et liste des paires avec activation, mode simulation et formulaire complet. Ces réglages pilotent le moteur de synchronisation ; la configuration d’archivage reste dans sa propre section.
 
 La version complète installée (suffixe Dev compris) est visible et sélectionnable sous **PKarchives** dans le panneau de l’icône, quel que soit l’onglet choisi.
 
 ![Panneau de l’icône : version installée visible dans la build Dev locale](store/media/06-menu-version-dev.png)
+
+![Réglages Général : démarrage à la connexion et métrique affichée dans la barre des menus](store/media/08-general-dev.png)
+
+![Progression du panneau pendant un transfert rclone réel entre dossiers temporaires de test](store/media/09-menu-transfer-dev.png)
 
 **Vérification et récupération**
 

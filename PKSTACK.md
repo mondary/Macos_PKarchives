@@ -18,6 +18,7 @@ quand une nouvelle skill intervient sur le projet.
 | `macos-patterns` / `macos-settings-ui` | Interface et scheduling natifs | Vue SwiftUI Dossiers, sélecteurs natifs, FSEvents et réveil NSWorkspace ; chargement WebKit différé |
 | `plan-fetch-github` | Cadrage du mode Sync | Recherche préalable et plan validé dans la conversation, puis implémentation locale |
 | `redesign-existing-projects` / `macos-menu-and-settings` | Navigation produit et barre des menus | `PKWorkspace.swift` : deux onglets principaux, panneau natif clic/droit/survol, version installée issue du bundle, vrais états et accès aux modes ; `PKarchivesV2.swift` : section Réglages Synchronisation ; segment Statut par paire dans `PKSync.swift` ; captures natives hors écran et QA sur DeskPad |
+| `computer` / `pk-bureau-agent` | QA native isolée | Validation des cartes dépliables et du sélecteur de métrique sur DeskPad, avec remotes temporaires ; aucune modification des éléments d’ouverture pendant les tests |
 
 ## Outils annexes (hors hub, sans skill dédiée)
 

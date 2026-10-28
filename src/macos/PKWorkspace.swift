@@ -2,6 +2,80 @@
 import SwiftUI
 import AppKit
 import Combine
+import ServiceManagement
+
+/// System registration is the source of truth; no preference that can drift from macOS.
+@MainActor final class WorkspaceLoginItem: ObservableObject {
+    static let shared = WorkspaceLoginItem()
+    @Published private(set) var status = SMAppService.mainApp.status
+    @Published private(set) var error: String?
+    var requested: Bool { status == .enabled || status == .requiresApproval }
+    func refresh() { status = SMAppService.mainApp.status }
+    func setEnabled(_ enabled: Bool) {
+        do {
+            if enabled { try SMAppService.mainApp.register() }
+            else { try SMAppService.mainApp.unregister() }
+            error = nil
+        } catch { self.error = error.localizedDescription }
+        refresh()
+    }
+}
+
+enum MenuActivityDisplay: String, CaseIterable {
+    case speed, remaining, icon
+    var title: String { workspaceText("display.\(rawValue)") }
+}
+
+/// Only the active rclone run has a known total; queued pairs have not been scanned yet.
+enum MenuActivity {
+    static func title(display: MenuActivityDisplay, busy: Bool, dryRun: Bool, progress: RunProgress?) -> String {
+        guard busy, display != .icon else { return "" }
+        guard !dryRun else { return workspaceText("previewShort") }
+        guard let progress else { return "…" }
+        if progress.phase == .verifying { return workspaceText("checkingShort") }
+        if progress.phase == .listing { return "…" }
+        if progress.phase == .deleting { return workspaceText("deletingShort") }
+        if display == .remaining, progress.transfersTotal > 0 {
+            return syncFileCount(max(0, progress.transfersTotal - progress.transfersDone))
+        }
+        if display == .speed, progress.speed.isFinite, progress.speed >= 0, progress.speed < Double(Int64.max) {
+            return "\(SyncEngine.byteText(Int64(progress.speed)))/s"
+        }
+        return "…"
+    }
+}
+
+struct WorkspaceGeneralSettings: View {
+    @ObservedObject private var login = WorkspaceLoginItem.shared
+    @AppStorage("menu-activity-display") private var display = MenuActivityDisplay.speed.rawValue
+    @AppStorage("menu-panel-on-hover") private var hover = true
+    @AppStorage("app-language") private var language = "fr"
+    var body: some View {
+        Form {
+            Section(workspaceText("startup")) {
+                Toggle(workspaceText("login"), isOn: Binding(get: { login.requested }, set: { login.setEnabled($0) }))
+                    .disabled(CommandLine.arguments.contains("--qa-screen"))
+                Text(workspaceText("loginNote")).font(.caption).foregroundStyle(.secondary)
+                if login.status == .requiresApproval {
+                    Label(workspaceText("loginApproval"), systemImage: "exclamationmark.circle").foregroundStyle(.orange)
+                    Button(workspaceText("systemSettings")) { SMAppService.openSystemSettingsLoginItems() }
+                }
+                if let error = login.error { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
+            }
+            Section(workspaceText("menuBar")) {
+                Picker(workspaceText("activityDisplay"), selection: $display) {
+                    ForEach(MenuActivityDisplay.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                }
+                Text(workspaceText("activityNote")).font(.caption).foregroundStyle(.secondary)
+                Toggle(workspaceText("hover"), isOn: $hover)
+            }
+        }
+        .formStyle(.grouped).scrollContentBackground(.hidden)
+        .contentMargins(.top, 8, for: .scrollContent)
+        .onAppear { login.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in login.refresh() }
+    }
+}
 
 enum WorkspaceAppVersion {
     // Always identify the running app, not a published version or selected update channel.
@@ -64,6 +138,24 @@ func workspaceText(_ key: String) -> String {
         "hover": ["Ouvrir ce panneau au survol", "Show this panel on hover", "Mostrar este panel al pasar el cursor", "Dieses Panel beim Darüberfahren öffnen"],
         "history": ["Historique et rapports", "History and reports", "Historial e informes", "Verlauf und Berichte"],
         "inProgress": ["Archivage en cours", "Archiving in progress", "Archivando", "Archivierung läuft"],
+        "general": ["Général", "General", "General", "Allgemein"],
+        "startup": ["Démarrage", "Startup", "Inicio", "Start"],
+        "login": ["Lancer à l’ouverture de session", "Launch at login", "Iniciar al entrar en sesión", "Bei Anmeldung starten"],
+        "loginNote": ["Démarre discrètement dans la barre des menus à l’ouverture de votre session Mac.", "Starts quietly in the menu bar when you log in to your Mac.", "Se inicia en la barra de menús al entrar en tu Mac.", "Startet bei der Mac-Anmeldung unauffällig in der Menüleiste."],
+        "loginApproval": ["Autorisation requise dans les réglages macOS.", "Approval required in macOS settings.", "Se requiere autorización en los ajustes de macOS.", "Genehmigung in den macOS-Einstellungen erforderlich."],
+        "systemSettings": ["Ouvrir les éléments d’ouverture…", "Open Login Items…", "Abrir ítems de inicio…", "Anmeldeobjekte öffnen…"],
+        "menuBar": ["Barre des menus", "Menu bar", "Barra de menús", "Menüleiste"],
+        "activityDisplay": ["Afficher pendant un transfert", "Show during transfers", "Mostrar durante transferencias", "Während Übertragungen anzeigen"],
+        "display.speed": ["Débit", "Transfer speed", "Velocidad", "Übertragungsrate"],
+        "display.remaining": ["Fichiers restants", "Remaining files", "Archivos restantes", "Verbleibende Dateien"],
+        "display.icon": ["Icône seule", "Icon only", "Solo icono", "Nur Symbol"],
+        "activityNote": ["Données rclone réelles pour l’exécution en cours. Le total peut évoluer pendant l’analyse ; les paires en attente ne sont pas incluses. Au repos, seule l’icône reste affichée.", "Real rclone data for the current run. Totals may change during scanning; queued pairs are not included. Only the icon remains when idle.", "Datos reales de rclone de la ejecución actual. El total puede cambiar durante el análisis; no incluye parejas en cola. En reposo solo aparece el icono.", "Echte rclone-Daten des aktuellen Laufs. Summen können sich beim Scannen ändern; wartende Paare sind nicht enthalten. Im Leerlauf bleibt nur das Symbol."],
+        "previewShort": ["Simulation", "Preview", "Simulación", "Vorschau"],
+        "checkingShort": ["Vérification", "Checking", "Verificación", "Prüfung"],
+        "deletingShort": ["Suppressions", "Deleting", "Borrando", "Löschen"],
+        "pairDetails": ["Inventaire et comparaison", "Inventory and comparison", "Inventario y comparación", "Bestand und Vergleich"],
+        "showFolder": ["Afficher dans le Finder", "Show in Finder", "Mostrar en Finder", "Im Finder anzeigen"],
+        "currentPhase": ["Exécution en cours", "Current run", "Ejecución actual", "Aktueller Lauf"],
     ]
     let lang = UserDefaults.standard.string(forKey: "app-language") ?? "fr"
     return values[key]?[["fr": 0, "en": 1, "es": 2, "de": 3][lang] ?? 1] ?? key
@@ -145,6 +237,8 @@ struct WorkspacePopoverView: View {
     let quit: @MainActor () -> Void
     let hoverChanged: @MainActor (Bool) -> Void
     @State private var mode: WorkspaceMode
+    @State private var expandedPairs: Set<UUID> = []
+    @State private var confirmingPair: SyncPair?
     @AppStorage("app-language") private var language = "fr"
     @AppStorage("menu-panel-on-hover") private var hoverEnabled = true
 
@@ -155,7 +249,7 @@ struct WorkspacePopoverView: View {
         self.engine = engine; self.navigation = navigation
         self.open = open; self.settings = settings; self.support = support; self.updates = updates
         self.about = about; self.quit = quit; self.hoverChanged = hoverChanged
-        _mode = State(initialValue: navigation.mode)
+        _mode = State(initialValue: engine.busy || !engine.pairs.isEmpty ? .sync : navigation.mode)
     }
 
     var body: some View {
@@ -208,12 +302,20 @@ struct WorkspacePopoverView: View {
                 Spacer()
                 Button(action: settings) { Image(systemName: "gearshape") }
                     .buttonStyle(.plain).help(workspaceText("settings")).accessibilityLabel(workspaceText("settings"))
+                Button(action: quit) { Image(systemName: "power") }
+                    .buttonStyle(.plain).help(workspaceText("quit")).accessibilityLabel(workspaceText("quit"))
             }.padding(16).foregroundStyle(.secondary)
         }
         .frame(width: 400)
         .fixedSize(horizontal: false, vertical: true)
         .background(Color(nsColor: .windowBackgroundColor))
         .onHover(perform: hoverChanged)
+        .alert(syncText("realRun"), isPresented: Binding(get: { confirmingPair != nil }, set: { if !$0 { confirmingPair = nil } })) {
+            Button(syncText("sync")) {
+                if let pair = confirmingPair { engine.syncPair(pair.id, resync: pair.direction.usesBisync && pair.needsResync) }
+            }
+            Button(syncText("cancel"), role: .cancel) {}
+        } message: { Text(syncText(confirmingPair?.direction.usesBisync == true ? "mergeNote" : "directionNote")) }
     }
 
     private var summary: String {
@@ -228,6 +330,7 @@ struct WorkspacePopoverView: View {
 
     private var syncPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if engine.busy { liveProgress }
             if engine.pairs.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: "folder.badge.plus").font(.system(size: 30)).foregroundStyle(.secondary)
@@ -238,30 +341,17 @@ struct WorkspacePopoverView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(engine.pairs) { pair in
-                            Button { open(.sync, false) } label: {
-                                HStack(alignment: .top, spacing: 10) {
-                                    Image(systemName: pair.previewOnly ? "eye" : "folder").font(.system(size: 15)).foregroundStyle(Color.accentColor).frame(width: 20)
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(pair.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
-                                        Text(engine.cooldownUntil(for: pair) != nil ? syncText("rateLimited") : pair.previewOnly ? workspaceText("previewOnly") : syncText(pair.lastOutcome))
-                                            .font(.caption).foregroundStyle(pair.lastOutcome == "verified" && !pair.previewOnly ? Color.green : .secondary)
-                                        if let message = pair.lastMessage, pair.lastOutcome == "error" {
-                                            Text(message).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
-                                        }
-                                    }
-                                    Spacer()
-                                    if engine.runningPairID == pair.id { ProgressView().controlSize(.small) }
-                                    else { Text(pair.direction.arrow).font(.caption).foregroundStyle(.secondary) }
-                                }.padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-                            }.buttonStyle(.plain)
+                            pairRow(pair)
                             if pair.id != engine.pairs.last?.id { Divider() }
                         }
                     }
-                }.frame(height: min(CGFloat(engine.pairs.count) * 74, 230))
+                }.frame(height: min(CGFloat(engine.pairs.count) * 78 + CGFloat(expandedPairs.count) * 160, engine.busy ? 220 : 300))
             }
             HStack {
-                Button { open(.sync, false) } label: { Label(workspaceText("openSync"), systemImage: "arrow.up.right.square") }
-                    .buttonStyle(.borderedProminent)
+                Button { engine.pairs.isEmpty ? open(.sync, false) : engine.syncAll() } label: {
+                    Label(engine.pairs.isEmpty ? syncText("add") : syncText("all"), systemImage: "arrow.triangle.2.circlepath")
+                }.buttonStyle(.borderedProminent)
+                    .disabled(engine.busy || engine.storageError != nil || (!engine.pairs.isEmpty && !engine.pairs.contains { $0.enabled && engine.cooldownUntil(for: $0) == nil && ($0.previewOnly || !$0.direction.usesBisync || !$0.needsResync) }))
                 Spacer()
                 if !engine.pairs.isEmpty {
                     Button { engine.syncAll(dryRun: true) } label: { Image(systemName: "eye") }
@@ -272,7 +362,9 @@ struct WorkspacePopoverView: View {
                     }.help(syncText(engine.isPaused ? "resume" : "pause")).accessibilityLabel(syncText(engine.isPaused ? "resume" : "pause"))
                 }
             }.controlSize(.regular)
-            if let run = engine.runs.first {
+            Button { open(.sync, false) } label: { Label(workspaceText("openSync"), systemImage: "arrow.up.right.square") }
+                .buttonStyle(.plain).font(.caption).foregroundStyle(Color.accentColor)
+            if let run = engine.runs.first, !engine.busy {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: run.dryRun ? "eye" : "clock.arrow.circlepath").foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 3) {
@@ -283,6 +375,86 @@ struct WorkspacePopoverView: View {
                 }.padding(10).background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 8))
             }
         }.padding(16)
+    }
+
+    private var liveProgress: some View {
+        let progress = engine.runProgress ?? RunProgress()
+        let pair = engine.pairs.first { $0.id == engine.runningPairID }
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(pair?.name ?? syncText("running")).font(.headline)
+                    Text(engine.isDryRun ? syncText("simulating") : syncText("phase.\(progress.phase.rawValue)"))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button { engine.stopRunning() } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain).help(syncText("stopRun")).accessibilityLabel(syncText("stopRun"))
+            }
+            if !engine.isDryRun, progress.bytesTotal > 0, progress.phase != .listing, progress.phase != .verifying {
+                ProgressView(value: min(1, max(0, Double(progress.bytesDone) / Double(progress.bytesTotal))))
+                Text("\(SyncEngine.byteText(progress.bytesDone)) / \(SyncEngine.byteText(progress.bytesTotal))")
+                    .font(.caption.monospacedDigit())
+            } else { ProgressView().controlSize(.small) }
+            if !engine.isDryRun, progress.phase == .push || progress.phase == .pull {
+                HStack {
+                    Text(MenuActivity.title(display: .speed, busy: true, dryRun: false, progress: progress))
+                    Spacer()
+                    if progress.transfersTotal > 0 {
+                        Text("\(syncFileCount(max(0, progress.transfersTotal - progress.transfersDone))) · \(syncText("remaining"))")
+                    }
+                }.font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                if let eta = progress.eta { Text("~\(SyncEngine.durationText(eta)) · \(syncText("remaining"))").font(.caption).foregroundStyle(.secondary) }
+            }
+            if !engine.queue.isEmpty { Text("\(syncText("queueTitle")) · \(engine.queue.count)").font(.caption).foregroundStyle(.secondary) }
+        }.padding(12).background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func pairRow(_ pair: SyncPair) -> some View {
+        let state = engine.presentationState(for: pair)
+        let attention = ["error", "unverified", "needsResync", "rateLimited", "interrupted"].contains(state)
+        let running = engine.runningPairID == pair.id
+        let tint: Color = attention ? .orange : state == "verified" ? .green : .secondary
+        return DisclosureGroup(isExpanded: Binding(get: { expandedPairs.contains(pair.id) }, set: {
+            if $0 { expandedPairs.insert(pair.id) } else { expandedPairs.remove(pair.id) }
+        })) {
+            VStack(alignment: .leading, spacing: 10) {
+                SyncPairLocations(pair: pair)
+                if let message = pair.lastMessage, attention {
+                    Text(SyncDiagnostic.clean(message)).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                }
+                if let date = pair.lastRun {
+                    Text("\(syncText("verified")) · \(date.formatted(date: .abbreviated, time: .shortened))").font(.caption2).foregroundStyle(.secondary)
+                }
+                HStack {
+                    Button(syncText("simulate")) { engine.syncPair(pair.id, dryRun: true) }
+                        .disabled(engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
+                    Button(syncText("sync")) {
+                        if pair.previewOnly || pair.direction.usesBisync && pair.needsResync { confirmingPair = pair }
+                        else { engine.syncPair(pair.id) }
+                    }.disabled(engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
+                    Spacer()
+                    Button { open(.sync, false) } label: { Image(systemName: "arrow.up.right.square") }
+                        .accessibilityLabel(workspaceText("openSync")).help(workspaceText("openSync"))
+                }.controlSize(.small)
+                if let run = engine.runs.first(where: { $0.pair.id == pair.id }) {
+                    Button(syncText("report")) { if let url = engine.readableReportURL(for: run) { NSWorkspace.shared.open(url) } }
+                        .buttonStyle(.plain).font(.caption).foregroundStyle(Color.accentColor)
+                }
+            }.padding(.top, 8).padding(.bottom, 4)
+        } label: {
+            HStack(spacing: 10) {
+                if running { ProgressView().controlSize(.small).frame(width: 20) }
+                else { Image(systemName: attention ? "exclamationmark.triangle" : state == "verified" ? "checkmark.circle" : !pair.enabled ? "pause.circle" : "folder").foregroundStyle(tint).frame(width: 20) }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(pair.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
+                    Text(syncText(state)).font(.caption).foregroundStyle(tint)
+                    if pair.previewOnly { Text(syncText("previewOnly")).font(.caption2).foregroundStyle(.secondary) }
+                }
+                Spacer()
+                Text(pair.direction.arrow).foregroundStyle(.secondary).accessibilityLabel(pair.direction.label)
+            }.padding(.vertical, 10)
+        }
     }
 
     private var archivePanel: some View {

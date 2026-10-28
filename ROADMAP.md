@@ -45,7 +45,7 @@ décommissionner la v1 avant validation de la v2.
 - Affichage du compteur : nombre brut, badge sur l'icône, ou entrée détaillée dans le menu.
 - Mode affiché par défaut : fichiers seuls ou dernier mode utilisé.
 
-## Mode Synchronisation — Dev 2026.10.46
+## Mode Synchronisation — Dev 2026.10.53
 
 - [x] Paires natives macOS, directions ⇄/↑/↓ et exclusions.
 - [x] Deux onglets principaux Archivage/Synchronisation, navigation directe et panneau de barre des menus au clic/droit/survol.
@@ -59,6 +59,8 @@ décommissionner la v1 avant validation de la v2.
 - [x] Section Synchronisation dans les Réglages (pause globale, mode par défaut des nouvelles paires, réglages par paire) et segment Statut dédié par paire dans l’onglet Synchronisation.
 - [x] Vue Paires unifiée (état, inventaire, comparaison, actions) et comparaison Mac ↔ Drive issue de la simulation avec verdict explicite.
 - [x] Suivi live par exécution : phase, fichiers et volume, vitesse, temps restant, push/pull/suppressions prévus et réalisés.
+- [x] Débit ou fichiers restants dans la barre des menus, panneau à paires dépliables, cartes source/destination compactes et actions contextuelles.
+- [x] Réglage de lancement à l’ouverture de session via macOS, avec statut d’approbation et démarrage sans fenêtre.
 - [x] Inventaire par paire dans Statut : comptages locaux/distants (rclone size, mêmes exclusions), écart mis en évidence, estimation de durée annoncée comme approximation, file d’attente visible.
 - [x] Reprises temporisées, queue séquentielle, annulation et garde-fous de persistance/interruption.
 - [x] FSEvents, délai local de 45 s, contrôle distant horaire/au réveil.

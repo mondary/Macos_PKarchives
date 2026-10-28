@@ -243,6 +243,10 @@ struct TestFailure: Error { let message: String }
         try expect(progress.bytesDone == 1200 && progress.bytesTotal == 4800 && progress.eta == 15, "Volume/ETA not parsed")
         SyncEngine.apply(stats: ["eta": NSNull()], to: &progress)
         try expect(progress.eta == nil, "Null ETA not cleared")
+        SyncEngine.apply(message: "Resync is copying files to Path2", object: "", to: &progress)
+        try expect(progress.phase == .push, "Initial merge must display push activity")
+        SyncEngine.apply(message: "Resync is copying files to Path1", object: "", to: &progress)
+        try expect(progress.phase == .pull, "Initial merge must display pull activity")
         try expect(SyncEngine.durationText(75) == "1 min 15 s" && SyncEngine.durationText(3700) == "1 h 1 min", "Duration formatting wrong")
 
         // Preview comparison: per-file plan parsed from bisync, conflicts collapsed, totals coherent.

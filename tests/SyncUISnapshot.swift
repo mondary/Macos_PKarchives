@@ -32,6 +32,26 @@ struct SettingsSectionHeader: View {
 @main struct SyncUISnapshot {
     static func main() throws {
         let args = CommandLine.arguments
+        // Regression: no stale throughput in preview/check/idle, no negative remaining counts.
+        var progress = RunProgress()
+        progress.phase = .push; progress.speed = 4_000_000
+        progress.transfersTotal = 10; progress.transfersDone = 3
+        precondition(MenuActivity.title(display: .remaining, busy: true, dryRun: false, progress: progress) == "7 \(syncText("files"))")
+        precondition(MenuActivity.title(display: .speed, busy: true, dryRun: false, progress: progress).contains("/s"))
+        precondition(MenuActivity.title(display: .speed, busy: true, dryRun: true, progress: progress) == workspaceText("previewShort"))
+        precondition(MenuActivity.title(display: .speed, busy: false, dryRun: false, progress: progress).isEmpty)
+        precondition(MenuActivity.title(display: .icon, busy: true, dryRun: false, progress: progress).isEmpty)
+        progress.transfersDone = 12
+        precondition(MenuActivity.title(display: .remaining, busy: true, dryRun: false, progress: progress) == "0 \(syncText("files"))")
+        progress.transfersTotal = 0
+        precondition(MenuActivity.title(display: .remaining, busy: true, dryRun: false, progress: progress) == "…")
+        progress.phase = .verifying
+        precondition(MenuActivity.title(display: .speed, busy: true, dryRun: false, progress: progress) == workspaceText("checkingShort"))
+        progress.phase = .listing
+        precondition(MenuActivity.title(display: .speed, busy: true, dryRun: false, progress: progress) == "…")
+        progress.phase = .pull; progress.speed = .infinity
+        precondition(MenuActivity.title(display: .speed, busy: true, dryRun: false, progress: progress) == "…")
+        print("Menu activity regressions passed")
         guard args.count >= 3 else { fatalError("sync-snapshot TEST_ROOT OUTPUT.png [sync|history|quota|menu|menuArchive|form]") }
         let root = URL(fileURLWithPath: args[1])
         let kind = args.count > 3 ? args[3] : "sync"
@@ -40,13 +60,23 @@ struct SettingsSectionHeader: View {
         // Status captures run read-only `rclone size` counts on the fixture remotes; every other
         // kind keeps the sentinel binary that can never launch a transfer.
         var inventoryBinary: String? = nil
-        if kind == "status", FileManager.default.fileExists(atPath: root.appendingPathComponent("rclone.conf").path) {
+        if ["status", "menuLive"].contains(kind), FileManager.default.fileExists(atPath: root.appendingPathComponent("rclone.conf").path) {
             setenv("RCLONE_CONFIG", root.appendingPathComponent("rclone.conf").path, 1)
             for candidate in [NSHomeDirectory() + "/.local/share/pkarchives/bin/rclone", "/opt/homebrew/bin/rclone", "/usr/local/bin/rclone"]
             where FileManager.default.fileExists(atPath: candidate) { inventoryBinary = candidate; break }
         }
         let engine = SyncEngine(disk: disk, binary: inventoryBinary, automatic: false)
         guard engine.storageError == nil else { fatalError(engine.storageError!) }
+        if kind == "menuLive", inventoryBinary != nil, let pair = engine.pairs.first {
+            // Isolated test remote: RCLONE_BWLIMIT=1M RCLONE_DISABLE=Copy keeps the real copy visible.
+            engine.syncPair(pair.id)
+            let limit = Date().addingTimeInterval(20)
+            while engine.busy && (engine.runProgress?.speed ?? 0) <= 0 && limit > Date() {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            }
+            precondition(engine.busy && (engine.runProgress?.speed ?? 0) > 0, "Expected live rclone throughput")
+            precondition(engine.runProgress?.phase == .push, "One-way transfer phase must be push")
+        }
         if kind == "status", inventoryBinary != nil {
             engine.refreshAllInventories()
             let limit = Date().addingTimeInterval(45)
@@ -74,7 +104,10 @@ struct SettingsSectionHeader: View {
         navigation.mode = kind == "menuArchive" ? .archive : .sync
         let content: AnyView
         var bounds: NSRect
-        if kind == "form" {
+        if kind == "general" {
+            content = AnyView(WorkspaceGeneralSettings())
+            bounds = NSRect(x: 0, y: 0, width: 660, height: 480)
+        } else if kind == "form" {
             content = AnyView(SyncPairForm(original: SyncPair(), engine: engine))
             bounds = NSRect(x: 0, y: 0, width: 580, height: 640)
         } else if kind.hasPrefix("menu") {
@@ -99,5 +132,11 @@ struct SettingsSectionHeader: View {
         guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("No PNG") }
         try png.write(to: URL(fileURLWithPath: args[2]))
         print("Native offscreen snapshot: \(args[2])")
+        if kind == "menuLive" {
+            engine.shutdown()
+            let limit = Date().addingTimeInterval(15)
+            while engine.busy && limit > Date() { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+            precondition(!engine.busy, "Fixture transfer did not stop")
+        }
     }
 }

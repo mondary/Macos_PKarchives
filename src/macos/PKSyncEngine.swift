@@ -648,6 +648,7 @@ final class SyncEngine: ObservableObject {
         run.id = id
         active = run; runningPairID = pair.id; cancelled = false; verifying = false; skippedUnsupportedObject = false
         runProgress = RunProgress()
+        if !pair.direction.usesBisync { runProgress?.phase = pair.direction == .push ? .push : .pull }
         activePlan = job.dryRun ? PreviewPlan() : nil
         planResyncDirection = nil
         runRevision = revisions[pair.id, default: 0]
@@ -741,6 +742,9 @@ final class SyncEngine: ObservableObject {
     private func verify(_ run: SyncRun, filter: URL) {
         hasUncheckedHashes = false
         verifying = true
+        runProgress?.phase = .verifying
+        runProgress?.speed = 0
+        runProgress?.eta = nil
         progressText = syncText("verifying")
         refreshBadge()
         let pair = run.pair
@@ -880,6 +884,13 @@ final class SyncEngine: ObservableObject {
         if text.contains("do queued copies to path1") { progress.phase = .pull }
         else if text.contains("do queued copies to path2") { progress.phase = .push }
         else if text.contains("do queued deletes") || text.contains("applying changes") { progress.phase = .deleting }
+        else if text.contains("copying files to") {
+            let path1 = text.range(of: "path1", options: .backwards)?.lowerBound
+            let path2 = text.range(of: "path2", options: .backwards)?.lowerBound
+            if let path1, let path2 { progress.phase = path1 > path2 ? .pull : .push }
+            else if path1 != nil { progress.phase = .pull }
+            else if path2 != nil { progress.phase = .push }
+        }
         if message.hasPrefix("Copied (") {
             switch progress.phase {
             case .pull: progress.pullDone += 1

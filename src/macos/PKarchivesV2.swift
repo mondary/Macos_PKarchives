@@ -305,7 +305,7 @@ private struct ArchivePreferencesView: View {
     @ObservedObject private var syncEngine = SyncEngine.shared
     @AppStorage("sync-default-preview-only") private var defaultPreviewOnly = true
     @State private var editingSyncPair: SyncPair?
-    private let sections: [(String, String)] = [("archive","archivebox"),("sync","arrow.triangle.2.circlepath"),("library","square.grid.2x2"),("credits","text.book.closed"),("support","heart.fill"),("about","info.circle")]
+    private let sections: [(String, String)] = [("general","gearshape"),("archive","archivebox"),("sync","arrow.triangle.2.circlepath"),("library","square.grid.2x2"),("credits","text.book.closed"),("support","heart.fill"),("about","info.circle")]
     private var copy: [String: [String: String]] { [
         "archive":["fr":"Archivage","en":"Archiving","es":"Archivo","de":"Archivierung"],
         "sync":["fr":"Synchronisation","en":"Synchronization","es":"Sincronización","de":"Synchronisierung"],
@@ -402,12 +402,13 @@ private struct ArchivePreferencesView: View {
         "update.offer.message":["fr":"Installer la version %@ du canal %@ ?","en":"Install version %@ from the %@ channel?","es":"¿Instalar la versión %@ del canal %@?","de":"Version %@ aus dem %@-Kanal installieren?"],
         "update.cancel":["fr":"Plus tard","en":"Later","es":"Más tarde","de":"Später"],
     ] }
-    private func text(_ key: String) -> String { copy[key]?[language] ?? copy[key]?["en"] ?? key }
+    private func text(_ key: String) -> String { copy[key]?[language] ?? copy[key]?["en"] ?? workspaceText(key) }
     private var filtered: [(String,String)] {
         guard !query.isEmpty else { return sections }
         let terms = query.lowercased().split(separator: " ").map(String.init)
         return sections.filter { item in
-             let synonyms = item.0 == "archive" ? "drive bureau desktop folder dossier source rclone remote destination google sauvegarde archivage"
+             let synonyms = item.0 == "general" ? "login démarrage session startup débit speed fichiers restants remaining menu barre hover survol"
+                : item.0 == "archive" ? "drive bureau desktop folder dossier source rclone remote destination google sauvegarde archivage"
                 : item.0 == "sync" ? "sync synchronisation paires pairs bidirectionnel two-way drive dossiers folders push pull"
                 : item.0 == "library" ? "projects projets github apps applications" : item.0 == "support" ? "kofi ko-fi donate donation don" : item.0 == "credits" ? "inspirations dépendances dependencies tools outils technologies références references" : "version stable dev update mise à jour about versionning"
             return terms.allSatisfy { (text(item.0) + " " + synonyms).lowercased().contains($0) }
@@ -472,6 +473,7 @@ private struct ArchivePreferencesView: View {
             Divider()
             Group {
                 switch navigation.section {
+                case "general": WorkspaceGeneralSettings()
                 case "library": projectLibrary
                 case "support": supportView
                 case "credits": creditsView
@@ -892,7 +894,7 @@ private struct ArchivePreferencesView: View {
 }
 
 final class ArchivePreferencesNavigation: ObservableObject {
-    @Published var section = "archive"
+    @Published var section = "general"
 }
 
 private struct ArchiveProject: Identifiable {
@@ -1333,7 +1335,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     @MainActor func applicationDidFinishLaunching(_ notification: Notification) {
         setupApplicationMenu()
         setupUpdater()
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
             button.image = NSImage(systemSymbolName: "archivebox", accessibilityDescription: "PKarchives")
             button.image?.isTemplate = true
@@ -1399,7 +1401,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         // Keep the sync-only startup genuinely light: no WebKit subprocess, no Desktop scan.
         if let index = CommandLine.arguments.firstIndex(of: "--open-mode"), CommandLine.arguments.indices.contains(index + 1),
            let mode = WorkspaceMode(rawValue: CommandLine.arguments[index + 1]) { presentWorkspace(mode) }
-        else if !CommandLine.arguments.contains("--background") { showWindow() }
+        else if !CommandLine.arguments.contains("--background") && !Self.launchedAtLogin { showWindow() }
 
         // FUSE is optional and never needed by sync. Explicit opt-in, not a resident default.
         if !CommandLine.arguments.contains("--qa-screen"), loadEnv("PKARCHIVES_AUTO_MOUNT") == "1" {
@@ -1415,25 +1417,44 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             }
         }
 
-        // Barre des menus réfléchit l'état du moteur de synchronisation
-        SyncEngine.shared.$statusBadgeSubject
+        // Observe real progress as well as state. Badge changes alone miss every stats update.
+        Publishers.Merge3(
+            SyncEngine.shared.objectWillChange.map { _ in () },
+            workspaceNavigation.objectWillChange.map { _ in () },
+            NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).map { _ in () }
+        )
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] badge in
-                let symbol = SyncEngine.shared.busy ? "arrow.triangle.2.circlepath" : SyncEngine.shared.isPaused ? "pause.circle" : badge == "⚠︎" ? "exclamationmark.triangle" : "archivebox"
-                self?.statusItem?.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "PKarchives")
-                self?.statusItem?.button?.image?.isTemplate = true
-                self?.statusItem?.button?.title = ""
-                self?.statusItem?.button?.toolTip = "PKarchives — \(SyncEngine.shared.progressText)"
-                if let menu = self?.statusMenu {
-                    for item in menu.items where item.action == #selector(AppDelegate.pauseSyncOneHour) {
-                        item.title = SyncEngine.shared.isPaused ? "Reprendre la synchronisation" : "Pause synchronisation 1 h"
-                    }
-                }
-            }
+            .throttle(for: .milliseconds(250), scheduler: DispatchQueue.main, latest: true)
+            .sink { [weak self] in self?.refreshStatusActivity() }
             .store(in: &statusCancellables)
+        refreshStatusActivity()
     }
 
     private var statusCancellables: Set<AnyCancellable> = []
+
+    private static var launchedAtLogin: Bool {
+        NSAppleEventManager.shared().currentAppleEvent?
+            .paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+    }
+
+    private func refreshStatusActivity() {
+        guard let button = statusItem?.button else { return }
+        let engine = SyncEngine.shared
+        let display = MenuActivityDisplay(rawValue: UserDefaults.standard.string(forKey: "menu-activity-display") ?? "speed") ?? .speed
+        let symbol = engine.busy || isRunning ? "arrow.triangle.2.circlepath" : engine.isPaused ? "pause.circle" : engine.statusBadgeSubject == "⚠︎" ? "exclamationmark.triangle" : "archivebox"
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "PKarchives")
+        button.image?.isTemplate = true
+        var title = MenuActivity.title(display: display, busy: engine.busy, dryRun: engine.isDryRun, progress: engine.runProgress)
+        if !engine.busy, isRunning, display != .icon {
+            title = syncFileCount(max(0, lastTotal - deletedCount))
+        }
+        button.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+        button.title = title.isEmpty ? "" : " \(title)"
+        button.imagePosition = title.isEmpty ? .imageOnly : .imageLeading
+        let state = engine.busy ? engine.progressText : isRunning ? workspaceText("inProgress") : engine.isPaused ? workspaceText("paused") : engine.statusBadgeSubject == "⚠︎" ? workspaceText("needsAttention") : workspaceText("ready")
+        button.toolTip = ["PKarchives", state, title, engine.busy ? workspaceText("currentPhase") : ""].filter { !$0.isEmpty }.joined(separator: " — ")
+        button.setAccessibilityLabel(button.toolTip)
+    }
 
     private func setupApplicationMenu() {
         // NSApplication.run() is used directly (no SwiftUI App scene). Supply the standard

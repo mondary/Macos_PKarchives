@@ -3,6 +3,15 @@
 Matériel de présentation de l'application.
 Captures : `store/media/` (données de démo, desktop).
 
+## Aperçu Dev — 2026.10.53 (non publié en Stable)
+
+FR : paires Mac ↔ Drive compactes et dépliables, actions au clic droit, progression dans le panneau et choix débit/fichiers restants dans la barre des menus. Lancement à l’ouverture de session disponible dans Général. Captures natives de test : `04-sync-dev.png`, `06-menu-version-dev.png`, `08-general-dev.png`.
+
+EN: compact, expandable Mac ↔ Drive pairs, right-click actions, progress in the panel and a speed/remaining-files menu bar display. Launch at login is available under General. Native test screenshots: `04-sync-dev.png`, `06-menu-version-dev.png`, `08-general-dev.png`.
+
+La landing et le hub publics décrivent la version Stable ; leur actualisation attend la validation du mode Synchronisation (ROADMAP.md).
+The public landing and hub describe Stable; updates await validation of Synchronization mode (ROADMAP.md).
+
 ---
 
 ## Nom

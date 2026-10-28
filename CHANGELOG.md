@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.52` (CI Swift 6, localisation updater)
+Statut : `2026.10.53` (ergonomie des paires et activité de barre des menus)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,18 @@ Statut : `2026.10.52` (CI Swift 6, localisation updater)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.53] - 2026-10-28
+#### Added
+- Réglages Général : lancement à l’ouverture de session via SMAppService, statut d’autorisation macOS et erreurs visibles ; démarrage de session sans fenêtre.
+- Barre des menus : choix débit rclone / fichiers restants / icône seule, mise à jour sur la progression réelle, états distincts analyse, simulation, vérification et repos.
+#### Changed
+- Panneau clic gauche/droit : ouverture sur les paires configurées, lignes dépliables, progression et arrêt, actions de simulation/synchronisation et rapports par paire, synchronisation globale respectant le mode simulation.
+- Cartes de paires épurées : nom + statut, emplacements Local ⇄ Distant reliés par la flèche du sens réel, une seule ligne d’information (dernière exécution, file, prochaine tentative) ou une bande orange explicite en cas d’attention, actions Simuler/Synchroniser/⋯ avec activation dans le menu, inventaire et comparaison repliés (ouverture automatique après une simulation).
+#### Fixed
+- Phase de transfert identifiée en unidirectionnel et pendant la première fusion ; la vérification efface immédiatement le débit et le temps restant du transfert précédent.
+#### Validated
+- Build Dev, 192 assertions d’intégration, régressions de métriques (repos, simulation, analyse, vérification, compteur inconnu), captures natives clair/sombre et transfert rclone local limité à 1 Mio/s. Dépliage des paires et sélecteur Général vérifiés sur DeskPad ; connexion macOS après redémarrage non testée.
 
 ### [2026.10.52] - 2026-10-28
 #### Fixed

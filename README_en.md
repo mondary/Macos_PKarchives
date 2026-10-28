@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Project version: 2026.10.52** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.10.53** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -81,13 +81,21 @@ The new mode is available in the sources and Dev build, **not yet in the Stable 
 
 **Run feedback**: during a sync, a banner shows the current direction, files done / planned, volume and percentage, speed, elapsed time and rclone’s estimated remaining time, plus planned and completed operations per direction (↑ push, ↓ pull, deletions). During a preview nothing is transferred, but the comparison and its volumes stay visible.
 
-**Menu bar**: left-click, right-click or a 550 ms hover opens the same native panel, with Synchronization/Archiving tabs, actual folder states, activity and direct access to the window and reports. Hover never triggers transfers. Automatic opening can be disabled in the panel’s **…** menu; a hover-opened panel closes when the pointer leaves it. Both modes remain directly accessible in the main window without going through settings.
+**Menu bar**: left-click, right-click or a 550 ms hover opens the native panel, directly on Synchronization when pairs are configured. Expand each row for Mac ↔ Drive locations, actual state, preview, sync and the latest report. Active runs show progress, speed, remaining files, ETA and a stop action. **Sync all** respects each pair’s preview mode. Hover never starts a transfer; disable automatic opening under **…** or **Settings → General**.
+
+**Settings → General**: launch at login (in the background, with macOS approval if needed) and menu bar display: **Transfer speed**, **Remaining files** or **Icon only**. Numbers come from the current run’s rclone stats, updated roughly every 5 s; queued pairs are excluded and totals may change during scanning. Scanning, preview and verification have distinct states; only the icon remains when idle. Archiving shows the remaining item count.
+
+**Compact pairs**: each card is four blocks — name and status, Local ⇄ Remote locations joined by the chosen direction’s arrow, a single info line (or an explicit orange strip when attention is needed), and the Simulate / Sync / ⋯ actions. Enable lives in the card’s **⋯** menu and right-click; expand **Inventory and comparison** when needed, or automatically after a preview.
 
 **Settings → Synchronization**: global pause of all pairs (1 h), default “Preview only” mode for new pairs, and the pair list with enable/preview switches and the full form. These settings drive the sync engine; archiving configuration stays in its own section.
 
 The full installed version (including its Dev suffix) is visible and selectable under **PKarchives** in the icon’s panel, whichever tab is selected.
 
 ![Icon panel showing the installed version in the local Dev build](store/media/06-menu-version-dev.png)
+
+![General settings: launch at login and menu bar activity metric](store/media/08-general-dev.png)
+
+![Panel progress during a real rclone transfer between temporary test folders](store/media/09-menu-transfer-dev.png)
 
 **Verification and recovery**
 
