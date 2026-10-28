@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.46` (suivi live push/pull/suppressions, volume et temps restant)
+Statut : `2026.10.47` (version publique corrigée dans les README)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,10 @@ Statut : `2026.10.46` (suivi live push/pull/suppressions, volume et temps restan
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.47] - 2026-10-28
+#### Fixed
+- Bandeau des README : la version publique annoncée redevient la dernière release réellement publiée (`2026.10.27`) au lieu de `2026.10.30`, qui n'a jamais été publiée.
 
 ### [2026.10.46] - 2026-10-27
 #### Added
