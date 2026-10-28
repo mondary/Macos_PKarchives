@@ -401,8 +401,6 @@ private struct ArchivePreferencesView: View {
         "update.offer.title":["fr":"Installer cette version ?","en":"Install this version?","es":"¿Instalar esta versión?","de":"Diese Version installieren?"],
         "update.offer.message":["fr":"Installer la version %@ du canal %@ ?","en":"Install version %@ from the %@ channel?","es":"¿Instalar la versión %@ del canal %@?","de":"Version %@ aus dem %@-Kanal installieren?"],
         "update.cancel":["fr":"Plus tard","en":"Later","es":"Más tarde","de":"Später"],
-        "update.message.ahead":["fr":"La build installée (%@) est plus récente que la dernière build %@ publiée (%@). C’est normal pour une build de test locale : rien à installer.","en":"The installed build (%@) is newer than the latest published %@ build (%@). This is expected for a local test build: nothing to install.","es":"La compilación instalada (%@) es más reciente que la última compilación %@ publicada (%@). Es normal para una compilación local de prueba: no hay nada que instalar.","de":"Der installierte Build (%@) ist neuer als der zuletzt veröffentlichte %@-Build (%@). Das ist für einen lokalen Testbuild normal: nichts zu installieren."],
-        "update.message.current":["fr":"PKarchives est à jour (%@).","en":"PKarchives is up to date (%@).","es":"PKarchives está actualizado (%@).","de":"PKarchives ist aktuell (%@)."]
     ] }
     private func text(_ key: String) -> String { copy[key]?[language] ?? copy[key]?["en"] ?? key }
     private var filtered: [(String,String)] {
@@ -1093,6 +1091,20 @@ final class ArchiveUpdaterManager: NSObject, ObservableObject {
         availableUpdateVersion = info.shortVersion
     }
 
+    /// Localized updater messages, independent from the settings view's own copy table.
+    static func updaterMessage(_ key: String) -> String {
+        let copy: [String: [String: String]] = [
+            "ahead": ["fr": "La build installée (%@) est plus récente que la dernière build %@ publiée (%@). C’est normal pour une build de test locale : rien à installer.",
+                      "en": "The installed build (%@) is newer than the latest published %@ build (%@). This is expected for a local test build: nothing to install.",
+                      "es": "La compilación instalada (%@) es más reciente que la última compilación %@ publicada (%@). Es normal para una compilación local de prueba: no hay nada que instalar.",
+                      "de": "Der installierte Build (%@) ist neuer als der zuletzt veröffentlichte %@-Build (%@). Das ist für einen lokalen Testbuild normal: nichts zu installieren."],
+            "current": ["fr": "PKarchives est à jour (%@).", "en": "PKarchives is up to date (%@).",
+                        "es": "PKarchives está actualizado (%@).", "de": "PKarchives ist aktuell (%@)."],
+        ]
+        let lang = UserDefaults.standard.string(forKey: "app-language") ?? "fr"
+        return copy[key]?[lang] ?? copy[key]?["en"] ?? key
+    }
+
     func checkForUpdates() {
         NSApp.activate(ignoringOtherApps: true)
         updateError = nil
@@ -1113,9 +1125,9 @@ final class ArchiveUpdaterManager: NSObject, ObservableObject {
                 let message: String
                 if buildOrder == .orderedAscending {
                     let channelLabel = selectedChannel == "dev" ? "Dev" : "Stable"
-                    message = String(format: text("update.message.ahead"), installedVersion, channelLabel, info.shortVersion)
+                    message = String(format: Self.updaterMessage("ahead"), installedVersion, channelLabel, info.shortVersion)
                 } else {
-                    message = String(format: text("update.message.current"), installedVersion)
+                    message = String(format: Self.updaterMessage("current"), installedVersion)
                 }
                 showInformation(title: "PKarchives", message: message)
                 return
@@ -1456,17 +1468,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         guard let button = statusItem?.button, !statusPopover.isShown, NSApp.modalWindow == nil else { return }
         panelPinned = pinned
         let panel = WorkspacePopoverView(engine: .shared, navigation: workspaceNavigation,
-            open: { [weak self] mode, history in Task { @MainActor in self?.presentWorkspace(mode, history: history) } },
-            settings: { [weak self] in Task { @MainActor in self?.openPreferences() } },
-            support: { [weak self] in Task { @MainActor in self?.closeStatusPanel(); self?.openKofi() } },
-            updates: { [weak self] in Task { @MainActor in self?.closeStatusPanel(); self?.checkForUpdates() } },
-            about: { [weak self] in Task { @MainActor in self?.closeStatusPanel(); self?.openAbout() } },
-            quit: { [weak self] in Task { @MainActor in self?.quitApp() } },
+            open: { [weak self] mode, history in self?.presentWorkspace(mode, history: history) },
+            settings: { [weak self] in self?.openPreferences() },
+            support: { [weak self] in self?.closeStatusPanel(); self?.openKofi() },
+            updates: { [weak self] in self?.closeStatusPanel(); self?.checkForUpdates() },
+            about: { [weak self] in self?.closeStatusPanel(); self?.openAbout() },
+            quit: { [weak self] in self?.quitApp() },
             hoverChanged: { [weak self] inside in
-                Task { @MainActor in
-                    self?.overStatusPanel = inside
-                    if inside { self?.hideTimer?.invalidate() } else { self?.schedulePanelHide() }
-                }
+                self?.overStatusPanel = inside
+                if inside { self?.hideTimer?.invalidate() } else { self?.schedulePanelHide() }
             })
         let controller = NSHostingController(rootView: panel)
         controller.sizingOptions = [.preferredContentSize]

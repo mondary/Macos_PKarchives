@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.51` (compilation CI Swift 6)
+Statut : `2026.10.52` (CI Swift 6, localisation updater)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,11 @@ Statut : `2026.10.51` (compilation CI Swift 6)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.52] - 2026-10-28
+#### Fixed
+- Les messages de mise à jour sont localisés directement dans le gestionnaire de mises à jour (ils référençaient une fonction de la vue Réglages, invisible depuis cet objet).
+- Les closures du panneau de barre des menus sont typées `@MainActor`, ce qui supprime la capture concurrente de `self` refusée par le compilateur CI.
 
 ### [2026.10.51] - 2026-10-28
 #### Fixed

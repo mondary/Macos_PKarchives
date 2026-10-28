@@ -137,21 +137,21 @@ struct WorkspaceHeaderView: View {
 struct WorkspacePopoverView: View {
     @ObservedObject var engine: SyncEngine
     @ObservedObject var navigation: WorkspaceNavigation
-    let open: (WorkspaceMode, Bool) -> Void
-    let settings: () -> Void
-    let support: () -> Void
-    let updates: () -> Void
-    let about: () -> Void
-    let quit: () -> Void
-    let hoverChanged: (Bool) -> Void
+    let open: @MainActor (WorkspaceMode, Bool) -> Void
+    let settings: @MainActor () -> Void
+    let support: @MainActor () -> Void
+    let updates: @MainActor () -> Void
+    let about: @MainActor () -> Void
+    let quit: @MainActor () -> Void
+    let hoverChanged: @MainActor (Bool) -> Void
     @State private var mode: WorkspaceMode
     @AppStorage("app-language") private var language = "fr"
     @AppStorage("menu-panel-on-hover") private var hoverEnabled = true
 
     init(engine: SyncEngine, navigation: WorkspaceNavigation,
-         open: @escaping (WorkspaceMode, Bool) -> Void, settings: @escaping () -> Void,
-         support: @escaping () -> Void, updates: @escaping () -> Void, about: @escaping () -> Void,
-         quit: @escaping () -> Void, hoverChanged: @escaping (Bool) -> Void) {
+         open: @escaping @MainActor (WorkspaceMode, Bool) -> Void, settings: @escaping @MainActor () -> Void,
+         support: @escaping @MainActor () -> Void, updates: @escaping @MainActor () -> Void, about: @escaping @MainActor () -> Void,
+         quit: @escaping @MainActor () -> Void, hoverChanged: @escaping @MainActor (Bool) -> Void) {
         self.engine = engine; self.navigation = navigation
         self.open = open; self.settings = settings; self.support = support; self.updates = updates
         self.about = about; self.quit = quit; self.hoverChanged = hoverChanged
