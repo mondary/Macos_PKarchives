@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.48` (vue Paires unifiée avec comparaison avant synchronisation)
+Statut : `2026.10.49` (messages de mise à jour traduits)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,12 @@ Statut : `2026.10.48` (vue Paires unifiée avec comparaison avant synchronisatio
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.49] - 2026-10-28
+#### Fixed
+- Les messages de recherche de mise à jour (« build installée plus récente que la dernière publiée », « à jour ») sont traduits FR/EN/ES/DE au lieu d’être codés en anglais.
+#### Changed
+- Le message « build installée plus récente » précise qu’il s’agit du comportement normal d’une build de test locale, et indique la version installée en plus de la dernière version publiée.
 
 ### [2026.10.48] - 2026-10-28
 #### Changed

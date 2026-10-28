@@ -400,7 +400,9 @@ private struct ArchivePreferencesView: View {
         "update.failed":["fr":"Échec de l’installation : %@","en":"Installation failed: %@","es":"Error de instalación: %@","de":"Installation fehlgeschlagen: %@"],
         "update.offer.title":["fr":"Installer cette version ?","en":"Install this version?","es":"¿Instalar esta versión?","de":"Diese Version installieren?"],
         "update.offer.message":["fr":"Installer la version %@ du canal %@ ?","en":"Install version %@ from the %@ channel?","es":"¿Instalar la versión %@ del canal %@?","de":"Version %@ aus dem %@-Kanal installieren?"],
-        "update.cancel":["fr":"Plus tard","en":"Later","es":"Más tarde","de":"Später"]
+        "update.cancel":["fr":"Plus tard","en":"Later","es":"Más tarde","de":"Später"],
+        "update.message.ahead":["fr":"La build installée (%@) est plus récente que la dernière build %@ publiée (%@). C’est normal pour une build de test locale : rien à installer.","en":"The installed build (%@) is newer than the latest published %@ build (%@). This is expected for a local test build: nothing to install.","es":"La compilación instalada (%@) es más reciente que la última compilación %@ publicada (%@). Es normal para una compilación local de prueba: no hay nada que instalar.","de":"Der installierte Build (%@) ist neuer als der zuletzt veröffentlichte %@-Build (%@). Das ist für einen lokalen Testbuild normal: nichts zu installieren."],
+        "update.message.current":["fr":"PKarchives est à jour (%@).","en":"PKarchives is up to date (%@).","es":"PKarchives está actualizado (%@).","de":"PKarchives ist aktuell (%@)."]
     ] }
     private func text(_ key: String) -> String { copy[key]?[language] ?? copy[key]?["en"] ?? key }
     private var filtered: [(String,String)] {
@@ -1108,9 +1110,13 @@ final class ArchiveUpdaterManager: NSObject, ObservableObject {
             }
             let installedVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
             guard buildOrder == .orderedDescending else {
-                let message = buildOrder == .orderedAscending
-                    ? "The installed build is newer than the latest published \(selectedChannel) build (\(info.shortVersion))."
-                    : "PKarchives is up to date (\(installedVersion))."
+                let message: String
+                if buildOrder == .orderedAscending {
+                    let channelLabel = selectedChannel == "dev" ? "Dev" : "Stable"
+                    message = String(format: text("update.message.ahead"), installedVersion, channelLabel, info.shortVersion)
+                } else {
+                    message = String(format: text("update.message.current"), installedVersion)
+                }
                 showInformation(title: "PKarchives", message: message)
                 return
             }
