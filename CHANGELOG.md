@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.54` (détails de comparaison compact avec pictos par type de fichier)
+Statut : `2026.10.55` (déduplication de la paire en cours entre bloc live et liste)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,13 @@ Statut : `2026.10.54` (détails de comparaison compact avec pictos par type de f
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+Statut : `2026.10.55` (déduplication de la paire en cours entre bloc live et liste)
+
+### [2026.10.55] - 2026-10-28
+#### Fixed
+- Panneau de barre des menus : la paire en cours d’exécution n’apparaît plus deux fois (bloc de progression ET liste) ; la liste ne montre plus que les autres paires.
+- Fenêtre Paires : la file d’attente ne répète plus la ligne de la paire active déjà détaillée par la bannière ; la carte de la paire en cours se réduit à une ligne de phase + barre fine + arrêt, les compteurs complets restant dans la bannière.
 
 ### [2026.10.54] - 2026-10-28
 #### Changed

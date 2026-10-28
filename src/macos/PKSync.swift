@@ -362,12 +362,7 @@ struct SyncSectionView: View {
                     .controlSize(.small)
                     .disabled(engine.inventoryBusy || engine.busy || engine.pairs.isEmpty || engine.storageError != nil)
             }
-            if engine.busy, let id = engine.runningPairID, let pair = engine.pairs.first(where: { $0.id == id }) {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text("\(pair.name) — \(engine.progressText)").font(.caption).lineLimit(2)
-                }
-            }
+            // The running pair is already detailed in the banner above; only queued pairs are listed here.
             let queued = engine.queue.compactMap { job in engine.pairs.first(where: { $0.id == job.pairID }) }
             if engine.busy || !queued.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -441,20 +436,21 @@ struct SyncSectionView: View {
             .help(syncText("previewOnlyNote"))
     }
 
-    /// Live execution inside the card: phase, real bar, counters, stop.
+    /// Live execution inside the card: one phase line + thin bar. Full numbers live in the top banner.
     private func runningBlock(_ pair: SyncPair) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let progress = engine.runProgress
+        let fraction: Double? = progress.flatMap { $0.bytesTotal > 0 ? min(1, max(0, Double($0.bytesDone) / Double($0.bytesTotal))) : nil }
+        return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label(engine.progressText.isEmpty ? syncText(engine.isDryRun ? "simulating" : "running") : engine.progressText,
                       systemImage: engine.isDryRun ? "eye" : "arrow.triangle.2.circlepath")
-                    .font(.callout.weight(.medium)).lineLimit(2)
+                    .font(.callout.weight(.medium)).lineLimit(1).truncationMode(.tail)
                 Spacer()
+                if let fraction { Text("\(Int(fraction * 100)) %").font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
                 Button(syncText("stop")) { engine.stopRunning() }.controlSize(.small)
             }
-            if let progress = engine.runProgress, progress.bytesTotal > 0 {
-                ProgressView(value: min(1, max(0, Double(progress.bytesDone) / Double(progress.bytesTotal))))
-                Text("\(String(format: syncText("filesProgress"), "\(progress.transfersDone)", "\(progress.transfersTotal)")) · \(SyncEngine.byteText(progress.bytesDone)) / \(SyncEngine.byteText(progress.bytesTotal))\(progress.eta.map { " · \(syncText("remaining")) ~\(Self.durationText($0))" } ?? "")")
-                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            if let fraction {
+                ProgressView(value: fraction).controlSize(.small)
             } else {
                 ProgressView().controlSize(.small)
             }

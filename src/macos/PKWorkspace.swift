@@ -338,14 +338,19 @@ struct WorkspacePopoverView: View {
                     Text(workspaceText("addPairs")).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }.frame(maxWidth: .infinity).padding(.vertical, 14)
             } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(engine.pairs) { pair in
-                            pairRow(pair)
-                            if pair.id != engine.pairs.last?.id { Divider() }
+                // The running pair already lives in the block above: listing it again
+                // showed the same pair twice ("Analyse…" / "Transfert en cours").
+                let visiblePairs = engine.pairs.filter { $0.id != engine.runningPairID }
+                if !visiblePairs.isEmpty {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(Array(visiblePairs.enumerated()), id: \.element.id) { index, pair in
+                                pairRow(pair)
+                                if index < visiblePairs.count - 1 { Divider() }
+                            }
                         }
-                    }
-                }.frame(height: min(CGFloat(engine.pairs.count) * 78 + CGFloat(expandedPairs.count) * 160, engine.busy ? 220 : 300))
+                    }.frame(height: min(CGFloat(visiblePairs.count) * 78 + CGFloat(expandedPairs.count) * 160, engine.busy ? 220 : 300))
+                }
             }
             HStack {
                 Button { engine.pairs.isEmpty ? open(.sync, false) : engine.syncAll() } label: {
