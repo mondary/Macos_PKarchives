@@ -32,7 +32,7 @@ struct SettingsSectionHeader: View {
 @main struct SyncUISnapshot {
     static func main() throws {
         let args = CommandLine.arguments
-        guard args.count >= 3 else { fatalError("sync-snapshot TEST_ROOT OUTPUT.png [sync|status|history|quota|menu|menuArchive|form]") }
+        guard args.count >= 3 else { fatalError("sync-snapshot TEST_ROOT OUTPUT.png [sync|history|quota|menu|menuArchive|form]") }
         let root = URL(fileURLWithPath: args[1])
         let kind = args.count > 3 ? args[3] : "sync"
         let fixture = kind == "quota" ? "past-quota" : "push"
@@ -83,7 +83,7 @@ struct SettingsSectionHeader: View {
         } else {
             content = AnyView(VStack(spacing: 0) {
                 WorkspaceHeaderView(navigation: navigation, select: { navigation.mode = $0 }, settings: { navigation.showingSettings = true })
-                SyncSectionView(engine: engine, initialTab: ["history", "quota"].contains(kind) ? "history" : kind == "status" ? "status" : "folders")
+                SyncSectionView(engine: engine, initialTab: ["history", "quota"].contains(kind) ? "history" : "pairs")
             })
             bounds = NSRect(x: 0, y: 0, width: 1240, height: 820)
         }

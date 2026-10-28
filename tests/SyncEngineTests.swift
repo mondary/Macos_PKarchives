@@ -211,6 +211,11 @@ struct TestFailure: Error { let message: String }
         try expect(engine.runs[0].outcome == "preview", "Push preview failed: \(engine.runs[0].message)")
         try expect(engine.pairs[0] == before, "Preview changed pair status")
         try expect(!fm.fileExists(atPath: dest.path), "Preview wrote destination")
+        if let plan = engine.runs[0].plan {
+            try expect(plan.pushNew.count == 2 && plan.pullNew.isEmpty, "Preview plan wrong: \(plan.pushNew) / \(plan.pullNew)")
+        } else {
+            throw TestFailure(message: "Preview produced no comparison plan")
+        }
         try expect(read(engine.disk.journal).contains("Skipped"), "Readable preview contains no planned operation")
         engine.syncPair(pair.id)
         try wait(engine)
@@ -239,6 +244,49 @@ struct TestFailure: Error { let message: String }
         SyncEngine.apply(stats: ["eta": NSNull()], to: &progress)
         try expect(progress.eta == nil, "Null ETA not cleared")
         try expect(SyncEngine.durationText(75) == "1 min 15 s" && SyncEngine.durationText(3700) == "1 h 1 min", "Duration formatting wrong")
+
+        // Preview comparison: per-file plan parsed from bisync, conflicts collapsed, totals coherent.
+        var plan = PreviewPlan()
+        var planDirection: String?
+        func planLine(_ message: String, _ object: String = "") {
+            SyncEngine.applyPlan(message: message, object: object, to: &plan, resyncDirection: &planDirection, oneWay: nil)
+        }
+        planLine("- Path1    File is new               - a.txt")
+        planLine("- Path2    File is new               - distant.txt")
+        planLine("- \u{1B}[36mPath1\u{1B}[0m File changed: size (larger) - b.txt")
+        planLine("- Path1    File changed: time (newer) - both.txt")
+        planLine("- Path2    File changed: time (newer) - both.txt")
+        planLine("- Path2    File was deleted            - old.txt")
+        planLine("- Path1    File was deleted            - gone.txt")
+        try expect(plan.pushNew == ["a.txt"] && plan.pullNew == ["distant.txt"], "New files not split by side")
+        try expect(plan.pushModified == ["b.txt", "both.txt"] && plan.pullModified == ["both.txt"], "Modified files not split by side")
+        try expect(plan.deleteRemote == ["gone.txt"] && plan.deleteLocal == ["old.txt"], "Deletions attributed to the wrong side")
+        plan.localFiles = 10
+        plan = SyncEngine.finalizePlan(plan)
+        try expect(plan.conflicts == ["both.txt"] && plan.pushModified == ["b.txt"] && plan.pullModified.isEmpty, "Both-side modification not treated as one conflict")
+        try expect(plan.totalOps == 6, "Plan total double-counts a conflict: \(plan.totalOps)")
+        try expect(plan.unchanged == 6, "Unchanged count wrong: \(String(describing: plan.unchanged))")
+        try expect(SyncEngine.comparisonText(plan).contains("Identiques (non touchés) : 6"), "Report comparison missing unchanged count")
+
+        // First merge (resync) lists copies under direction headers, path in the object field.
+        var resyncDir: String?
+        var resyncPlan = PreviewPlan()
+        SyncEngine.applyPlan(message: "- Path2    Resync is copying files to - Path1", object: "", to: &resyncPlan, resyncDirection: &resyncDir, oneWay: nil)
+        SyncEngine.applyPlan(message: "Skipped copy as --dry-run is set (size 29)", object: "distant.txt", to: &resyncPlan, resyncDirection: &resyncDir, oneWay: nil)
+        SyncEngine.applyPlan(message: "Copying Path2 files to Path1", object: "", to: &resyncPlan, resyncDirection: &resyncDir, oneWay: nil)
+        SyncEngine.applyPlan(message: "Skipped copy as --dry-run is set (size 22)", object: "note-distant.txt", to: &resyncPlan, resyncDirection: &resyncDir, oneWay: nil)
+        SyncEngine.applyPlan(message: "- Path1    Resync is copying files to - Path2", object: "", to: &resyncPlan, resyncDirection: &resyncDir, oneWay: nil)
+        SyncEngine.applyPlan(message: "Skipped copy as --dry-run is set (size 18)", object: "a.txt", to: &resyncPlan, resyncDirection: &resyncDir, oneWay: nil)
+        SyncEngine.applyPlan(message: "Skipped set directory modification time as --dry-run is set", object: "sous-dossier", to: &resyncPlan, resyncDirection: &resyncDir, oneWay: nil)
+        try expect(resyncPlan.pullNew == ["distant.txt", "note-distant.txt"], "Resync pull copies missing: \(resyncPlan.pullNew)")
+        try expect(resyncPlan.pushNew == ["a.txt"], "Resync push copies wrong: \(resyncPlan.pushNew)")
+
+        // One-way copies log "Skipped copy" without direction headers.
+        var oneWayDir: String?
+        var oneWayPlan = PreviewPlan()
+        SyncEngine.applyPlan(message: "Skipped copy as --dry-run is set (size 1)", object: "same.txt", to: &oneWayPlan, resyncDirection: &oneWayDir, oneWay: true)
+        SyncEngine.applyPlan(message: "Skipped set directory modification time as --dry-run is set", object: "sous dossier", to: &oneWayPlan, resyncDirection: &oneWayDir, oneWay: true)
+        try expect(oneWayPlan.pushNew == ["same.txt"], "One-way push plan missing copies")
 
         // Inventory: real per-side counts with the pair's exclusions, gap and durable storage.
         try expect(SyncEngine.parseSize(#"{"count":3,"bytes":123}"#)?.bytes == 123, "size JSON not parsed")

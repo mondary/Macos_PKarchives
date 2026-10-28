@@ -57,6 +57,7 @@ décommissionner la v1 avant validation de la v2.
 - [x] Journal lisible, rapports durables et historique relançable.
 - [x] Activité avec causes lisibles, détails techniques repliés et quota API distinct d’un besoin de reconstruction bisync ; attente de 15 min par connexion.
 - [x] Section Synchronisation dans les Réglages (pause globale, mode par défaut des nouvelles paires, réglages par paire) et segment Statut dédié par paire dans l’onglet Synchronisation.
+- [x] Vue Paires unifiée (état, inventaire, comparaison, actions) et comparaison Mac ↔ Drive issue de la simulation avec verdict explicite.
 - [x] Suivi live par exécution : phase, fichiers et volume, vitesse, temps restant, push/pull/suppressions prévus et réalisés.
 - [x] Inventaire par paire dans Statut : comptages locaux/distants (rclone size, mêmes exclusions), écart mis en évidence, estimation de durée annoncée comme approximation, file d’attente visible.
 - [x] Reprises temporisées, queue séquentielle, annulation et garde-fous de persistance/interruption.

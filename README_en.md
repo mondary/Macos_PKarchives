@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Project version: 2026.10.47** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.10.48** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -65,19 +65,19 @@ To build it yourself: `./scripts/build.sh`.
 
 The new mode is available in the sources and Dev build, **not yet in the Stable downloads below**. Desktop archiving remains a separate mode; the CLI/TUI does not offer folder sync yet.
 
-1. The app starts on **Archives**, the first tab (**⌘1**), for monthly Desktop cleanup. **Archives / Synchronization / Settings** are grouped on the right, separate from the PKarchives title, with matching styling for all three buttons. Choose **Synchronization**, marked “In the background” (**⌘2**), then **Add folder**. Sync jobs continue independently of the displayed tab. The tab offers three segments: **Folders** (configuration and runs), **Status** (dedicated per-pair state) and **Activity** (reports).
-2. The **Status** segment continuously shows the **queue** (current run with progress, waiting pairs in order) then, for each pair: current state, mode, last run, last verified check, next attempt, and an **inventory** — **local and remote** file counts and sizes from `rclone size` with the same exclusions. The **gap** (files and size) is highlighted: “Aligned” or an orange delta with a **duration estimate** at a 4 MB/s reference, explicitly an approximation that does not replace a preview. Counting respects the Google quota cooldown (remote deferred 15 min after a refusal) and never starts a second rclone during a transfer; counts persist across restarts.
+1. The app starts on **Archives**, the first tab (**⌘1**), for monthly Desktop cleanup. **Archives / Synchronization / Settings** are grouped on the right, separate from the PKarchives title, with matching styling for all three buttons. Choose **Synchronization**, marked “In the background” (**⌘2**), then **Add folder**. Sync jobs continue independently of the displayed tab. The tab offers two views: **Pairs** (each pair with state, inventory, comparison and actions) and **Activity** (reports).
+2. The **Pairs** view shows the **queue** while a run is active, then for each pair (current run with progress, waiting pairs in order) then, for each pair: current state, mode, last run, last verified check, next attempt, and an **inventory**. A preview produces a **Mac ↔ Drive comparison**: identical untouched files, to send, to bring back, deletions on each side and conflicts, with an explicit verdict and per-file details. The inventory **gap** is highlighted: “Aligned” or an orange delta with a **duration estimate** at a 4 MB/s reference, explicitly an approximation that does not replace a preview. Counting respects the Google quota cooldown (remote deferred 15 min after a refusal) and never starts a second rclone during a transfer; counts persist across restarts.
 2. Choose a dedicated Mac folder. Under **Google Drive destination**, keep the usual rclone connection (`gdrive`), click **Open Google Drive**, open the destination folder, copy its **full address from the browser bar**, and paste it into **Folder link**. Example: `https://drive.google.com/drive/folders/FOLDER_IDENTIFIER`. The app extracts the ID: do not paste the folder name, `gdrive:gdrive` or a file link. The browser must use the same Google account as the rclone connection; pasting a link does not grant additional access.
    **rclone path (advanced)** still accepts a relative path such as `Sync/Documents`, without the `gdrive:` prefix. It starts at the remote root, **not** the `PKARCHIVES_DRIVE_FOLDER_ID` archive folder. Selecting a folder link does not change rclone configuration.
 3. Choose **two-way**, **Mac to Drive** or **Drive to Mac**, exclusions and a conflict policy.
 4. **Preview only** is enabled by default for every new pair: automatic and global runs remain previews. **Preview · dry run** and **Preview all** are also available at any time. Neither side’s files nor the live bisync listings are changed. Only local reports and isolated preview listings are written. A preview never declares a backup verified or enables real transfers.
 5. Inspect **Activity → View report**, then confirm a real run for this pair (or disable “Preview only” in its settings). The first two-way merge always requires explicit confirmation.
 
-![Main Synchronization and Archiving tabs in the Dev build, with temporary test folders](store/media/04-sync-dev.png)
+![Pairs view and Activity tab in the Dev build, with temporary test folders](store/media/04-sync-dev.png)
 
 ![Drive folder selection by pasting its full link, with instructions and an Open Drive button](store/media/05-drive-folder-dev.png)
 
-![Status segment: dedicated state panel for each synced pair](store/media/07-sync-status-dev.png)
+![Pairs view: Mac ↔ Drive comparison inside the pair card](store/media/07-sync-comparison-dev.png)
 
 **Run feedback**: during a sync, a banner shows the current direction, files done / planned, volume and percentage, speed, elapsed time and rclone’s estimated remaining time, plus planned and completed operations per direction (↑ push, ↓ pull, deletions). During a preview nothing is transferred, but the comparison and its volumes stay visible.
 

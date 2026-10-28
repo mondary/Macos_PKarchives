@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version du projet : 2026.10.47** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
+**Version du projet : 2026.10.48** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
@@ -65,19 +65,19 @@ des menus. Pour compiler soi-même : `./scripts/build.sh`.
 
 Le nouveau mode est disponible dans les sources et la build Dev, **pas encore dans les téléchargements Stable ci-dessous**. L’archivage du Bureau reste un mode séparé ; la CLI/TUI ne propose pas encore la synchronisation.
 
-1. L’app démarre sur **Archives**, premier onglet (**⌘1**), pour le nettoyage mensuel du Bureau. La navigation **Archives / Synchronisation / Réglages** est regroupée à droite, séparée du titre PKarchives, avec le même format pour les trois boutons. Choisir **Synchronisation**, identifié « En arrière-plan » (**⌘2**), puis **Ajouter un dossier**. Les tâches de synchro continuent indépendamment de l’onglet affiché. L’onglet propose trois segments : **Dossiers** (configuration et lancements), **Statut** (état dédié de chaque paire) et **Activité** (rapports).
-2. Le segment **Statut** montre en continu la **file d’attente** (exécution en cours avec progression, paires en attente dans l’ordre) puis, pour chaque paire : état actuel, mode, dernière exécution, dernier contrôle vérifié, prochaine tentative, et un **inventaire** — nombre de fichiers et taille **locaux et distants** comptés par `rclone size` avec les mêmes exclusions. L’**écart** (fichiers et taille) est mis en évidence : « Alignés » ou delta orange avec une **estimation de durée** à 4 Mo/s de référence, explicitement présentée comme une approximation ne remplaçant pas la simulation. Le comptage respecte l’attente quota Google (distant différé 15 min après un refus) et ne lance jamais un second rclone pendant un transfert ; les comptages persistent entre redémarrages.
+1. L’app démarre sur **Archives**, premier onglet (**⌘1**), pour le nettoyage mensuel du Bureau. La navigation **Archives / Synchronisation / Réglages** est regroupée à droite, séparée du titre PKarchives, avec le même format pour les trois boutons. Choisir **Synchronisation**, identifié « En arrière-plan » (**⌘2**), puis **Ajouter un dossier**. Les tâches de synchro continuent indépendamment de l’onglet affiché. L’onglet propose deux vues : **Paires** (chaque paire avec son état, son inventaire, sa comparaison et ses actions) et **Activité** (rapports).
+2. L’onglet **Paires** montre la **file d’attente** quand une exécution tourne, puis pour chaque paire (exécution en cours avec progression, paires en attente dans l’ordre) puis, pour chaque paire : état actuel, mode, dernière exécution, dernier contrôle vérifié, prochaine tentative, et un **inventaire**. Une simulation produit une **comparaison Mac ↔ Drive** : fichiers identiques non touchés, à envoyer, à rapatrier, suppressions de chaque côté et conflits, avec un verdict explicite et le détail fichier par fichier. L’**écart** d’inventaire est mis en évidence : « Alignés » ou delta orange avec une **estimation de durée** à 4 Mo/s de référence, explicitement présentée comme une approximation ne remplaçant pas la simulation. Le comptage respecte l’attente quota Google (distant différé 15 min après un refus) et ne lance jamais un second rclone pendant un transfert ; les comptages persistent entre redémarrages.
 2. Choisir un dossier Mac dédié. Dans **Destination sur Google Drive**, laisser la connexion rclone habituelle (`gdrive`), cliquer **Ouvrir Google Drive**, ouvrir le dossier de destination, puis copier son **adresse complète depuis la barre du navigateur** et la coller dans **Lien du dossier**. Exemple : `https://drive.google.com/drive/folders/IDENTIFIANT_DU_DOSSIER`. L’app extrait l’identifiant : ne pas coller le nom du dossier, `gdrive:gdrive` ou le lien d’un fichier. Le navigateur doit être connecté au même compte Google que la connexion rclone ; coller un lien ne donne pas de droits supplémentaires.
    La méthode **Chemin rclone (avancé)** accepte encore un chemin relatif comme `Sync/Documents`, sans préfixe `gdrive:`. Ce chemin part de la racine du remote, **pas** du dossier d’archivage `PKARCHIVES_DRIVE_FOLDER_ID`. La configuration rclone n’est pas modifiée par la sélection d’un lien.
 3. Choisir **deux sens**, **Mac vers Drive** ou **Drive vers Mac**, les exclusions et la règle de conflit.
 4. **Simulation uniquement** est activé par défaut pour chaque nouvelle paire : les déclenchements automatiques et globaux restent simulés. **Simuler · dry run** et **Tout simuler** sont aussi disponibles à tout moment. Les fichiers des deux côtés et les listings bisync actifs ne sont pas modifiés. Seuls des rapports et des listings de simulation isolés sont écrits localement. La simulation ne déclare jamais une sauvegarde vérifiée et n’active pas les transferts réels.
 5. Examiner **Activité → Voir le rapport**, puis confirmer un lancement réel pour cette paire (ou désactiver « Simulation uniquement » dans ses réglages). La première fusion bidirectionnelle demande toujours une confirmation explicite.
 
-![Deux onglets principaux Synchronisation et Archivage dans la build Dev, avec dossiers temporaires de test](store/media/04-sync-dev.png)
+![Vue Paires et onglet Activité dans la build Dev, avec dossiers temporaires de test](store/media/04-sync-dev.png)
 
 ![Choix du dossier Drive par collage de son lien complet, avec instructions et ouverture de Drive](store/media/05-drive-folder-dev.png)
 
-![Segment Statut : état dédié de chaque paire synchronisée](store/media/07-sync-status-dev.png)
+![Vue Paires : comparaison Mac ↔ Drive dans la carte de la paire](store/media/07-sync-comparison-dev.png)
 
 **Suivi d’exécution** : pendant une synchronisation, un bandeau affiche le sens en cours, les fichiers faits / prévus, le volume et le pourcentage, la vitesse, le temps écoulé et le temps restant estimé par rclone, ainsi que les opérations prévues et réalisées par sens (↑ push, ↓ pull, suppressions). Pendant une simulation, aucun transfert n’est effectué mais la comparaison et ses volumes restent visibles.
 

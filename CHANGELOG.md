@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.47` (version publique corrigée dans les README)
+Statut : `2026.10.48` (vue Paires unifiée avec comparaison avant synchronisation)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,14 @@ Statut : `2026.10.47` (version publique corrigée dans les README)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.48] - 2026-10-28
+#### Changed
+- Les trois segments Dossiers / Statut / Activité fusionnent en deux onglets : **Paires** (statut, inventaire, comparaison et actions au même endroit) et **Activité** (rapports).
+- « Simuler · dry run » ne bascule plus vers l’historique : la comparaison s’affiche dans la carte de la paire.
+#### Added
+- Comparaison Mac ↔ Drive issue de la simulation : identiques non touchés, à envoyer, à rapatrier, suppressions de chaque côté, conflits arbitrés, avec verdict explicite (« Aligné — rien à faire », « X suppressions seront propagées », « X opérations — rien ne bouge avant confirmation »), détail fichier par fichier replié et bouton « Lancer pour de vrai… ».
+- La comparaison est aussi écrite dans le rapport Markdown de chaque simulation.
 
 ### [2026.10.47] - 2026-10-28
 #### Fixed

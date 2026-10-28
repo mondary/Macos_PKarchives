@@ -165,6 +165,8 @@ struct SyncRun: Codable, Identifiable {
     var directory: String
     var processID: Int32?
     var diagnostic: SyncDiagnostic?
+    /// Present for previews: exact per-file comparison used by the UI and the report.
+    var plan: PreviewPlan?
 }
 
 enum SyncFailure: LocalizedError {
@@ -254,6 +256,29 @@ struct RunProgress: Equatable {
     var plannedPulls: Int { pullPlanned }
 }
 
+/// Exact comparison produced by a bisync pass: what each side would gain, update, lose
+/// or keep untouched. Built from rclone's own per-file log lines, never estimated.
+struct PreviewPlan: Codable, Equatable {
+    var pushNew: [String] = []
+    var pushModified: [String] = []
+    var pullNew: [String] = []
+    var pullModified: [String] = []
+    var deleteRemote: [String] = []   // local deletions that would be propagated to Drive
+    var deleteLocal: [String] = []    // Drive deletions that would be propagated locally
+    var conflicts: [String] = []
+    var truncated = false
+    var localFiles: Int?
+    var remoteFiles: Int?
+    var countedAt: Date?
+    var totalOps: Int { pushNew.count + pushModified.count + pullNew.count + pullModified.count + deleteRemote.count + deleteLocal.count + conflicts.count }
+    /// Files present and identical on both sides, from the inventory minus every planned change.
+    var unchanged: Int? {
+        guard let l = localFiles else { return nil }
+        let touchedLocally = pushNew.count + pushModified.count + pullModified.count + deleteLocal.count + conflicts.count
+        return max(0, l - touchedLocally)
+    }
+}
+
 /// All methods and observable mutations are main-queue confined. Disk-heavy work and pipe draining
 /// run on a worker. No polling of the filesystem or permanent rclone/RC/FUSE process.
 final class SyncEngine: ObservableObject {
@@ -279,6 +304,8 @@ final class SyncEngine: ObservableObject {
     @Published private(set) var inventories: [UUID: PairInventory] = [:]
     @Published private(set) var inventoryBusy = false
     @Published private(set) var runProgress: RunProgress?
+    private var activePlan: PreviewPlan?
+    private var planResyncDirection: String?
     let disk: SyncDisk
     private let binary: String
     private let automatic: Bool
@@ -621,6 +648,8 @@ final class SyncEngine: ObservableObject {
         run.id = id
         active = run; runningPairID = pair.id; cancelled = false; verifying = false; skippedUnsupportedObject = false
         runProgress = RunProgress()
+        activePlan = job.dryRun ? PreviewPlan() : nil
+        planResyncDirection = nil
         runRevision = revisions[pair.id, default: 0]
         progressText = job.dryRun ? syncText("simulating") : syncText("running")
         if !job.dryRun, let i = pairs.firstIndex(where: { $0.id == pair.id }) {
@@ -813,6 +842,10 @@ final class SyncEngine: ObservableObject {
             if verifying { progress.phase = .verifying }
             runProgress = progress
         }
+        if activePlan != nil {
+            let oneWay: Bool? = active.map { $0.pair.direction == .bidirectional ? nil : $0.pair.direction == .push } ?? nil
+            Self.applyPlan(message: message, object: object, to: &activePlan!, resyncDirection: &planResyncDirection, oneWay: oneWay)
+        }
         if json["level"] as? String == "error", processErrors.count < 64 { processErrors.append(String(message.prefix(8192))) }
         if message.lowercased().contains("hashes could not be checked") || message.lowercased().contains("no hashes in common") { hasUncheckedHashes = true }
         if message.lowercased().contains("can't follow symlink") || message.lowercased().contains("can't transfer non file/directory") { skippedUnsupportedObject = true }
@@ -868,6 +901,69 @@ final class SyncEngine: ObservableObject {
         if let value = (stats["elapsedTime"] as? NSNumber)?.doubleValue { progress.elapsed = value }
         if let value = stats["eta"] as? NSNumber { progress.eta = value.doubleValue } else if stats["eta"] is NSNull { progress.eta = nil }
     }
+    /// Reads bisync's per-file lines. Path1 = local folder, Path2 = Drive destination.
+    /// A deleted file on Path1 becomes a Drive deletion, and the reverse.
+    /// On a first merge (resync) rclone lists copies under "copying files to Path1/Path2"
+    /// headers, with the path in the `object` field instead of the message.
+    static func applyPlan(message rawMessage: String, object: String, to plan: inout PreviewPlan, resyncDirection: inout String?, oneWay: Bool? = nil) {
+        let text = SyncDiagnostic.clean(rawMessage)
+        let lower = text.lowercased()
+        if let oneWay {
+            if lower.contains("skipped copy") || text.hasPrefix("Copied (") {
+                guard !object.isEmpty else { return }
+                add(object, to: oneWay ? \.pushNew : \.pullNew, plan: &plan, limit: 5000)
+                return
+            }
+        }
+        let isCopyHeader = lower.contains("files to path1") || lower.contains("files to path2") || lower.contains("copying files to")
+        if isCopyHeader {
+            let lastPath1 = lower.range(of: "path1", options: .backwards)?.lowerBound
+            let lastPath2 = lower.range(of: "path2", options: .backwards)?.lowerBound
+            if let lastPath1, let lastPath2 { resyncDirection = lastPath1 > lastPath2 ? "pull" : "push" }
+            else if lastPath1 != nil { resyncDirection = "pull" }
+            else if lastPath2 != nil { resyncDirection = "push" }
+            return
+        }
+        if let direction = resyncDirection, lower.contains("skipped copy") || text.hasPrefix("Copied (") {
+            guard !object.isEmpty else { return }
+            add(object, to: direction == "push" ? \.pushNew : \.pullNew, plan: &plan, limit: 5000)
+            return
+        }
+        guard text.hasPrefix("- Path1") || text.hasPrefix("- Path2") else { return }
+        let isLocalSide = text.hasPrefix("- Path1")
+        guard let separator = text.range(of: " - ", options: .backwards) else { return }
+        let path = String(text[separator.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty, !path.contains("\n") else { return }
+        let limit = 5000
+        if lower.contains("file is new") || lower.contains("directory is new") {
+            add(path, to: isLocalSide ? \.pushNew : \.pullNew, plan: &plan, limit: limit)
+        } else if lower.contains("file changed") || lower.contains("directory changed") {
+            add(path, to: isLocalSide ? \.pushModified : \.pullModified, plan: &plan, limit: limit)
+        } else if lower.contains("was deleted") {
+            add(path, to: isLocalSide ? \.deleteRemote : \.deleteLocal, plan: &plan, limit: limit)
+        }
+    }
+    private static func add(_ path: String, to keyPath: WritableKeyPath<PreviewPlan, [String]>, plan: inout PreviewPlan, limit: Int) {
+        guard !plan[keyPath: keyPath].contains(path) else { return }
+        if plan[keyPath: keyPath].count >= limit { plan.truncated = true; return }
+        plan[keyPath: keyPath].append(path)
+    }
+    /// A file modified on both sides is a conflict, resolved by the pair's conflict policy.
+    /// Counted once, outside the push/pull lists, so totals are not doubled.
+    static func finalizePlan(_ plan: PreviewPlan) -> PreviewPlan {
+        var result = plan
+        let shared = Set(plan.pushModified).intersection(Set(plan.pullModified))
+        if !shared.isEmpty {
+            result.pushModified = plan.pushModified.filter { !shared.contains($0) }
+            result.pullModified = plan.pullModified.filter { !shared.contains($0) }
+            let conflicts = shared.sorted()
+            result.conflicts = Array(conflicts.prefix(5000))
+            if conflicts.count > 5000 { result.truncated = true }
+        }
+        result.pushNew.sort(); result.pushModified.sort(); result.pullNew.sort(); result.pullModified.sort()
+        result.deleteRemote.sort(); result.deleteLocal.sort()
+        return result
+    }
     private func failedProcess(_ exit: Int32, at logURL: URL) {
         let lines = processErrors + Self.errorMessages(in: Self.tail(logURL, bytes: 32 * 1024))
         let diagnostic = SyncDiagnostic.classify(lines.isEmpty ? ["rclone a quitté avec le code \(exit)"] : lines)
@@ -896,6 +992,15 @@ final class SyncEngine: ObservableObject {
     private func complete(_ outcome: String, message: String) {
         guard var run = active else { return }
         run.outcome = outcome; run.message = message; run.finished = Date()
+        if run.dryRun, outcome == "preview", var plan = activePlan {
+            let inventory = inventories[run.pair.id]
+            plan.localFiles = inventory?.localFiles
+            plan.remoteFiles = inventory?.remoteFiles
+            plan.countedAt = inventory?.remoteAt ?? inventory?.localAt
+            run.plan = Self.finalizePlan(plan)
+        }
+        activePlan = nil
+        planResyncDirection = nil
         if run.diagnostic?.kind == .quota { cooldowns[run.pair.remote] = Date().addingTimeInterval(900) }
         if let r = runs.firstIndex(where: { $0.id == run.id }) { runs[r] = run }
         if !run.dryRun, let i = pairs.firstIndex(where: { $0.id == run.pair.id }) {
@@ -932,6 +1037,10 @@ final class SyncEngine: ObservableObject {
         try disk.save(run, to: dir.appendingPathComponent("run.json"))
         try reportText(run).write(to: dir.appendingPathComponent("rapport.md"), atomically: true, encoding: .utf8)
     }
+    /// Latest preview that carries a per-file comparison, for the pair's card.
+    func previewRun(for pairID: UUID) -> SyncRun? {
+        runs.first { $0.pair.id == pairID && $0.plan != nil }
+    }
     func readableReportURL(for run: SyncRun) -> URL? {
         // Leave historical raw reports intact. Generate a separate, decoded reading copy.
         let url = URL(fileURLWithPath: run.directory).appendingPathComponent("rapport-lecture.md")
@@ -961,17 +1070,49 @@ final class SyncEngine: ObservableObject {
         - Exclusions (non sauvegardées) : \(run.pair.ignores.joined(separator: ", "))
 
         ## Détails et relance
+
+        \(Self.comparisonText(run.plan))
+
         [Opérations prévues/effectuées et erreurs, en texte lisible](operations.log)
 
         `rclone.jsonl` contient les opérations et erreurs détaillées.
         `verification.txt` : « = » identique, « + » manquant à destination, « * » différent, « ! » erreur.
-        Relancer depuis **PKarchives → Synchronisation → Activité → Réessayer la simulation / Relancer la paire**.
+        Relancer depuis **PKarchives → Synchronisation → Paires → Simuler** puis vérifier la comparaison.
         La relance réconcilie la configuration actuelle, elle ne rejoue pas aveuglément une commande.
         Une simulation ne vaut jamais sauvegarde. Une synchronisation n’est pas une sauvegarde immuable.
         Les versions remplacées/supprimées sont conservées sous `.PKarchives-recovery/` sur le remote
         (à l’intérieur du dossier sélectionné par lien, toujours exclu des transferts et contrôles)
         et sous `Application Support/PKarchives/recovery/` côté Mac (aucune purge automatique).
         """
+    }
+    /// Human-readable comparison section for preview reports.
+    static func comparisonText(_ plan: PreviewPlan?) -> String {
+        guard let plan else { return "" }
+        let unchanged = plan.unchanged.map(String.init) ?? "non calculé (inventaire absent)"
+        var lines = [
+            "## Comparaison Mac ↔ Drive",
+            "",
+            "- Identiques (non touchés) : \(unchanged)",
+            "- À envoyer vers Drive : \(plan.pushNew.count) nouveaux, \(plan.pushModified.count) modifiés",
+            "- À rapatrier vers le Mac : \(plan.pullNew.count) nouveaux, \(plan.pullModified.count) modifiés",
+            "- À supprimer sur Drive (suppressions locales) : \(plan.deleteRemote.count)",
+            "- À supprimer sur le Mac (suppressions Drive) : \(plan.deleteLocal.count)",
+            "- Conflits arbitrés par la règle de la paire : \(plan.conflicts.count)",
+        ]
+        if plan.truncated { lines.append("- Liste tronquée à 5 000 entrées par catégorie.") }
+        func section(_ title: String, _ items: [String]) {
+            guard !items.isEmpty else { return }
+            lines += ["", "### \(title)", ""] + items.prefix(50).map { "- `\($0)`" }
+            if items.count > 50 { lines.append("- … et \(items.count - 50) autres (voir operations.log).") }
+        }
+        section("Nouveaux fichiers vers Drive", plan.pushNew)
+        section("Fichiers modifiés vers Drive", plan.pushModified)
+        section("Nouveaux fichiers vers le Mac", plan.pullNew)
+        section("Fichiers modifiés vers le Mac", plan.pullModified)
+        section("Suppressions sur Drive", plan.deleteRemote)
+        section("Suppressions sur le Mac", plan.deleteLocal)
+        section("Conflits", plan.conflicts)
+        return lines.joined(separator: "\n")
     }
     private func saveState() throws {
         try disk.save(pairs, to: disk.config); try disk.save(runs, to: disk.history)
