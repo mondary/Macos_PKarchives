@@ -1456,15 +1456,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         guard let button = statusItem?.button, !statusPopover.isShown, NSApp.modalWindow == nil else { return }
         panelPinned = pinned
         let panel = WorkspacePopoverView(engine: .shared, navigation: workspaceNavigation,
-            open: { [weak self] mode, history in self?.presentWorkspace(mode, history: history) },
-            settings: { [weak self] in self?.openPreferences() },
-            support: { [weak self] in self?.closeStatusPanel(); self?.openKofi() },
-            updates: { [weak self] in self?.closeStatusPanel(); self?.checkForUpdates() },
-            about: { [weak self] in self?.closeStatusPanel(); self?.openAbout() },
-            quit: { [weak self] in self?.quitApp() },
+            open: { [weak self] mode, history in Task { @MainActor in self?.presentWorkspace(mode, history: history) } },
+            settings: { [weak self] in Task { @MainActor in self?.openPreferences() } },
+            support: { [weak self] in Task { @MainActor in self?.closeStatusPanel(); self?.openKofi() } },
+            updates: { [weak self] in Task { @MainActor in self?.closeStatusPanel(); self?.checkForUpdates() } },
+            about: { [weak self] in Task { @MainActor in self?.closeStatusPanel(); self?.openAbout() } },
+            quit: { [weak self] in Task { @MainActor in self?.quitApp() } },
             hoverChanged: { [weak self] inside in
-                self?.overStatusPanel = inside
-                if inside { self?.hideTimer?.invalidate() } else { self?.schedulePanelHide() }
+                Task { @MainActor in
+                    self?.overStatusPanel = inside
+                    if inside { self?.hideTimer?.invalidate() } else { self?.schedulePanelHide() }
+                }
             })
         let controller = NSHostingController(rootView: panel)
         controller.sizingOptions = [.preferredContentSize]

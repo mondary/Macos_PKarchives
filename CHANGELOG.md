@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.50` (workflow Dev réparé)
+Statut : `2026.10.51` (compilation CI Swift 6)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,10 @@ Statut : `2026.10.50` (workflow Dev réparé)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.51] - 2026-10-28
+#### Fixed
+- Les actions du panneau de barre des menus sont explicitement exécutées sur le main actor, pour compiler sous Swift 6 strict (GitHub Actions), sans changer le comportement.
 
 ### [2026.10.50] - 2026-10-28
 #### Fixed
