@@ -39,9 +39,13 @@ private let syncStrings: [String: [String]] = [
     "fromSide": ["Depuis", "From", "Desde", "Von"],
     "toSide": ["Vers", "To", "Hacia", "Nach"],
     "driveTitle": ["Google Drive", "Google Drive", "Google Drive", "Google Drive"],
-    "flowBoth": ["Deux sens", "Two-way", "Dos sentidos", "Beidseitig"],
+    "flowBoth": ["Synchroniser", "Sync", "Sincronizar", "Synchronisieren"],
     "flowToDrive": ["Vers Drive", "To Drive", "A Drive", "Zu Drive"],
     "flowToMac": ["Vers le Mac", "To Mac", "Al Mac", "Zum Mac"],
+    "openFinderCard": ["Ouvrir dans Finder", "Open in Finder", "Abrir en Finder", "Im Finder öffnen"],
+    "openDriveCard": ["Ouvrir Drive", "Open Drive", "Abrir Drive", "Drive öffnen"],
+    "mountDriveCard": ["Monter le Drive", "Mount Drive", "Montar Drive", "Drive mounten"],
+    "previewShort": ["à simuler", "preview needed", "por simular", "Vorschau nötig"],
     "sendShort": ["à envoyer", "to send", "por enviar", "zu senden"],
     "downloadShort": ["à rapatrier", "to bring back", "por descargar", "herunterzuladen"],
     "deleteShort": ["à supprimer", "to delete", "por eliminar", "zu löschen"],
@@ -196,42 +200,43 @@ func syncFileCount(_ count: Int) -> String { "\(count) \(syncText(count == 1 ? "
 struct SyncPairLocations: View {
     let pair: SyncPair
     var plan: PreviewPlan?
+    var onMountDrive: () -> Void = {}
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
-                localEndpoint.frame(width: 300)
-                directionBridge(vertical: false).frame(width: 62)
-                remoteEndpoint.frame(width: 300)
+            HStack(spacing: 18) {
+                localEndpoint(trailing: false).frame(minWidth: 360, maxWidth: 520)
+                directionBridge(vertical: false).frame(width: 110)
+                remoteEndpoint(trailing: true).frame(minWidth: 360, maxWidth: 520)
             }.frame(maxWidth: .infinity, alignment: .center)
-            VStack(spacing: 8) {
-                localEndpoint
+            VStack(spacing: 10) {
+                localEndpoint(trailing: false)
                 directionBridge(vertical: true)
-                remoteEndpoint
+                remoteEndpoint(trailing: false)
             }
         }
     }
 
-    private var localEndpoint: some View {
+    private func localEndpoint(trailing: Bool) -> some View {
         let uploads = (plan?.pushNew.count ?? 0) + (plan?.pushModified.count ?? 0)
         return endpoint(
             eyebrow: syncText("fromSide"), title: pair.name.isEmpty ? localFolderName : pair.name,
-            path: shortPath(pair.localPath), symbol: "laptopcomputer", tint: .accentColor,
+            path: shortPath(pair.localPath), icon: finderIcon, tint: .blue, trailing: trailing,
             transferIcon: "arrow.up", transferCount: uploads, transferLabel: syncText("sendShort"),
             deletionCount: plan?.deleteLocal.count ?? 0, showOps: plan != nil,
-            actionTitle: workspaceText("showFolder"), actionIcon: "folder",
+            actionTitle: syncText("openFinderCard"), actionIcon: finderIcon,
             action: { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: pair.localPath) }
         )
     }
 
-    private var remoteEndpoint: some View {
+    private func remoteEndpoint(trailing: Bool) -> some View {
         let downloads = (plan?.pullNew.count ?? 0) + (plan?.pullModified.count ?? 0)
         return endpoint(
             eyebrow: syncText("toSide"), title: remoteFolderName, path: remotePath,
-            symbol: "externaldrive", tint: .green,
+            icon: driveIcon, tint: .green, trailing: trailing,
             transferIcon: "arrow.down", transferCount: downloads, transferLabel: syncText("downloadShort"),
             deletionCount: plan?.deleteRemote.count ?? 0, showOps: plan != nil,
-            actionTitle: syncText("openDrive"), actionIcon: "arrow.up.right.square",
-            action: openDrive
+            actionTitle: syncText("openDriveCard"), actionIcon: driveIcon,
+            action: openDrive, mountAction: onMountDrive
         )
     }
 
@@ -249,65 +254,98 @@ struct SyncPairLocations: View {
         pair.drivePath.isEmpty ? pair.destinationDescription : "\(pair.remote):\(pair.drivePath)"
     }
 
-    private func endpoint(eyebrow: String, title: String, path: String, symbol: String, tint: Color,
-                          transferIcon: String, transferCount: Int, transferLabel: String,
-                          deletionCount: Int, showOps: Bool, actionTitle: String, actionIcon: String,
-                          action: @escaping () -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 10) {
-                Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(tint)
-                    .frame(width: 38, height: 38)
-                    .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 11))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(eyebrow.uppercased()).font(.system(size: 10, weight: .bold)).tracking(1.2).foregroundStyle(.secondary)
-                    Text(title).font(.system(size: 19, weight: .bold, design: .rounded))
-                        .lineLimit(1).truncationMode(.middle).help(title)
-                }
-                Spacer(minLength: 0)
-            }
-            Text(path).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
-                .lineLimit(1).truncationMode(.middle).help(path).textSelection(.enabled)
-            if showOps {
-                HStack(spacing: 8) {
-                    operationBadge(transferCount, title: transferLabel, symbol: transferIcon, tint: .blue)
-                    operationBadge(deletionCount, title: syncText("deleteShort"), symbol: "trash", tint: .red)
-                }
-            } else {
-                Label(syncText("previewCounters"), systemImage: "eye")
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 7)
-            }
-            Button(action: action) {
-                Label(actionTitle, systemImage: actionIcon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 11).padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(tint, in: RoundedRectangle(cornerRadius: 9))
-            }.buttonStyle(.plain).controlSize(.small)
-        }
-        .padding(13)
-        .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
-        .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+    private var finderIcon: NSImage {
+        NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
     }
 
-    private func operationBadge(_ count: Int, title: String, symbol: String, tint: Color) -> some View {
-        let color = count > 0 ? tint : Color.secondary
+    private var driveIcon: NSImage {
+        if let url = Bundle.main.resourceURL?.appendingPathComponent("web/logo-drive.svg"),
+           let image = NSImage(contentsOf: url) { return image }
+        return NSImage(systemSymbolName: "externaldrive", accessibilityDescription: "Google Drive")
+            ?? NSImage(size: NSSize(width: 18, height: 18))
+    }
+
+    private func endpoint(eyebrow: String, title: String, path: String, icon: NSImage, tint: Color, trailing: Bool,
+                          transferIcon: String, transferCount: Int, transferLabel: String,
+                          deletionCount: Int, showOps: Bool, actionTitle: String, actionIcon: NSImage,
+                          action: @escaping () -> Void, mountAction: (() -> Void)? = nil) -> some View {
+        VStack(alignment: trailing ? .trailing : .leading, spacing: 0) {
+            Text(eyebrow).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: trailing ? .trailing : .leading)
+                .padding(.bottom, 8)
+            HStack(spacing: 10) {
+                if trailing { Spacer(minLength: 0) }
+                Image(nsImage: icon).resizable().scaledToFit()
+                    .frame(width: 22, height: 22)
+                    .frame(width: 30, height: 30)
+                    .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 9))
+                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                    .accessibilityHidden(true)
+                Text(title).font(.system(size: 23, weight: .black, design: .rounded))
+                    .tracking(-0.8).lineLimit(1).truncationMode(.middle).help(title).layoutPriority(1)
+                if showOps {
+                    operationBadge(transferCount, title: transferLabel, symbol: transferIcon, tint: tint, coloredWhenZero: true)
+                    operationBadge(deletionCount, title: syncText("deleteShort"), symbol: "trash", tint: .red)
+                } else {
+                    Label(syncText("previewShort"), systemImage: "eye")
+                        .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                        .padding(.horizontal, 9).padding(.vertical, 6)
+                        .background(Color.primary.opacity(0.05), in: Capsule())
+                }
+                if !trailing { Spacer(minLength: 0) }
+            }
+            HStack(spacing: 8) {
+                Text(path).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle).help(path).textSelection(.enabled).layoutPriority(1)
+                Spacer(minLength: 8)
+                cardButton(actionTitle, icon: actionIcon, tint: tint, action: action)
+                if let mountAction {
+                    cardButton(syncText("mountDriveCard"), symbol: "arrow.down", action: mountAction)
+                }
+            }.padding(.top, 7)
+        }
+        .padding(.horizontal, 18).padding(.vertical, 20)
+        .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.045), lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.035), radius: 10, x: 0, y: 4)
+    }
+
+    private func operationBadge(_ count: Int, title: String, symbol: String, tint: Color, coloredWhenZero: Bool = false) -> some View {
+        let color = count > 0 || coloredWhenZero ? tint : Color.secondary
         return HStack(spacing: 4) {
             Image(systemName: symbol).font(.system(size: 11, weight: .bold))
-            Text("\(count)").font(.system(size: 15, weight: .bold, design: .rounded)).monospacedDigit()
-            Text(title).font(.system(size: 9, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.72)
-            Spacer(minLength: 0)
+            Text("\(count)").font(.system(size: 14, weight: .heavy, design: .rounded)).monospacedDigit()
+            Text(title).font(.system(size: 9, weight: .semibold)).lineLimit(1)
         }
         .foregroundStyle(color)
-        .padding(.horizontal, 7).padding(.vertical, 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(color.opacity(count > 0 ? 0.11 : 0.07), in: RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 8).padding(.vertical, 6)
+        .background(color.opacity(count > 0 ? 0.11 : 0.07), in: Capsule())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(count) \(title)")
+    }
+
+    private func cardButton(_ title: String, icon: NSImage, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(nsImage: icon).resizable().scaledToFit().frame(width: 14, height: 14)
+                Text(title).lineLimit(1).fixedSize(horizontal: true, vertical: false)
+            }
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 11).padding(.vertical, 7)
+            .background(tint, in: Capsule())
+        }.buttonStyle(.plain)
+    }
+
+    private func cardButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol).font(.system(size: 11, weight: .semibold))
+                .fixedSize(horizontal: true, vertical: false)
+                .foregroundStyle(Color.primary.opacity(0.72))
+                .padding(.horizontal, 11).padding(.vertical, 7)
+                .background(Color.primary.opacity(0.055), in: Capsule())
+        }.buttonStyle(.plain)
     }
 
     @ViewBuilder private func directionBridge(vertical: Bool) -> some View {
@@ -316,26 +354,27 @@ struct SyncPairLocations: View {
         case .push: syncText("flowToDrive")
         case .pull: syncText("flowToMac")
         }
-        let symbol: String = vertical
-            ? (pair.direction == .bidirectional ? "arrow.up.arrow.down" : pair.direction == .push ? "arrow.down" : "arrow.up")
-            : (pair.direction == .bidirectional ? "arrow.left.arrow.right" : pair.direction == .push ? "arrow.right" : "arrow.left")
         if vertical {
-            HStack(spacing: 8) {
-                Capsule().fill(Color.primary.opacity(0.12)).frame(width: 24, height: 1)
-                Image(systemName: symbol).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.accentColor)
-                Capsule().fill(Color.primary.opacity(0.12)).frame(width: 24, height: 1)
-                Text(label.uppercased()).font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+            VStack(spacing: 6) {
+                directionLine
+                Text(label.uppercased()).font(.system(size: 9, weight: .heavy)).tracking(1.1).foregroundStyle(.secondary)
             }.frame(maxWidth: .infinity).padding(.vertical, 2)
         } else {
-            VStack(spacing: 7) {
-                HStack(spacing: 7) {
-                    Capsule().fill(Color.primary.opacity(0.12)).frame(height: 1)
-                    Image(systemName: symbol).font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.accentColor)
-                    Capsule().fill(Color.primary.opacity(0.12)).frame(height: 1)
-                }
-                Text(label.uppercased()).font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+            VStack(spacing: 8) {
+                directionLine
+                Text(label.uppercased()).font(.system(size: 9, weight: .heavy)).tracking(1.1).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var directionLine: some View {
+        HStack(spacing: 0) {
+            if pair.direction != .push {
+                Image(systemName: "arrowtriangle.left.fill").font(.system(size: 7)).foregroundStyle(Color.secondary.opacity(0.45))
+            }
+            Rectangle().fill(Color.primary.opacity(0.10)).frame(maxWidth: .infinity).frame(height: 1)
+            if pair.direction != .pull {
+                Image(systemName: "arrowtriangle.right.fill").font(.system(size: 7)).foregroundStyle(Color.secondary.opacity(0.45))
             }
         }
     }
@@ -367,9 +406,11 @@ struct SyncSectionView: View {
     @State private var tab = "pairs"
     @State private var expandedPairs: Set<UUID> = []
     @State private var pairError: String?
+    private let onMountDrive: () -> Void
 
-    init(engine: SyncEngine = .shared, initialTab: String = "pairs") {
+    init(engine: SyncEngine = .shared, initialTab: String = "pairs", onMountDrive: @escaping () -> Void = {}) {
         self.engine = engine
+        self.onMountDrive = onMountDrive
         _tab = State(initialValue: initialTab == "history" ? "history" : "pairs")
     }
 
@@ -415,8 +456,8 @@ struct SyncSectionView: View {
                     }.font(.caption).foregroundStyle(.secondary).padding(.top, 8)
                 }.font(.caption).foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 28).padding(.top, 28).padding(.bottom, 28)
-            .frame(maxWidth: 850).frame(maxWidth: .infinity)
+            .padding(.horizontal, 20).padding(.top, 28).padding(.bottom, 28)
+            .frame(maxWidth: 1230).frame(maxWidth: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .sheet(item: $editing) { SyncPairForm(original: $0, engine: engine) }
@@ -547,7 +588,7 @@ struct SyncSectionView: View {
                 Spacer(minLength: 0)
                 status(state)
             }
-            SyncPairLocations(pair: pair, plan: plan)
+            SyncPairLocations(pair: pair, plan: plan, onMountDrive: onMountDrive)
             if let plan {
                 deletionWarning(plan)
                 typeRow(plan)
@@ -565,9 +606,9 @@ struct SyncSectionView: View {
                 inventoryRows(pair)
                 comparisonSection(pair)
             }.font(.callout)
-        }.padding(16)
-            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+        }.padding(.vertical, 16)
+            .background(Color.primary.opacity(0.018), in: RoundedRectangle(cornerRadius: 22))
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.primary.opacity(0.045), lineWidth: 1))
             .contextMenu { pairContextMenu(pair) }
     }
 

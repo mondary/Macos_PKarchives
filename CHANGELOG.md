@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.57` (cartes de synchronisation réorganisées en grands panneaux Local ⇄ Drive)
+Statut : `2026.10.58` (panneaux « Depuis / Vers » horizontaux alignés sur la capture de référence)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,11 @@ Statut : `2026.10.57` (cartes de synchronisation réorganisées en grands pannea
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.58] - 2026-10-29
+#### Changed
+- Mise en page native des paires rapprochée de la capture fournie : panneaux horizontaux « Depuis / Vers », logos Finder et Drive, chemins et actions alignés, liaison centrale en flèche ; la largeur principale est utilisée pour garder les panneaux côte à côte.
+- Ajout de l’accès « Monter le Drive » dans le panneau distant, en conservant les compteurs explicites des opérations prévues.
 
 ### [2026.10.57] - 2026-10-29
 #### Changed

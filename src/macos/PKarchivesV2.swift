@@ -1670,7 +1670,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         workspaceNavigation.showingSettings = false
         createMainWindowIfNeeded(archiveUI: mode == .archive)
         if mode == .sync {
-            if syncHost == nil { syncHost = NSHostingView(rootView: SyncSectionView(initialTab: history ? "history" : "folders")) }
+            if syncHost == nil {
+                syncHost = NSHostingView(rootView: SyncSectionView(initialTab: history ? "history" : "folders") { [weak self] in
+                    self?.mountDrive()
+                })
+            }
             if let syncHost { installWorkspaceContent(syncHost) }
             if !isRunning {
                 webView?.stopLoading()
