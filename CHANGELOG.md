@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.63` (panneaux côte à côte et détail direct des opérations)
+Statut : `2026.10.64` (cartes Depuis et Vers de taille identique)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,10 @@ Statut : `2026.10.63` (panneaux côte à côte et détail direct des opérations
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.64] - 2026-10-29
+#### Fixed
+- Les cartes Depuis et Vers partagent désormais la hauteur de la plus grande, tout en conservant leur largeur égale et leur disposition côte à côte à 1 000 px.
 
 ### [2026.10.63] - 2026-10-29
 #### Changed

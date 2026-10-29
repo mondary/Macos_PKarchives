@@ -374,7 +374,7 @@ struct SyncPairLocations: View {
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 16)
-        .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 108, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.045), lineWidth: 1))
         .shadow(color: Color.black.opacity(0.035), radius: 10, x: 0, y: 4)
