@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.70` (suppression de paire accessible au clic droit)
+Statut : `2026.10.71` (un bloc d’état unique et paires triées par activité)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,12 @@ Statut : `2026.10.70` (suppression de paire accessible au clic droit)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.71] - 2026-10-29
+#### Changed
+- Statut et exécution en cours forment un seul bloc : titre, boutons, progression condensée (une ligne de métriques, une ligne de bilan, une barre), dernière vérification et prochain contrôle sur une ligne, cadence en note fine ; les explications longues passent en info-bulle.
+- Les paires se trient selon leur état : en cours d’abord, en file, puis celles qui réclament une action (erreur, quota, réconciliation post-archivage, changements à vérifier), et enfin les paires au repos — l’ordre de création est conservé à l’intérieur d’un même niveau, avec animation de réordonnancement.
+- Le bandeau de progression séparé et l’encadré « file d’attente » disparaissent, remplacés par ce bloc unique et le tri dynamique.
 
 ### [2026.10.70] - 2026-10-29
 #### Fixed

@@ -4,7 +4,7 @@ import AppKit
 // Same inline FR/EN/ES/DE convention as the existing PK settings shell.
 private let syncStrings: [String: [String]] = [
     "title": ["Dossiers synchronisés", "Synced folders", "Carpetas sincronizadas", "Synchronisierte Ordner"],
-    "subtitle": ["Prévoir. Transférer. Vérifier. Rien de vert sans contrôle.", "Preview. Transfer. Verify. No green status without a check.", "Simular. Transferir. Verificar. Ningún estado verde sin control.", "Vorschau. Übertragen. Prüfen. Kein grüner Status ohne Prüfung."],
+    "subtitle": ["Prévoir · Transférer · Vérifier", "Preview · Transfer · Verify", "Simular · Transferir · Verificar", "Vorschau · Übertragen · Prüfen"],
     "add": ["Ajouter un dossier", "Add folder", "Añadir carpeta", "Ordner hinzufügen"],
     "createPair": ["Créer une paire", "Create a pair", "Crear una pareja", "Paar erstellen"],
     "editPair": ["Modifier la paire", "Edit pair", "Editar pareja", "Paar bearbeiten"],
@@ -588,7 +588,6 @@ struct SyncSectionView: View {
                 } else {
                     globalStatus
                 }
-                if engine.busy { progressBanner }
                 HStack {
                     if tab == "pairs" {
                         Text("\(syncText("linkedFolders")) · \(engine.pairs.count)")
@@ -698,10 +697,10 @@ struct SyncSectionView: View {
             : verified ? "checkmark.seal.fill" : "clock.arrow.circlepath"
         let color: Color = failed ? .orange : verified ? .green : .accentColor
         let lastVerified = enabled.compactMap(\.lastRun).min()
-        let lastReal = enabled.count == 1 ? engine.runs.first(where: { $0.pair.id == enabled[0].id && !$0.dryRun && $0.finished != nil }) : nil
-        return VStack(alignment: .leading, spacing: 9) {
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Label(title, systemImage: symbol).font(.title3.weight(.semibold)).foregroundStyle(color)
+                    .help(hint)
                 Spacer(minLength: 12)
                 if !enabled.isEmpty {
                     Button { engine.syncAll(dryRun: true) } label: {
@@ -726,32 +725,80 @@ struct SyncSectionView: View {
                 }
             }
             if engine.storageError != nil { Text(engine.storageError ?? "").font(.callout).foregroundStyle(.orange) }
-            else if previewOnly { Text(syncText("status.previewOnlyNote")).font(.callout).foregroundStyle(.secondary) }
-            else if verified { Text(syncText("status.checkedNote")).font(.callout).foregroundStyle(.secondary) }
-            else if previewChanges { Text(syncText("status.previewChanges")).font(.callout).foregroundStyle(.secondary) }
-            if let lastVerified {
-                Text("\(syncText("status.lastChecked")) · \(lastVerified.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            if let transfers = lastReal?.transfers {
-                Text(String(format: syncText("status.lastTransfers"), transfers.sent, transfers.received, transfers.deleted))
-                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-            }
+            if engine.busy { runSummary }
             if let paused = engine.pausedUntil {
                 Text(String(format: syncText("pausedUntilLabel"), paused.formatted(date: .omitted, time: .shortened)))
                     .font(.caption.weight(.medium)).foregroundStyle(.orange)
             } else if engine.automaticEnabled, let next = engine.nextAutomaticCheck {
                 TimelineView(.periodic(from: .now, by: 10)) { _ in
-                    Text("\(syncText("status.nextCheck")) \(next.formatted(.relative(presentation: .named))) (\(next.formatted(date: .omitted, time: .shortened)))")
+                    Text(infoLine(next: next))
                         .font(.caption.weight(.medium)).foregroundStyle(.secondary)
                 }
+            } else if let lastVerified {
+                Text("\(syncText("status.lastChecked")) · \(lastVerified.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption.weight(.medium)).foregroundStyle(.secondary)
             }
             Label(syncText(engine.automaticEnabled ? "status.cadence" : "status.cadenceOff"), systemImage: engine.automaticEnabled ? "menubar.rectangle" : "clock.slash")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                .font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
         .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(color.opacity(0.19), lineWidth: 1))
+    }
+
+    /// One compact line: last verified check + next automatic check.
+    private func infoLine(next: Date) -> String {
+        var parts = [String]()
+        if let lastVerified = engine.pairs.filter(\.enabled).compactMap(\.lastRun).min() {
+            parts.append("\(syncText("status.lastChecked")) \(lastVerified.formatted(date: .omitted, time: .shortened))")
+        }
+        parts.append("\(syncText("status.nextCheck")) \(next.formatted(.relative(presentation: .named))) (\(next.formatted(date: .omitted, time: .shortened)))")
+        return parts.joined(separator: " · ")
+    }
+
+    private var hint: String {
+        let enabled = engine.pairs.filter(\.enabled)
+        if engine.storageError != nil { return engine.storageError ?? "" }
+        if enabled.contains(where: \.previewOnly) { return syncText("status.previewOnlyNote") }
+        if enabled.allSatisfy({ engine.presentationState(for: $0) == "verified" }) { return syncText("status.checkedNote") }
+        return syncText("status.previewChanges")
+    }
+
+    /// The live run inside the status block: name, phase, one metrics line, one done line.
+    private var runSummary: some View {
+        let progress = engine.runProgress ?? RunProgress()
+        let pair = engine.pairs.first { $0.id == engine.runningPairID }
+        let phase = {
+            switch progress.phase {
+            case .listing: return syncText("phase.listing")
+            case .pull: return syncText("phase.pull")
+            case .push: return syncText("phase.push")
+            case .deleting: return syncText("phase.deleting")
+            case .verifying: return syncText("phase.verifying")
+            }
+        }()
+        let fraction: Double? = progress.bytesTotal > 0 ? min(1, max(0, Double(progress.bytesDone) / Double(progress.bytesTotal))) : nil
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                ProgressView().controlSize(.mini).accessibilityHidden(true)
+                Text("\(pair?.name ?? "—") — \(phase)").font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 8)
+                if let fraction { Text("\(Int(fraction * 100)) %").font(.callout.monospacedDigit()) }
+                Button(syncText("stop")) { engine.stopRunning() }.controlSize(.mini)
+            }
+            if progress.transfersTotal > 0 {
+                Text("\(String(format: syncText("filesProgress"), "\(progress.transfersDone)", "\(progress.transfersTotal)")) · \(SyncEngine.byteText(progress.bytesDone)) / \(SyncEngine.byteText(progress.bytesTotal))\(progress.speed > 0 ? " · \(SyncEngine.byteText(Int64(progress.speed)))/s" : "")\(progress.eta != nil ? " · \(syncText("remaining")) ~\(Self.durationText(progress.eta!))" : "")")
+                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                ProgressView(value: fraction ?? 0).controlSize(.small)
+            } else {
+                Text(String(format: syncText("analyzing"), "\(progress.listed)"))
+                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            }
+            Text("\(syncText("doneCount")) : \(String(format: syncText("pushCount"), "\(progress.pushDone)")) · \(String(format: syncText("pullCount"), "\(progress.pullDone)")) · \(String(format: syncText("deleteCount"), "\(progress.deleteDone)")) · \(syncText("elapsedShort")) \(Self.durationText(progress.elapsed))")
+                .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func operationDrawer(_ selection: SelectedSyncOperation) -> some View {
@@ -822,94 +869,27 @@ struct SyncSectionView: View {
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor.opacity(0.16), lineWidth: 1))
     }
 
-    /// Live execution feedback: rclone's planned operations, real progress, speed and ETA.
-    private var progressBanner: some View {
-        let progress = engine.runProgress ?? RunProgress()
-        let pair = engine.pairs.first(where: { $0.id == engine.runningPairID })
-        let phase: String = {
-            switch progress.phase {
-            case .listing: return engine.isDryRun ? syncText("phase.listing") : syncText("phase.listing")
-            case .pull: return syncText("phase.pull")
-            case .push: return syncText("phase.push")
-            case .deleting: return syncText("phase.deleting")
-            case .verifying: return syncText("phase.verifying")
-            }
-        }()
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 10) {
-                ProgressView().controlSize(.small).padding(.top, 2)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(pair?.name ?? "—") — \(phase)").font(.headline)
-                    if progress.transfersTotal > 0 {
-                        Text("\(String(format: syncText("filesProgress"), "\(progress.transfersDone)", "\(progress.transfersTotal)")) · \(SyncEngine.byteText(progress.bytesDone)) / \(SyncEngine.byteText(progress.bytesTotal))\(progress.bytesTotal > 0 ? " · \(Int(Double(progress.bytesDone) * 100 / Double(progress.bytesTotal))) %" : "")")
-                            .font(.caption.monospacedDigit())
-                    } else {
-                        Text(String(format: syncText("analyzing"), "\(progress.listed)"))
-                            .font(.caption.monospacedDigit())
-                    }
-                    HStack(spacing: 14) {
-                        if progress.speed > 0 { Label("\(SyncEngine.byteText(Int64(progress.speed)))/s", systemImage: "speedometer") }
-                        if let eta = progress.eta { Label("\(syncText("remaining")) ~\(Self.durationText(eta))", systemImage: "clock") }
-                        Label("\(syncText("elapsedShort")) \(Self.durationText(progress.elapsed))", systemImage: "timer")
-                    }.font(.caption).foregroundStyle(.secondary)
-                    HStack(spacing: 14) {
-                        Text("\(syncText("planned")) :")
-                        Text(String(format: syncText("pushCount"), "\(progress.plannedPushes)"))
-                        Text(String(format: syncText("pullCount"), "\(progress.plannedPulls)"))
-                        Text(String(format: syncText("deleteCount"), "\(progress.plannedDeletes)"))
-                    }.font(.caption.monospacedDigit())
-                    HStack(spacing: 14) {
-                        Text("\(syncText("doneCount")) :")
-                        Text(String(format: syncText("pushCount"), "\(progress.pushDone)"))
-                        Text(String(format: syncText("pullCount"), "\(progress.pullDone)"))
-                        Text(String(format: syncText("deleteCount"), "\(progress.deleteDone)"))
-                    }.font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button(syncText("stop")) { engine.stopRunning() }
-                    .controlSize(.small).accessibilityLabel(syncText("stopRun"))
-            }
-        }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor.opacity(0.25), lineWidth: 1))
-    }
     static func durationText(_ seconds: TimeInterval) -> String { SyncEngine.durationText(seconds) }
 
-    private var queueHeader: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label(syncText("queueTitle"), systemImage: "list.number").font(.headline)
-                Spacer()
-                if engine.inventoryBusy { HStack(spacing: 6) { ProgressView().controlSize(.small); Text(syncText("counting")) }.font(.caption).foregroundStyle(.secondary) }
-                Button { engine.refreshAllInventories() } label: { Label(syncText("refreshCounts"), systemImage: "arrow.clockwise") }
-                    .controlSize(.small)
-                    .disabled(engine.inventoryBusy || engine.busy || engine.pairs.isEmpty || engine.storageError != nil)
-            }
-            // The running pair is already detailed in the banner above; only queued pairs are listed here.
-            let queued = engine.queue.compactMap { job in engine.pairs.first(where: { $0.id == job.pairID }) }
-            if engine.busy || !queued.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(queued.enumerated()), id: \.offset) { index, pair in
-                        HStack(spacing: 8) {
-                            Text("\(index + 1).").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width: 20, alignment: .trailing)
-                            Text(pair.name).font(.caption)
-                            if let job = engine.queue.first(where: { $0.pairID == pair.id }) {
-                                Text(job.dryRun ? syncText("simulating") : syncText("sync")).font(.caption2).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            } else {
-                Text(engine.isPaused ? syncText("pausedAll") : syncText("queueEmpty"))
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+    /// Pairs sorted by what deserves attention: running, queued, warnings, then calm states.
+    /// Stable otherwise: the user's creation order is preserved within a same rank.
+    private var orderedPairs: [SyncPair] {
+        func rank(_ pair: SyncPair) -> Int {
+            let state = engine.presentationState(for: pair)
+            if engine.runningPairID == pair.id { return 0 }
+            if engine.queue.contains(where: { $0.pairID == pair.id }) { return 1 }
+            if ["error", "unverified", "interrupted", "rateLimited", "needsResync", "archiveReview"].contains(state) { return 2 }
+            if state == "pending" || state == "archiveWaiting" { return 3 }
+            if pair.previewOnly { return 4 }
+            return 5
+        }
+        return engine.pairs.enumerated()
+            .sorted { a, b in rank(a.element) == rank(b.element) ? a.offset < b.offset : rank(a.element) < rank(b.element) }
+            .map(\.element)
     }
+
     private var pairsView: some View {
         VStack(spacing: 12) {
-            if !engine.pairs.isEmpty && (!engine.queue.isEmpty || engine.inventoryBusy) { queueHeader }
             if engine.pairs.isEmpty {
                 VStack(spacing: 14) {
                     Image(systemName: "folder.badge.gearshape").font(.system(size: 36)).foregroundStyle(.secondary).accessibilityHidden(true)
@@ -917,8 +897,9 @@ struct SyncSectionView: View {
                     Text(syncText("emptyBody")).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }.frame(maxWidth: .infinity).padding(32)
             }
-            ForEach(engine.pairs) { pair in pairCard(pair) }
+            ForEach(orderedPairs) { pair in pairCard(pair) }
         }
+        .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .spring(duration: 0.3), value: orderedPairs.map(\.id))
     }
     private func pairCard(_ pair: SyncPair) -> some View {
         let presentation = engine.presentationState(for: pair)
