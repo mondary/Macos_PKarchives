@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.69` (actions globales visibles et prochain contrôle affiché)
+Statut : `2026.10.70` (suppression de paire accessible au clic droit)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,10 @@ Statut : `2026.10.69` (actions globales visibles et prochain contrôle affiché)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.70] - 2026-10-29
+#### Fixed
+- « Retirer la paire » redevient accessible par clic droit sur la carte de la paire (avec confirmation), en plus du formulaire de modification dans Réglages → Synchronisation ; le menu contextuel suit la confirmation dédiée après archivage.
 
 ### [2026.10.69] - 2026-10-29
 #### Changed

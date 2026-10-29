@@ -952,6 +952,7 @@ struct SyncSectionView: View {
             }
         }.padding(.vertical, 8)
             .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.22), value: running)
+            .contextMenu { pairContextMenu(pair) }
     }
 
     private func previewBadge(_ pair: SyncPair) -> some View {
@@ -1026,7 +1027,8 @@ struct SyncSectionView: View {
         Button(syncText("simulate")) { engine.syncPair(pair.id, dryRun: true) }
             .disabled(isQAScreen || engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
         Button(syncText("sync")) {
-            if pair.previewOnly || pair.needsResync && pair.direction.usesBisync { merging = pair }
+            if pair.archiveReviewRequired { archiveCleanup = pair }
+            else if pair.previewOnly || pair.needsResync && pair.direction.usesBisync { merging = pair }
             else { engine.syncPair(pair.id) }
         }.disabled(isQAScreen || engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
         Toggle(syncText("enabled"), isOn: enableBinding(pair)).disabled(isQAScreen || engine.busy || engine.storageError != nil)
