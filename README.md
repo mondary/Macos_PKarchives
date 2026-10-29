@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version du projet : 2026.10.53** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
+**Version du projet : 2026.10.73** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
@@ -82,7 +82,9 @@ Le nouveau mode est disponible dans les sources et la build Dev, **pas encore da
 
 ![Choix du dossier Drive par collage de son lien complet, avec instructions et ouverture de Drive](store/media/05-drive-folder-dev.png)
 
-**Suivi d’exécution** : le bloc de statut affiche une progression **par action terminée**, et non par durée ni par octets : sur 16 opérations, le premier fichier terminé remplit 1/16 de la barre, le deuxième 2/16. Les trois compteurs et barres distinguent envois, rapatriements et suppressions (exemple : 3/3, 65/130, 0/234). Tant que le total est inconnu, aucun pourcentage n’est inventé. Une simulation affiche ses prévisions sans prétendre avoir transféré des fichiers ; la vérification finale affiche ses propres contrôles. Pour une synchronisation bidirectionnelle incrémentale, une comparaison préalable isolée établit le plan ; si elle mêle copies et suppressions, les copies sont effectuées et vérifiées avant le nettoyage. Cette préparation ajoute une analyse des emplacements. Un échec de copie ou de contrôle suspend le nettoyage ; des conflits ambigus ou une comparaison tronquée demandent une intervention plutôt qu’une suppression hasardeuse.
+**Suivi d’exécution** : le bloc de statut affiche une progression **par action terminée**, et non par durée ni par octets : sur 16 opérations, le premier fichier terminé remplit 1/16 de la barre, le deuxième 2/16. Les trois compteurs et barres distinguent envois, rapatriements et suppressions (exemple : 3/3, 65/130, 0/234). **Pendant l’analyse**, ces compteurs s’incrémentent déjà au fil des différences repérées par rclone et affichent le nombre d’objets listés, avec la mention « repérés » ; ils restent provisoires jusqu’à la file exacte, qui prend le relais. Tant que le total est inconnu, aucun pourcentage n’est inventé. À l’ouverture de l’écran Synchronisation, les paires sans comparaison valide reçoivent une fois par session ce contrôle automatique en lecture seule, sans aucun transfert — y compris une première fusion bidirectionnelle, analysée seulement quand tu regardes l’écran. En arrière-plan, seules les paires déjà initialisées sont contrôlées au lancement. Une modification locale ou un archivage invalide l’ancien plan au lieu de réafficher des compteurs périmés. Une simulation affiche ses prévisions sans prétendre avoir transféré des fichiers ; la vérification finale affiche ses propres contrôles. Pour une synchronisation bidirectionnelle incrémentale, une comparaison préalable isolée établit le plan ; si elle mêle copies et suppressions, les copies sont effectuées et vérifiées avant le nettoyage. Cette préparation ajoute une analyse des emplacements. Un échec de copie ou de contrôle suspend le nettoyage ; des conflits ambigus ou une comparaison tronquée demandent une intervention plutôt qu’une suppression hasardeuse.
+
+![Analyse en direct sur des données de démonstration : 1 740 objets listés, 12 envois et 3 rapatriements déjà repérés](store/media/11-sync-analysis-dev.png)
 
 ![Progression par action sur des données de démonstration : envois terminés, rapatriement en cours, suppressions en attente](store/media/10-sync-actions-dev.png)
 

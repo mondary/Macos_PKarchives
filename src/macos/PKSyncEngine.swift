@@ -110,11 +110,13 @@ struct SyncPair: Codable, Identifiable, Equatable {
     var volumeUUID: String?
     var archiveReviewRequired = false
     var archiveChangedAt: Date?
+    /// Local/archival changes after the last comparison make its file list stale.
+    var planInvalidatedAt: Date?
 
     init() {}
     enum CodingKeys: String, CodingKey {
         case id, name, localPath, drivePath, driveFolderID, direction, conflictPolicy, ignores, enabled, previewOnly,
-             remoteOverride, lastRun, lastOutcome, lastMessage, needsResync, consecutiveFailures, nextRetryAt, volumeUUID, archiveReviewRequired, archiveChangedAt
+             remoteOverride, lastRun, lastOutcome, lastMessage, needsResync, consecutiveFailures, nextRetryAt, volumeUUID, archiveReviewRequired, archiveChangedAt, planInvalidatedAt
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -140,6 +142,7 @@ struct SyncPair: Codable, Identifiable, Equatable {
         volumeUUID = try c.decodeIfPresent(String.self, forKey: .volumeUUID)
         archiveReviewRequired = try c.decodeIfPresent(Bool.self, forKey: .archiveReviewRequired) ?? false
         archiveChangedAt = try c.decodeIfPresent(Date.self, forKey: .archiveChangedAt)
+        planInvalidatedAt = try c.decodeIfPresent(Date.self, forKey: .planInvalidatedAt)
     }
 
     var remote: String { remoteOverride ?? (loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive").trimmingCharacters(in: CharacterSet(charactersIn: ":")) }
@@ -271,6 +274,14 @@ struct RunProgress: Equatable {
     var protectedDeletionPaths: Set<String> = []
     var completedDeletions: Set<String> = []
     var completedCopies: Set<String> = []
+    var discoveredPushPaths: Set<String> = []
+    var discoveredPullPaths: Set<String> = []
+    var discoveredDeleteRemotePaths: Set<String> = []
+    var discoveredDeleteLocalPaths: Set<String> = []
+    var discoveredPush: Int { discoveredPushPaths.count }
+    var discoveredPull: Int { discoveredPullPaths.count }
+    var discoveredDeleteRemote: Int { discoveredDeleteRemotePaths.count }
+    var discoveredDeleteLocal: Int { discoveredDeleteLocalPaths.count }
     var plannedDeletes: Int { deleteRemotePlanned + deleteLocalPlanned }
     var plannedPushes: Int { pushPlanned }
     var plannedPulls: Int { pullPlanned }
@@ -359,6 +370,7 @@ final class SyncEngine: ObservableObject {
     private var verifying = false
     private var preflighting = false
     private var orderedQueuePlan = PreviewPlan()
+    private var comparisonsShown = false
     private var skippedUnsupportedObject = false
     private var processErrors: [String] = []
     private var inventoryQueue: [UUID] = []
@@ -419,7 +431,10 @@ final class SyncEngine: ObservableObject {
                 journalLines = Array(text.components(separatedBy: .newlines).suffix(240)).map(SyncDiagnostic.clean)
             }
         } catch { storageError = error.localizedDescription }
-        if automatic && storageError == nil { startWatching() }
+        if automatic && storageError == nil {
+            startWatching()
+            queueMissingComparisons()
+        }
         refreshBadge()
     }
 
@@ -477,6 +492,7 @@ final class SyncEngine: ObservableObject {
                 // Even a pull-only pair must not silently restore the just-archived files.
                 pairs[i].archiveReviewRequired = true
                 pairs[i].archiveChangedAt = Date()
+                pairs[i].planInvalidatedAt = Date()
                 localDue[id] = nil
                 queue.removeAll { $0.pairID == id && !$0.dryRun }
         }
@@ -565,23 +581,30 @@ final class SyncEngine: ObservableObject {
         pair.remoteOverride = pair.remote
         if pair.name.isEmpty { pair.name = URL(fileURLWithPath: pair.localPath).lastPathComponent }
         pair.volumeUUID = try? URL(fileURLWithPath: pair.localPath).resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString
+        var refreshComparison = false
         if let i = pairs.firstIndex(where: { $0.id == pair.id }) {
             let previous = pairs[i]
             let changed = previous.localPath != pair.localPath || previous.target != pair.target || previous.direction != pair.direction || previous.ignores != pair.ignores
+            refreshComparison = changed || (!previous.enabled && pair.enabled)
             if changed {
                 pair.needsResync = pair.direction.usesBisync
                 pair.lastOutcome = "pending"; pair.lastRun = nil; pair.lastMessage = nil
                 pair.nextRetryAt = nil; pair.consecutiveFailures = 0
+                pair.planInvalidatedAt = Date()
                 queue.removeAll { $0.pairID == pair.id }
             }
             pairs[i] = pair
         } else {
             pair.needsResync = pair.direction.usesBisync
+            refreshComparison = true
             pairs.append(pair)
         }
         if !pair.enabled { localDue[pair.id] = nil; queue.removeAll { $0.pairID == pair.id } }
         persist()
-        if automatic { startWatching() }
+        if automatic {
+            startWatching()
+            if refreshComparison { enqueueAutomaticComparison(for: pair) }
+        }
         return storageError == nil
     }
 
@@ -618,6 +641,7 @@ final class SyncEngine: ObservableObject {
             pairs[i].previewOnly = false
             persist()
         }
+        if !dryRun { queue.removeAll { $0.pairID == id && $0.dryRun } }
         enqueue(SyncJob(pairID: id, dryRun: dryRun, resync: resync || (dryRun && p.needsResync),
                         archiveCleanupApproved: archiveCleanupApproved))
         startNext()
@@ -673,6 +697,40 @@ final class SyncEngine: ObservableObject {
         drainInventories()
     }
     func refreshAllInventories() { pairs.forEach { refreshInventory($0.id) } }
+
+    /// Populate unknown action counters with a read-only comparison. Never infer operations
+    /// from directory sizes and never turn this startup check into a real sync.
+    private func queueMissingComparisons() {
+        queueMissingComparisons(includeFirstMerge: false)
+    }
+
+    /// Fill unknown counters once per app session when the user opens Synchronisation. This
+    /// includes a two-way pair awaiting its first merge, because the user is looking at it now,
+    /// but never at a background launch. Read-only: no file is transferred or deleted.
+    func syncViewAppeared() {
+        guard automatic, !comparisonsShown else { return }
+        comparisonsShown = true
+        queueMissingComparisons(includeFirstMerge: true)
+    }
+
+    private func queueMissingComparisons(includeFirstMerge: Bool) {
+        let needsAttention: Set<String> = ["error", "unverified", "rateLimited", "interrupted"]
+        for pair in pairs where pair.enabled
+            && (includeFirstMerge || !(pair.direction.usesBisync && pair.needsResync))
+            && operationPlan(for: pair.id) == nil && cooldownUntil(for: pair) == nil
+            && !needsAttention.contains(pair.lastOutcome) {
+            enqueue(SyncJob(pairID: pair.id, dryRun: true, resync: pair.direction.usesBisync && pair.needsResync))
+        }
+        startNext()
+    }
+
+    private func enqueueAutomaticComparison(for pair: SyncPair) {
+        guard automatic, pair.enabled, !(pair.direction.usesBisync && pair.needsResync),
+              operationPlan(for: pair.id) == nil, cooldownUntil(for: pair) == nil,
+              !["error", "unverified", "rateLimited", "interrupted"].contains(pair.lastOutcome) else { return }
+        enqueue(SyncJob(pairID: pair.id, dryRun: true, resync: false))
+        startNext()
+    }
 
     /// Serialized with transfers: never a second rclone while a run is executing. Retried after
     /// each completion and on scheduler ticks, so a busy engine simply delays the counting.
@@ -1221,6 +1279,23 @@ final class SyncEngine: ObservableObject {
             else if text.contains("queue copy to path1") { progress.pullPlanned += 1 }
             else if text.contains("queue delete") {
                 if text.contains("path2") { progress.deleteRemotePlanned += 1 } else { progress.deleteLocalPlanned += 1 }
+            } else if let separator = message.range(of: " - ", options: .backwards) {
+                let path = String(message[separator.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    .precomposedStringWithCanonicalMapping
+                if !path.isEmpty {
+                    let path1 = message.hasPrefix("- Path1")
+                    let path2 = message.hasPrefix("- Path2")
+                    let isNewOrChanged = text.contains("file is new") || text.contains("directory is new") ||
+                        text.contains("file changed") || text.contains("directory changed")
+                    if path1 && isNewOrChanged { progress.discoveredPushPaths.insert(path) }
+                    else if path2 && isNewOrChanged { progress.discoveredPullPaths.insert(path) }
+                    else if path1 && text.contains("was deleted") { progress.discoveredDeleteRemotePaths.insert(path) }
+                    else if path2 && text.contains("was deleted") { progress.discoveredDeleteLocalPaths.insert(path) }
+                }
+            } else if text.contains("skipped copy"), !object.isEmpty {
+                let path = object.precomposedStringWithCanonicalMapping
+                if progress.phase == .push { progress.discoveredPushPaths.insert(path) }
+                else if progress.phase == .pull { progress.discoveredPullPaths.insert(path) }
             }
         }
         if text.contains("queue delete"), let separator = message.range(of: " - ", options: .backwards) {
@@ -1372,6 +1447,11 @@ final class SyncEngine: ObservableObject {
             plan.remoteFiles = inventory?.remoteFiles
             plan.countedAt = inventory?.remoteAt ?? inventory?.localAt
             run.plan = Self.finalizePlan(plan)
+            // A file changed while the comparison ran: keep its plan marked stale.
+            if let i = pairs.firstIndex(where: { $0.id == run.pair.id }),
+               runRevision == revisions[run.pair.id, default: 0] {
+                pairs[i].planInvalidatedAt = nil
+            }
         }
         activePlan = nil
         planResyncDirection = nil
@@ -1382,6 +1462,7 @@ final class SyncEngine: ObservableObject {
             if outcome == "verified" {
                 pairs[i].lastRun = Date(); pairs[i].needsResync = false
                 pairs[i].archiveReviewRequired = false
+                pairs[i].planInvalidatedAt = nil
                 pairs[i].consecutiveFailures = 0; pairs[i].nextRetryAt = nil
             } else if outcome == "needsResync" {
                 pairs[i].needsResync = true; pairs[i].nextRetryAt = nil
@@ -1419,16 +1500,19 @@ final class SyncEngine: ObservableObject {
     func previewRun(for pairID: UUID) -> SyncRun? {
         // A preview is a point-in-time proposal, not a durable queue of unfinished files.
         // Never display its counts after a real run has started, even if that run failed.
-        guard let preview = runs.first(where: { $0.pair.id == pairID && $0.plan != nil }),
+        guard let pair = pairs.first(where: { $0.id == pairID }),
+              let preview = runs.first(where: { $0.pair.id == pairID && $0.plan != nil }),
               !runs.contains(where: { $0.pair.id == pairID && !$0.dryRun && $0.started >= preview.started }) else { return nil }
-        if let changed = pairs.first(where: { $0.id == pairID })?.archiveChangedAt, changed > preview.started { return nil }
+        if let changed = pair.archiveChangedAt, changed > preview.started { return nil }
+        if let invalidated = pair.planInvalidatedAt, invalidated > (preview.finished ?? preview.started) { return nil }
         return preview
     }
     /// Keep the operation counters visible after a verified run without reviving an old plan.
     /// Nil means unknown, never zero: the pair needs a fresh, read-only comparison.
     func operationPlan(for pairID: UUID) -> PreviewPlan? {
         if let plan = previewRun(for: pairID)?.plan { return plan }
-        guard !busy, let pair = pairs.first(where: { $0.id == pairID }), pair.lastOutcome == "verified", !pair.archiveReviewRequired else { return nil }
+        guard !busy, let pair = pairs.first(where: { $0.id == pairID }), pair.lastOutcome == "verified",
+              !pair.needsResync, !pair.archiveReviewRequired, pair.planInvalidatedAt == nil else { return nil }
         return PreviewPlan()
     }
     func readableReportURL(for run: SyncRun) -> URL? {
@@ -1569,6 +1653,7 @@ final class SyncEngine: ObservableObject {
             let id = pairs[i].id
             revisions[id, default: 0] += 1
             localDue[id] = Date().addingTimeInterval(45)
+            pairs[i].planInvalidatedAt = Date()
             if pairs[i].lastOutcome == "verified" { pairs[i].lastOutcome = "pending" }
         }
         persist()
@@ -1583,7 +1668,9 @@ final class SyncEngine: ObservableObject {
             deadlines = [pausedUntil]
             nextAutomaticCheck = nil
         } else {
-            let eligible = pairs.filter { $0.enabled && !$0.archiveReviewRequired && !($0.direction.usesBisync && $0.needsResync) }
+            let eligible = pairs.filter {
+                $0.enabled && !$0.archiveReviewRequired && !($0.direction.usesBisync && $0.needsResync && !$0.previewOnly)
+            }
             deadlines += eligible.compactMap { pair in localDue[pair.id].map { max($0, cooldowns[pair.remote] ?? .distantPast) } }
             deadlines += eligible.compactMap { pair in pair.nextRetryAt.map { max($0, cooldowns[pair.remote] ?? .distantPast) } }
             // Display purpose only: when the next comparison happens, cooldowns excluded.
@@ -1603,17 +1690,18 @@ final class SyncEngine: ObservableObject {
         }
         let remoteReady = remoteDue <= now
         if remoteReady { remoteDue = now.addingTimeInterval(3600) }
-        for pair in pairs where pair.enabled && !pair.archiveReviewRequired && cooldownUntil(for: pair) == nil && !(pair.direction.usesBisync && pair.needsResync) {
+        for pair in pairs where pair.enabled && !pair.archiveReviewRequired && cooldownUntil(for: pair) == nil && !(pair.direction.usesBisync && pair.needsResync && !pair.previewOnly) {
             let retry = pair.nextRetryAt.map { $0 <= now } ?? false
             let local = localDue[pair.id].map { $0 <= now } ?? false
             if retry || ((local || remoteReady) && pair.nextRetryAt == nil) {
-                enqueue(SyncJob(pairID: pair.id, dryRun: pair.previewOnly, resync: false))
+                enqueue(SyncJob(pairID: pair.id, dryRun: pair.previewOnly,
+                                resync: pair.direction.usesBisync && pair.needsResync && pair.previewOnly))
                 localDue[pair.id] = nil
                 if let i = pairs.firstIndex(where: { $0.id == pair.id }) { pairs[i].nextRetryAt = nil }
             }
         }
         // Do not wake every second for a pair awaiting its first explicit merge.
-        for pair in pairs where pair.needsResync { localDue[pair.id] = nil }
+        for pair in pairs where pair.needsResync && !pair.previewOnly { localDue[pair.id] = nil }
         startNext(); drainInventories(); schedule(); refreshBadge()
     }
 }

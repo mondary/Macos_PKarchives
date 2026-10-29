@@ -129,7 +129,21 @@ struct SettingsSectionHeader: View {
         navigation.mode = kind == "menuArchive" ? .archive : .sync
         let content: AnyView
         var bounds: NSRect
-        if kind == "actions" || kind == "actions16" {
+        if kind == "analyzing" {
+            var measured = RunProgress()
+            measured.phase = .listing
+            measured.listed = 1_740
+            measured.discoveredPushPaths = Set((1...12).map { "nouveau-\($0).pdf" })
+            measured.discoveredPullPaths = Set((1...3).map { "drive-\($0).docx" })
+            measured.discoveredDeleteRemotePaths = ["ancien.pdf"]
+            measured.discoveredDeleteLocalPaths = ["retire-sur-drive.zip"]
+            content = AnyView(VStack(alignment: .leading, spacing: 14) {
+                Text("Données de test · analyse en cours, aucun fichier modifié").font(.caption).foregroundStyle(.secondary)
+                Text("Synchronisation en cours").font(.headline)
+                SyncActionProgressView(progress: measured, dryRun: false)
+            }.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading))
+            bounds = NSRect(x: 0, y: 0, width: 1000, height: 150)
+        } else if kind == "actions" || kind == "actions16" {
             var measured = RunProgress()
             measured.totalsKnown = true
             measured.phase = .pull

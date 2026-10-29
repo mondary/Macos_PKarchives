@@ -241,6 +241,9 @@ struct TestFailure: Error { let message: String }
         }
         try expect(engine.previewRun(for: pair.id)?.plan != nil, "Fresh preview is not visible")
         try expect(read(engine.disk.journal).contains("Skipped"), "Readable preview contains no planned operation")
+        engine.localChanged(path: local.appendingPathComponent("change-after-preview.txt").path)
+        try expect(engine.previewRun(for: pair.id) == nil && engine.operationPlan(for: pair.id) == nil,
+                   "A local change kept stale preview counters visible")
         engine.syncPair(pair.id)
         try wait(engine)
         try expect(engine.pairs[0].lastOutcome == "verified", "Push not verified: \(engine.runs[0].message)")
@@ -497,6 +500,77 @@ struct TestFailure: Error { let message: String }
         measured.deleteRemotePlanned = 234; measured.pushDone = 3; measured.pullDone = 65; measured.deleteDone = 0
         try expect(measured.operationFraction == Double(68) / 367, "Global progress must weight file actions, not operation categories")
 
+        // Analysis counters appear as bisync discovers differences, before the exact queue
+        // (and its total) is known. They are clearly provisional and deduplicated by path.
+        var discovering = RunProgress()
+        SyncEngine.apply(message: "- Path1 File is new - local.txt", object: "", to: &discovering)
+        SyncEngine.apply(message: "- Path1 File is new - local.txt", object: "", to: &discovering)
+        SyncEngine.apply(message: "- Path2 File changed - remote.txt", object: "", to: &discovering)
+        SyncEngine.apply(message: "- Path1 File was deleted - old-local.txt", object: "", to: &discovering)
+        SyncEngine.apply(message: "- Path2 File was deleted - old-remote.txt", object: "", to: &discovering)
+        SyncEngine.apply(stats: ["listed": 1740], to: &discovering)
+        try expect(discovering.discoveredPush == 1 && discovering.discoveredPull == 1,
+                   "Live copy counters did not increment during listing")
+        try expect(discovering.discoveredDeleteRemote == 1 && discovering.discoveredDeleteLocal == 1,
+                   "Live deletion counters did not increment during listing")
+        try expect(discovering.listed == 1740 && discovering.operationFraction == nil && !discovering.totalsKnown,
+                   "Analysis must expose listed objects without inventing a percentage")
+        SyncEngine.apply(message: "- Path1 Queue copy to Path2 - local.txt", object: "", to: &discovering)
+        SyncEngine.apply(message: "- Path2 Queue copy to Path1 - remote.txt", object: "", to: &discovering)
+        SyncEngine.apply(message: "- Path2 Queue delete - old-local.txt", object: "", to: &discovering)
+        SyncEngine.apply(message: "- Path1 Queue delete - old-remote.txt", object: "", to: &discovering)
+        SyncEngine.apply(message: "Do queued copies to Path2", object: "", to: &discovering)
+        try expect(discovering.totalsKnown && discovering.pushPlanned == 1 && discovering.pullPlanned == 1 && discovering.plannedDeletes == 2,
+                   "Provisional discovery counts were not replaced by the exact queue")
+
+        // On launch, an unknown pair receives one read-only comparison, even if real syncs
+        // are enabled. It populates action counts but never writes into either endpoint.
+        let startupBase = root.appendingPathComponent("startup-comparison")
+        let startupDisk = SyncDisk(base: startupBase.appendingPathComponent("data"), logs: startupBase.appendingPathComponent("logs"))
+        try startupDisk.prepare()
+        let startupLocal = startupBase.appendingPathComponent("local")
+        let startupRemote = root.appendingPathComponent("remote/startup-comparison")
+        try write("preview only", startupLocal.appendingPathComponent("to-send.txt"))
+        try fm.createDirectory(at: startupRemote, withIntermediateDirectories: true)
+        var startupPair = SyncPair()
+        startupPair.name = "startup comparison"; startupPair.localPath = startupLocal.path
+        startupPair.drivePath = "startup-comparison"; startupPair.remoteOverride = "testdrive"
+        startupPair.direction = .push; startupPair.previewOnly = false
+        try startupDisk.save([startupPair], to: startupDisk.config)
+        let startupEngine = SyncEngine(disk: startupDisk, automatic: true)
+        try wait(startupEngine)
+        try expect(startupEngine.runs.first?.dryRun == true && startupEngine.runs.first?.outcome == "preview",
+                   "Missing counters were not initialized with a read-only comparison")
+        try expect(startupEngine.previewRun(for: startupPair.id)?.plan?.pushNew.contains("to-send.txt") == true,
+                   "Automatic startup comparison did not populate the pending file count")
+        try expect(files(startupRemote).isEmpty, "Automatic startup comparison transferred a file")
+        startupEngine.shutdown()
+
+        // A two-way pair without baseline must not repeat an expensive first-merge scan on
+        // every launch: its explicit refresh files step stays in charge.
+        let unmergedDisk = SyncDisk(base: startupBase.appendingPathComponent("unmerged-data"),
+                                    logs: startupBase.appendingPathComponent("unmerged-logs"))
+        try unmergedDisk.prepare()
+        var unmerged = startupPair
+        unmerged.id = UUID(); unmerged.name = "unmerged"; unmerged.direction = .bidirectional
+        unmerged.drivePath = "startup-unmerged"; unmerged.needsResync = true
+        try unmergedDisk.save([unmerged], to: unmergedDisk.config)
+        let unmergedEngine = SyncEngine(disk: unmergedDisk, automatic: true)
+        try expect(!unmergedEngine.busy && unmergedEngine.queue.isEmpty && unmergedEngine.runs.isEmpty,
+                   "Startup launched an expensive first merge without an explicit request")
+        // Opening the Synchronisation view is an explicit signal: count once, still read-only.
+        try fm.createDirectory(at: URL(fileURLWithPath: unmerged.localPath), withIntermediateDirectories: true)
+        unmergedEngine.syncViewAppeared()
+        unmergedEngine.syncViewAppeared()
+        try wait(unmergedEngine, seconds: 60)
+        try expect(unmergedEngine.runs.first?.dryRun == true,
+                   "Opening Synchronisation did not run the read-only comparison")
+        try expect(unmergedEngine.runs.filter { $0.dryRun }.count == 1,
+                   "Opening Synchronisation twice launched duplicate comparisons")
+        try expect(files(root.appendingPathComponent("remote/startup-unmerged")).isEmpty,
+                   "First-merge comparison transferred a file")
+        unmergedEngine.shutdown()
+
         // If the copy phase fails, do not start any cleanup.
         let orderedFailureBinary = root.appendingPathComponent("ordered-copy-failure")
         try write("#!/bin/bash\nif [[ $1 == copy ]]; then echo '{\"level\":\"error\",\"msg\":\"ordered copy fixture failure\"}'; exit 1; fi\nexec '\(rcloneBinary())' \"$@\"\n", orderedFailureBinary)
@@ -723,6 +797,7 @@ struct TestFailure: Error { let message: String }
         var watched = SyncPair()
         watched.name = "watched"; watched.localPath = watcherBase.appendingPathComponent("local").path
         watched.drivePath = "watcher"; watched.remoteOverride = "testdrive"; watched.direction = .push
+        watched.previewOnly = false
         try write("before", URL(fileURLWithPath: watched.localPath).appendingPathComponent("file.txt"))
         try expect(watcher.savePair(watched), "Cannot install native watcher")
         watcher.syncPair(watched.id)

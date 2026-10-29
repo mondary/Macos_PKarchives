@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.72` (progression réelle par action et copies avant nettoyage)
+Statut : `2026.10.73` (compteurs d’analyse en direct et comparaison automatique au lancement)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,15 @@ Statut : `2026.10.72` (progression réelle par action et copies avant nettoyage)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.73] - 2026-10-29
+#### Changed
+- Pendant l’analyse, les trois compteurs à envoyer, à rapatrier et à supprimer s’incrémentent au fil des différences réellement repérées par rclone, avec le nombre d’objets listés ; ils sont marqués « repérés » et restent provisoires jusqu’à l’obtention de la file exacte, qui prend alors le relais sans doublon.
+- Le nombre d’objets découverts est dédoublonné par chemin et ne s’affiche que pendant la comparaison ; aucun pourcentage n’est calculé avant le total exact.
+- À l’ouverture de l’écran Synchronisation, les paires sans comparaison valide reçoivent une seule fois par session un contrôle en lecture seule (aucun transfert) ; une première fusion bidirectionnelle est ainsi analysée au moment où l’utilisateur regarde, jamais lors d’un lancement en arrière-plan. En arrière-plan, seules les paires déjà initialisées sont contrôlées au lancement, et une paire unidirectionnelle ajoutée l’est immédiatement.
+- Toute modification locale ou tout archivage invalide immédiatement l’ancien plan : les compteurs ne réaffichent plus une liste périmée en attendant la comparaison suivante.
+#### Fixed
+- Le lancement d’une synchronisation réelle retire les comparaisons provisoires encore en file pour cette paire, au lieu de les exécuter après le transfert.
 
 ### [2026.10.72] - 2026-10-29
 #### Changed

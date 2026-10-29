@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Project version: 2026.10.53** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.10.73** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -82,7 +82,9 @@ The new mode is available in the sources and Dev build, **not yet in the Stable 
 
 ![Drive folder selection by pasting its full link, with instructions and an Open Drive button](store/media/05-drive-folder-dev.png)
 
-**Run feedback**: the status block progresses by **completed action**, not duration or bytes: with 16 operations, the first completed file fills 1/16 of the bar, the second 2/16. Three counters and bars distinguish uploads, downloads and deletions (for example: 3/3, 65/130, 0/234). Unknown totals never produce an invented percentage. Previews show planned actions without pretending to transfer files; final verification has its own check counter. An incremental bidirectional sync first runs an isolated comparison; if the plan mixes copies and deletions, copies are completed and checked before cleanup. This preparation adds a scan of the endpoints. A failed copy or check stops cleanup; ambiguous conflicts or a truncated comparison require review rather than unsafe deletion.
+**Run feedback**: the status block progresses by **completed action**, not duration or bytes: with 16 operations, the first completed file fills 1/16 of the bar, the second 2/16. Three counters and bars distinguish uploads, downloads and deletions (for example: 3/3, 65/130, 0/234). **During analysis**, these counters already increase as rclone finds differences, alongside the number of listed objects and a “found” label; they stay provisional until the exact queue takes over. Unknown totals never produce an invented percentage. When the Synchronization screen opens, pairs without a valid comparison get this automatic read-only check once per session, with no transfer — including a first two-way merge, analyzed only while you are looking at the screen. In the background, only already initialized pairs are checked at launch. A local change or archive invalidates the old plan instead of showing stale counters. Previews show planned actions without pretending to transfer files; final verification has its own check counter. An incremental bidirectional sync first runs an isolated comparison; if the plan mixes copies and deletions, copies are completed and checked before cleanup. This preparation adds a scan of the endpoints. A failed copy or check stops cleanup; ambiguous conflicts or a truncated comparison require review rather than unsafe deletion.
+
+![Live analysis with sample data: 1,740 objects listed, 12 uploads and 3 downloads already found](store/media/11-sync-analysis-dev.png)
 
 ![Action-based progress with sample data: uploads complete, downloads running, deletions waiting](store/media/10-sync-actions-dev.png)
 

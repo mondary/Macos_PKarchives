@@ -90,6 +90,7 @@ private let syncStrings: [String: [String]] = [
     "progressDelete": ["🗑 %@/%@ suppressions", "🗑 %@/%@ deletions", "🗑 %@/%@ borrados", "🗑 %@/%@ Löschungen"],
     "actionCount": ["%d / %d actions terminées", "%d / %d actions completed", "%d / %d acciones terminadas", "%d / %d Aktionen abgeschlossen"],
     "actionsUnknown": ["%d actions terminées · total en cours de calcul", "%d actions completed · calculating total", "%d acciones terminadas · calculando total", "%d Aktionen abgeschlossen · Gesamtzahl wird ermittelt"],
+    "detectedShort": ["repérés", "found", "detectados", "gefunden"],
     "checksCount": ["Vérification : %d / %d fichiers contrôlés", "Verification: %d / %d files checked", "Verificación: %d / %d archivos comprobados", "Prüfung: %d / %d Dateien geprüft"],
     "previewMeasured": ["Simulation · aucun fichier modifié", "Preview · no file modified", "Simulación · ningún archivo modificado", "Vorschau · keine Datei geändert"],
     "plannedActions": ["%d actions prévues", "%d planned actions", "%d acciones previstas", "%d geplante Aktionen"],
@@ -574,9 +575,12 @@ struct SyncActionProgressView: View {
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
             HStack(alignment: .top, spacing: 16) {
-                action(syncText("sendShort"), symbol: "arrow.up", completed: progress.pushDone, planned: progress.plannedPushes, tint: .blue)
-                action(syncText("downloadShort"), symbol: "arrow.down", completed: progress.pullDone, planned: progress.plannedPulls, tint: .green)
-                action(syncText("deleteShort"), symbol: "trash", completed: progress.deleteDone, planned: progress.plannedDeletes, tint: .orange)
+                action(syncText("sendShort"), symbol: "arrow.up", completed: progress.pushDone, planned: progress.plannedPushes,
+                       discovered: progress.discoveredPush, tint: .blue)
+                action(syncText("downloadShort"), symbol: "arrow.down", completed: progress.pullDone, planned: progress.plannedPulls,
+                       discovered: progress.discoveredPull, tint: .green)
+                action(syncText("deleteShort"), symbol: "trash", completed: progress.deleteDone, planned: progress.plannedDeletes,
+                       discovered: progress.discoveredDeleteRemote + progress.discoveredDeleteLocal, tint: .orange)
             }
             if !dryRun && progress.phase == .verifying {
                 Text(progress.checksTotal > 0 ? String(format: syncText("checksCount"), progress.checksDone, progress.checksTotal) : syncText("verifying"))
@@ -585,13 +589,15 @@ struct SyncActionProgressView: View {
         }
     }
 
-    private func action(_ title: String, symbol: String, completed: Int, planned: Int, tint: Color) -> some View {
+    private func action(_ title: String, symbol: String, completed: Int, planned: Int, discovered: Int, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 5) {
                 Image(systemName: symbol).foregroundStyle(tint).accessibilityHidden(true)
                 Text(title).lineLimit(1)
                 Spacer(minLength: 0)
-                Text(dryRun ? "\(planned)" : "\(completed) / \(progress.totalsKnown ? String(planned) : "—")")
+                Text(!progress.totalsKnown && progress.phase == .listing
+                     ? discovered > 0 ? "\(discovered) \(syncText("detectedShort"))" : "—"
+                     : dryRun ? "\(planned)" : "\(completed) / \(progress.totalsKnown ? String(planned) : "—")")
                     .monospacedDigit()
             }.font(.caption)
             if !dryRun && progress.totalsKnown && planned > 0 {
@@ -717,6 +723,7 @@ struct SyncSectionView: View {
             if showSampleOperation, let pair = engine.pairs.first {
                 selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: .push)
             }
+            engine.syncViewAppeared()
         }
         .onReceive(NotificationCenter.default.publisher(for: .pkShowSyncHistory)) { _ in tab = "history" }
         .alert(syncText("error"), isPresented: Binding(get: { pairError != nil }, set: { if !$0 { pairError = nil } })) {
