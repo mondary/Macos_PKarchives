@@ -55,7 +55,7 @@ struct SettingsSectionHeader: View {
         guard args.count >= 3 else { fatalError("sync-snapshot TEST_ROOT OUTPUT.png [sync|history|quota|menu|menuArchive|form]") }
         let root = URL(fileURLWithPath: args[1])
         let kind = args.count > 3 ? args[3] : "sync"
-        let fixture = kind == "quota" ? "past-quota" : "push"
+        let fixture = kind == "quota" ? "past-quota" : ["linked", "narrow"].contains(kind) ? "linked" : "push"
         let disk = SyncDisk(base: root.appendingPathComponent("\(fixture)/data"), logs: root.appendingPathComponent("\(fixture)/logs"))
         // Status captures run read-only `rclone size` counts on the fixture remotes; every other
         // kind keeps the sentinel binary that can never launch a transfer.
@@ -65,8 +65,14 @@ struct SettingsSectionHeader: View {
             for candidate in [NSHomeDirectory() + "/.local/share/pkarchives/bin/rclone", "/opt/homebrew/bin/rclone", "/usr/local/bin/rclone"]
             where FileManager.default.fileExists(atPath: candidate) { inventoryBinary = candidate; break }
         }
-        let engine = SyncEngine(disk: disk, binary: inventoryBinary, automatic: false)
+        let engine = SyncEngine(disk: disk, binary: kind == "running" ? root.appendingPathComponent("slow-rclone").path : inventoryBinary, automatic: false)
         guard engine.storageError == nil else { fatalError(engine.storageError!) }
+        if kind == "running", let pair = engine.pairs.first {
+            engine.syncPair(pair.id)
+            let limit = Date().addingTimeInterval(5)
+            while !engine.busy && Date() < limit { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+            precondition(engine.busy, "Expected an active fixture transfer")
+        }
         if kind == "menuLive", inventoryBinary != nil, let pair = engine.pairs.first {
             // Isolated test remote: RCLONE_BWLIMIT=1M RCLONE_DISABLE=Copy keeps the real copy visible.
             engine.syncPair(pair.id)
@@ -118,7 +124,7 @@ struct SettingsSectionHeader: View {
                 WorkspaceHeaderView(navigation: navigation, select: { navigation.mode = $0 }, settings: { navigation.showingSettings = true })
                 SyncSectionView(engine: engine, initialTab: ["history", "quota"].contains(kind) ? "history" : "pairs")
             })
-            bounds = NSRect(x: 0, y: 0, width: 1240, height: 820)
+            bounds = NSRect(x: 0, y: 0, width: kind == "narrow" ? 1000 : 1240, height: 820)
         }
         let view = NSHostingView(rootView: content.background(Color(nsColor: .windowBackgroundColor)).environment(\.colorScheme, dark ? .dark : .light))
         if kind.hasPrefix("menu") { bounds.size.height = view.fittingSize.height }
@@ -132,7 +138,7 @@ struct SettingsSectionHeader: View {
         guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("No PNG") }
         try png.write(to: URL(fileURLWithPath: args[2]))
         print("Native offscreen snapshot: \(args[2])")
-        if kind == "menuLive" {
+        if kind == "menuLive" || kind == "running" {
             engine.shutdown()
             let limit = Date().addingTimeInterval(15)
             while engine.busy && limit > Date() { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }

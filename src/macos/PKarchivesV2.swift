@@ -1395,7 +1395,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         statusPopover.behavior = .transient
         statusPopover.animates = false
         statusPopover.delegate = self
-        if CommandLine.arguments.contains("--qa-screen") {
+        if CommandLine.arguments.contains("--qa-screen") && !CommandLine.arguments.contains("--qa-keep-open") {
             Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { _ in NSApp.terminate(nil) }
         }
         // Keep the sync-only startup genuinely light: no WebKit subprocess, no Desktop scan.
@@ -1707,7 +1707,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                 return
             }
             let frame = screen.visibleFrame
-            window.setFrame(NSRect(x: frame.midX - 620, y: frame.midY - 410, width: 1240, height: 820), display: true)
+            let width = min(frame.width * 0.78, 2400)
+            let height = min(frame.height * 0.78, 1500)
+            window.setFrame(NSRect(x: frame.midX - width / 2, y: frame.midY - height / 2, width: width, height: height), display: true)
             window.orderFrontRegardless()
             return
         }

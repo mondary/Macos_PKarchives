@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.58` (panneaux « Depuis / Vers » horizontaux alignés sur la capture de référence)
+Statut : `2026.10.62` (synchronisation lisible en fenêtre réduite et animation d'exécution)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,27 @@ Statut : `2026.10.58` (panneaux « Depuis / Vers » horizontaux alignés sur la 
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.62] - 2026-10-29
+#### Changed
+- Les emplacements de synchronisation se réorganisent verticalement dans une fenêtre étroite ; titres, compteurs et chemins restent lisibles, tandis que la disposition horizontale demeure sur grand écran.
+- Le sélecteur segmenté « Paires / Activité » est remplacé par une liste « Dossiers liés » et un accès discret à l’historique.
+- Lors d'une exécution réelle, une transition, un indicateur de progression natif et un mouvement dans la liaison centrale rendent le transfert visible ; l'animation cesse à l'arrêt et respecte la réduction des animations.
+
+### [2026.10.61] - 2026-10-29
+#### Fixed
+- Mode QA entièrement sans transferts : simulation et synchronisation sont désactivées avec les autres actions Drive, afin que l’exemple fictif reste consultatif.
+
+### [2026.10.60] - 2026-10-29
+#### Changed
+- Le bouton « Créer une paire », l’aide dans la liste et le formulaire expliquent qu’une paire relie un dossier du Mac à une destination Drive ; l’étiquette de la paire est désormais distincte du nom du dossier local.
+- Carte de paire plus lisible et panneaux élargis quand l’écran le permet. La fenêtre QA DeskPad s’adapte à l’écran virtuel pour rendre les deux côtés visibles.
+#### Fixed
+- Le mode QA signale que ses données Drive sont fictives et désactive les liens/ouvertures et le montage Drive : l’exemple ne mène plus à une erreur 404 ni à un compte réel.
+
+### [2026.10.59] - 2026-10-29
+#### Changed
+- Ajout de `--qa-keep-open` pour laisser ouverte la fenêtre QA placée sur DeskPad; le jeu de données reste isolé avec `--qa-data`.
 
 ### [2026.10.58] - 2026-10-29
 #### Changed

@@ -6,6 +6,15 @@ private let syncStrings: [String: [String]] = [
     "title": ["Dossiers synchronisés", "Synced folders", "Carpetas sincronizadas", "Synchronisierte Ordner"],
     "subtitle": ["Prévoir. Transférer. Vérifier. Rien de vert sans contrôle.", "Preview. Transfer. Verify. No green status without a check.", "Simular. Transferir. Verificar. Ningún estado verde sin control.", "Vorschau. Übertragen. Prüfen. Kein grüner Status ohne Prüfung."],
     "add": ["Ajouter un dossier", "Add folder", "Añadir carpeta", "Ordner hinzufügen"],
+    "createPair": ["Créer une paire", "Create a pair", "Crear una pareja", "Paar erstellen"],
+    "editPair": ["Modifier la paire", "Edit pair", "Editar pareja", "Paar bearbeiten"],
+    "pairName": ["Nom de la paire", "Pair name", "Nombre de la pareja", "Paarname"],
+    "pairSetupHelp": ["Une paire relie un dossier de ce Mac à une destination Google Drive. Créez-la ici, puis commencez par une simulation.", "A pair links a folder on this Mac to a Google Drive destination. Create it here, then start with a preview.", "Una pareja conecta una carpeta de este Mac con un destino de Google Drive. Créala aquí y empieza con una simulación.", "Ein Paar verbindet einen Ordner auf diesem Mac mit einem Google-Drive-Ziel. Hier erstellen und zuerst eine Vorschau starten."],
+    "pairConnects": ["Relie ce dossier Mac à la destination Drive ci-dessous", "Links this Mac folder to the Drive destination below", "Conecta esta carpeta del Mac con el destino de Drive", "Verbindet diesen Mac-Ordner mit dem Drive-Ziel unten"],
+    "pairFormIntro": ["Choisissez un dossier sur ce Mac et sa destination Drive. Enregistrez la paire, puis lancez une simulation pour voir ce qui changerait.", "Choose a folder on this Mac and its Drive destination. Save the pair, then preview to see what would change.", "Elige una carpeta de este Mac y su destino en Drive. Guarda la pareja y simula para ver qué cambiaría.", "Wähle einen Ordner auf diesem Mac und sein Drive-Ziel. Speichere das Paar und starte eine Vorschau, um Änderungen zu sehen."],
+    "qaFixtureNotice": ["Mode test : cette paire utilise des données fictives. Aucun dossier Drive réel n’est connecté ; l’ouverture, le montage et les synchronisations sont désactivés.", "Test mode: this pair uses sample data. No real Drive folder is connected; opening, mounting and sync runs are disabled.", "Modo de prueba: esta pareja usa datos de ejemplo. No hay una carpeta real de Drive conectada; abrir, montar y sincronizar están desactivados.", "Testmodus: Dieses Paar verwendet Beispieldaten. Kein echtes Drive-Verzeichnis ist verbunden; Öffnen, Einbinden und Synchronisieren sind deaktiviert."],
+    "qaDriveCard": ["Drive de test", "Test Drive", "Drive de prueba", "Test-Drive"],
+    "qaDriveHelp": ["Cette paire de démonstration utilise un identifiant fictif et ne peut pas ouvrir Google Drive.", "This sample pair uses a fake ID and cannot open Google Drive.", "Esta pareja de ejemplo usa un ID ficticio y no puede abrir Google Drive.", "Dieses Beispielpaar verwendet eine erfundene ID und kann Google Drive nicht öffnen."],
     "all": ["Synchroniser tout", "Sync all", "Sincronizar todo", "Alles synchronisieren"],
     "simulateAll": ["Tout simuler", "Preview all", "Simular todo", "Alles simulieren"],
     "simulate": ["Simuler · dry run", "Preview · dry run", "Simular · dry run", "Vorschau · dry run"],
@@ -79,6 +88,8 @@ private let syncStrings: [String: [String]] = [
     "filesProgress": ["%@ / %@ fichiers", "%@ / %@ files", "%@ / %@ archivos", "%@ / %@ Dateien"],
     "stopRun": ["Arrêter l’exécution", "Stop run", "Detener la ejecución", "Lauf stoppen"],
     "pairs": ["Paires", "Pairs", "Parejas", "Paare"],
+    "linkedFolders": ["Dossiers liés", "Linked folders", "Carpetas vinculadas", "Verknüpfte Ordner"],
+    "viewHistory": ["Voir l’historique", "View history", "Ver historial", "Verlauf anzeigen"],
     "resimulate": ["Relancer la simulation", "Re-run preview", "Repetir simulación", "Vorschau erneut"],
     "comparison": ["Comparaison Mac ↔ Drive", "Mac ↔ Drive comparison", "Comparación Mac ↔ Drive", "Vergleich Mac ↔ Drive"],
     "previewOf": ["Comparaison du", "Comparison from", "Comparación del", "Vergleich vom"],
@@ -200,27 +211,29 @@ func syncFileCount(_ count: Int) -> String { "\(count) \(syncText(count == 1 ? "
 struct SyncPairLocations: View {
     let pair: SyncPair
     var plan: PreviewPlan?
+    var active = false
     var onMountDrive: () -> Void = {}
+    private var isQAScreen: Bool { CommandLine.arguments.contains("--qa-screen") }
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 18) {
-                localEndpoint(trailing: false).frame(minWidth: 360, maxWidth: 520)
+                localEndpoint(trailing: false, compact: false).frame(width: 470)
                 directionBridge(vertical: false).frame(width: 110)
-                remoteEndpoint(trailing: true).frame(minWidth: 360, maxWidth: 520)
+                remoteEndpoint(trailing: true, compact: false).frame(width: 470)
             }.frame(maxWidth: .infinity, alignment: .center)
             VStack(spacing: 10) {
-                localEndpoint(trailing: false)
+                localEndpoint(trailing: false, compact: true)
                 directionBridge(vertical: true)
-                remoteEndpoint(trailing: false)
+                remoteEndpoint(trailing: false, compact: true)
             }
         }
     }
 
-    private func localEndpoint(trailing: Bool) -> some View {
+    private func localEndpoint(trailing: Bool, compact: Bool) -> some View {
         let uploads = (plan?.pushNew.count ?? 0) + (plan?.pushModified.count ?? 0)
         return endpoint(
-            eyebrow: syncText("fromSide"), title: pair.name.isEmpty ? localFolderName : pair.name,
-            path: shortPath(pair.localPath), icon: finderIcon, tint: .blue, trailing: trailing,
+            eyebrow: syncText("fromSide"), title: localFolderName,
+            path: shortPath(pair.localPath), icon: finderIcon, tint: .blue, trailing: trailing, compact: compact,
             transferIcon: "arrow.up", transferCount: uploads, transferLabel: syncText("sendShort"),
             deletionCount: plan?.deleteLocal.count ?? 0, showOps: plan != nil,
             actionTitle: syncText("openFinderCard"), actionIcon: finderIcon,
@@ -228,15 +241,16 @@ struct SyncPairLocations: View {
         )
     }
 
-    private func remoteEndpoint(trailing: Bool) -> some View {
+    private func remoteEndpoint(trailing: Bool, compact: Bool) -> some View {
         let downloads = (plan?.pullNew.count ?? 0) + (plan?.pullModified.count ?? 0)
         return endpoint(
             eyebrow: syncText("toSide"), title: remoteFolderName, path: remotePath,
-            icon: driveIcon, tint: .green, trailing: trailing,
+            icon: driveIcon, tint: .green, trailing: trailing, compact: compact,
             transferIcon: "arrow.down", transferCount: downloads, transferLabel: syncText("downloadShort"),
             deletionCount: plan?.deleteRemote.count ?? 0, showOps: plan != nil,
-            actionTitle: syncText("openDriveCard"), actionIcon: driveIcon,
-            action: openDrive, mountAction: onMountDrive
+            actionTitle: syncText(isQAScreen ? "qaDriveCard" : "openDriveCard"), actionIcon: driveIcon,
+            actionDisabled: isQAScreen, action: openDrive,
+            mountAction: isQAScreen ? nil : onMountDrive
         )
     }
 
@@ -265,50 +279,99 @@ struct SyncPairLocations: View {
             ?? NSImage(size: NSSize(width: 18, height: 18))
     }
 
-    private func endpoint(eyebrow: String, title: String, path: String, icon: NSImage, tint: Color, trailing: Bool,
+    private func endpoint(eyebrow: String, title: String, path: String, icon: NSImage, tint: Color, trailing: Bool, compact: Bool,
                           transferIcon: String, transferCount: Int, transferLabel: String,
                           deletionCount: Int, showOps: Bool, actionTitle: String, actionIcon: NSImage,
-                          action: @escaping () -> Void, mountAction: (() -> Void)? = nil) -> some View {
+                          actionDisabled: Bool = false, action: @escaping () -> Void,
+                          mountAction: (() -> Void)? = nil) -> some View {
         VStack(alignment: trailing ? .trailing : .leading, spacing: 0) {
             Text(eyebrow).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: trailing ? .trailing : .leading)
                 .padding(.bottom, 8)
-            HStack(spacing: 10) {
-                if trailing { Spacer(minLength: 0) }
-                Image(nsImage: icon).resizable().scaledToFit()
-                    .frame(width: 22, height: 22)
-                    .frame(width: 30, height: 30)
-                    .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 9))
-                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.primary.opacity(0.08), lineWidth: 1))
-                    .accessibilityHidden(true)
-                Text(title).font(.system(size: 23, weight: .black, design: .rounded))
-                    .tracking(-0.8).lineLimit(1).truncationMode(.middle).help(title).layoutPriority(1)
-                if showOps {
-                    operationBadge(transferCount, title: transferLabel, symbol: transferIcon, tint: tint, coloredWhenZero: true)
-                    operationBadge(deletionCount, title: syncText("deleteShort"), symbol: "trash", tint: .red)
-                } else {
-                    Label(syncText("previewShort"), systemImage: "eye")
-                        .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
-                        .padding(.horizontal, 9).padding(.vertical, 6)
-                        .background(Color.primary.opacity(0.05), in: Capsule())
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    if trailing { Spacer(minLength: 0) }
+                    endpointTitle(title, icon: icon)
+                    operationCounts(transferIcon: transferIcon, transferCount: transferCount,
+                                    transferLabel: transferLabel, tint: tint, deletionCount: deletionCount, showOps: showOps)
+                    if !trailing { Spacer(minLength: 0) }
                 }
-                if !trailing { Spacer(minLength: 0) }
+                VStack(alignment: .leading, spacing: 8) {
+                    endpointTitle(title, icon: icon)
+                    operationCounts(transferIcon: transferIcon, transferCount: transferCount,
+                                    transferLabel: transferLabel, tint: tint, deletionCount: deletionCount, showOps: showOps)
+                }.frame(maxWidth: .infinity, alignment: .leading)
             }
-            HStack(spacing: 8) {
-                Text(path).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(.secondary)
-                    .lineLimit(1).truncationMode(.middle).help(path).textSelection(.enabled).layoutPriority(1)
-                Spacer(minLength: 8)
-                cardButton(actionTitle, icon: actionIcon, tint: tint, action: action)
-                if let mountAction {
-                    cardButton(syncText("mountDriveCard"), symbol: "arrow.down", action: mountAction)
-                }
-            }.padding(.top, 7)
+            if compact {
+                VStack(alignment: .leading, spacing: 8) {
+                    endpointPath(path)
+                    endpointActions(actionTitle: actionTitle, actionIcon: actionIcon, tint: tint,
+                                    disabled: actionDisabled, action: action, mountAction: mountAction)
+                }.padding(.top, 10)
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        endpointPath(path)
+                        Spacer(minLength: 8)
+                        endpointActions(actionTitle: actionTitle, actionIcon: actionIcon, tint: tint,
+                                        disabled: actionDisabled, action: action, mountAction: mountAction)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        endpointPath(path)
+                        endpointActions(actionTitle: actionTitle, actionIcon: actionIcon, tint: tint,
+                                        disabled: actionDisabled, action: action, mountAction: mountAction)
+                    }
+                }.padding(.top, 10)
+            }
         }
         .padding(.horizontal, 18).padding(.vertical, 20)
         .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.045), lineWidth: 1))
         .shadow(color: Color.black.opacity(0.035), radius: 10, x: 0, y: 4)
+    }
+
+    private func endpointTitle(_ title: String, icon: NSImage) -> some View {
+        HStack(spacing: 10) {
+            Image(nsImage: icon).resizable().scaledToFit()
+                .frame(width: 22, height: 22).frame(width: 30, height: 30)
+                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 9))
+                .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                .accessibilityHidden(true)
+            Text(title).font(.system(size: 23, weight: .black, design: .rounded))
+                .tracking(-0.8).lineLimit(1).truncationMode(.middle).help(title)
+        }
+    }
+
+    @ViewBuilder private func operationCounts(transferIcon: String, transferCount: Int,
+                                               transferLabel: String, tint: Color, deletionCount: Int,
+                                               showOps: Bool) -> some View {
+        if showOps {
+            HStack(spacing: 8) {
+                operationBadge(transferCount, title: transferLabel, symbol: transferIcon, tint: tint, coloredWhenZero: true)
+                operationBadge(deletionCount, title: syncText("deleteShort"), symbol: "trash", tint: .red)
+            }.fixedSize(horizontal: true, vertical: false)
+        } else {
+            Label(syncText("previewShort"), systemImage: "eye")
+                .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                .padding(.horizontal, 9).padding(.vertical, 6)
+                .background(Color.primary.opacity(0.05), in: Capsule())
+        }
+    }
+
+    private func endpointPath(_ path: String) -> some View {
+        Text(path).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(.secondary)
+            .lineLimit(1).truncationMode(.middle).help(path).textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func endpointActions(actionTitle: String, actionIcon: NSImage, tint: Color, disabled: Bool,
+                                 action: @escaping () -> Void, mountAction: (() -> Void)?) -> some View {
+        HStack(spacing: 8) {
+            cardButton(actionTitle, icon: actionIcon, tint: tint, disabled: disabled,
+                       help: disabled ? syncText("qaDriveHelp") : nil, action: action)
+            if let mountAction { cardButton(syncText("mountDriveCard"), symbol: "arrow.down", action: mountAction) }
+        }
     }
 
     private func operationBadge(_ count: Int, title: String, symbol: String, tint: Color, coloredWhenZero: Bool = false) -> some View {
@@ -325,17 +388,18 @@ struct SyncPairLocations: View {
         .accessibilityLabel("\(count) \(title)")
     }
 
-    private func cardButton(_ title: String, icon: NSImage, tint: Color, action: @escaping () -> Void) -> some View {
+    private func cardButton(_ title: String, icon: NSImage, tint: Color, disabled: Bool = false,
+                            help: String? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(nsImage: icon).resizable().scaledToFit().frame(width: 14, height: 14)
                 Text(title).lineLimit(1).fixedSize(horizontal: true, vertical: false)
             }
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(disabled ? Color.secondary : Color.white)
             .padding(.horizontal, 11).padding(.vertical, 7)
-            .background(tint, in: Capsule())
-        }.buttonStyle(.plain)
+            .background(disabled ? Color.primary.opacity(0.055) : tint, in: Capsule())
+        }.buttonStyle(.plain).disabled(disabled).help(help ?? title)
     }
 
     private func cardButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
@@ -357,11 +421,19 @@ struct SyncPairLocations: View {
         if vertical {
             VStack(spacing: 6) {
                 directionLine
-                Text(label.uppercased()).font(.system(size: 9, weight: .heavy)).tracking(1.1).foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    if active { ProgressView().controlSize(.mini).accessibilityHidden(true) }
+                    Text(label.uppercased()).font(.system(size: 9, weight: .heavy)).tracking(1.1).foregroundStyle(.secondary)
+                }
             }.frame(maxWidth: .infinity).padding(.vertical, 2)
         } else {
             VStack(spacing: 8) {
                 directionLine
+                    .overlay {
+                        if active && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                            TransferFlowDot(reverse: pair.direction == .pull)
+                        }
+                    }
                 Text(label.uppercased()).font(.system(size: 9, weight: .heavy)).tracking(1.1).foregroundStyle(.secondary)
             }
         }
@@ -380,9 +452,24 @@ struct SyncPairLocations: View {
     }
 
     private func openDrive() {
+        guard !CommandLine.arguments.contains("--qa-screen") else { return }
         let url = pair.driveFolderID.flatMap { URL(string: "https://drive.google.com/drive/folders/\($0)") }
             ?? URL(string: "https://drive.google.com/drive/my-drive")!
         NSWorkspace.shared.open(url)
+    }
+}
+
+private struct TransferFlowDot: View {
+    let reverse: Bool
+    @State private var moving = false
+
+    var body: some View {
+        Circle().fill(Color.accentColor).frame(width: 7, height: 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .offset(x: moving ? (reverse ? 0 : 94) : (reverse ? 94 : 0))
+            .animation(.linear(duration: 1.2).repeatForever(autoreverses: false), value: moving)
+            .onAppear { moving = true }
+            .accessibilityHidden(true)
     }
 }
 
@@ -407,6 +494,7 @@ struct SyncSectionView: View {
     @State private var expandedPairs: Set<UUID> = []
     @State private var pairError: String?
     private let onMountDrive: () -> Void
+    private var isQAScreen: Bool { CommandLine.arguments.contains("--qa-screen") }
 
     init(engine: SyncEngine = .shared, initialTab: String = "pairs", onMountDrive: @escaping () -> Void = {}) {
         self.engine = engine
@@ -418,29 +506,43 @@ struct SyncSectionView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 SettingsSectionHeader(title: syncText("title"), subtitle: syncText("subtitle"), icon: "arrow.triangle.2.circlepath")
+                if isQAScreen { qaFixtureNotice }
                 if let error = engine.storageError {
                     Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red).textSelection(.enabled)
                 }
                 HStack {
-                    Button { editing = SyncPair() } label: { Label(syncText("add"), systemImage: "plus") }
+                    Button { editing = SyncPair() } label: { Label(syncText("createPair"), systemImage: "plus") }
                         .buttonStyle(.borderedProminent).disabled(engine.busy || engine.storageError != nil)
                     Spacer()
                     Button { engine.syncAll(dryRun: true) } label: { Label(syncText("simulateAll"), systemImage: "eye") }
-                        .disabled(engine.busy || !engine.pairs.contains(where: { $0.enabled && engine.cooldownUntil(for: $0) == nil }))
+                        .disabled(isQAScreen || engine.busy || !engine.pairs.contains(where: { $0.enabled && engine.cooldownUntil(for: $0) == nil }))
                     Menu {
-                        Button(syncText("all")) { engine.syncAll() }.disabled(!engine.pairs.contains(where: { $0.enabled && engine.cooldownUntil(for: $0) == nil }))
-                        Button(syncText("retryAll")) { engine.retryFailed() }
+                        Button(syncText("all")) { engine.syncAll() }.disabled(isQAScreen || !engine.pairs.contains(where: { $0.enabled && engine.cooldownUntil(for: $0) == nil }))
+                        Button(syncText("retryAll")) { engine.retryFailed() }.disabled(isQAScreen)
                         if engine.isPaused { Button(syncText("resume")) { engine.resume() } }
                         else { Button(syncText("pause")) { engine.pauseForHours(1) } }
                     } label: { Label(syncText("globalActions"), systemImage: "ellipsis") }
                 }
+                Label(syncText("pairSetupHelp"), systemImage: "arrow.left.arrow.right")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Label(syncText("safe"), systemImage: "eye.circle")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 if engine.busy { progressBanner }
-                Picker(syncText("title"), selection: $tab) {
-                    Text("\(syncText("pairs")) · \(engine.pairs.count)").tag("pairs")
-                    Text(syncText("history")).tag("history")
-                }.pickerStyle(.segmented).labelsHidden()
+                HStack {
+                    if tab == "pairs" {
+                        Text("\(syncText("linkedFolders")) · \(engine.pairs.count)")
+                            .font(.headline).foregroundStyle(.secondary)
+                        Spacer()
+                        Button { tab = "history" } label: {
+                            Label(syncText("viewHistory"), systemImage: "clock.arrow.circlepath")
+                        }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                    } else {
+                        Button { tab = "pairs" } label: {
+                            Label(syncText("folders"), systemImage: "chevron.left")
+                        }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                        Spacer()
+                    }
+                }
                 if engine.isPaused {
                     HStack {
                         Label(syncText("pauseNote"), systemImage: "pause.circle")
@@ -457,7 +559,7 @@ struct SyncSectionView: View {
                 }.font(.caption).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 20).padding(.top, 28).padding(.bottom, 28)
-            .frame(maxWidth: 1230).frame(maxWidth: .infinity)
+            .frame(maxWidth: 1800).frame(maxWidth: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .sheet(item: $editing) { SyncPairForm(original: $0, engine: engine) }
@@ -477,6 +579,15 @@ struct SyncSectionView: View {
             Button(syncText("remove"), role: .destructive) { if let pair = removing { engine.deletePair(pair.id) } }
             Button(syncText("cancel"), role: .cancel) {}
         } message: { Text(syncText("removeNote")) }
+    }
+
+    private var qaFixtureNotice: some View {
+        Label(syncText("qaFixtureNotice"), systemImage: "testtube.2")
+            .font(.callout.weight(.medium)).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor.opacity(0.16), lineWidth: 1))
     }
 
     /// Live execution feedback: rclone's planned operations, real progress, speed and ETA.
@@ -583,21 +694,26 @@ struct SyncSectionView: View {
         let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync"].contains(state)
         let plan = engine.previewRun(for: pair.id)?.plan
         return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(pair.name.isEmpty ? URL(fileURLWithPath: pair.localPath).lastPathComponent : pair.name)
+                        .font(.headline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                    Text(syncText("pairConnects")).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
                 if pair.previewOnly { previewBadge(pair) }
-                Spacer(minLength: 0)
                 status(state)
             }
-            SyncPairLocations(pair: pair, plan: plan, onMountDrive: onMountDrive)
+            SyncPairLocations(pair: pair, plan: plan, active: running, onMountDrive: onMountDrive)
             if let plan {
                 deletionWarning(plan)
                 typeRow(plan)
             }
             if running {
-                runningBlock(pair)
+                runningBlock(pair).transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 if attention { warningStrip(pair, state: state) } else { metaLine(pair) }
-                actionsRow(pair)
+                actionsRow(pair).transition(.opacity)
             }
             DisclosureGroup(workspaceText("pairDetails"), isExpanded: Binding(
                 get: { expandedPairs.contains(pair.id) },
@@ -606,9 +722,11 @@ struct SyncSectionView: View {
                 inventoryRows(pair)
                 comparisonSection(pair)
             }.font(.callout)
-        }.padding(.vertical, 16)
-            .background(Color.primary.opacity(0.018), in: RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.primary.opacity(0.045), lineWidth: 1))
+        }.padding(16)
+            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 22))
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.primary.opacity(0.085), lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.025), radius: 8, x: 0, y: 3)
+            .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.22), value: running)
             .contextMenu { pairContextMenu(pair) }
     }
 
@@ -626,8 +744,9 @@ struct SyncSectionView: View {
         let fraction: Double? = progress.flatMap { $0.bytesTotal > 0 ? min(1, max(0, Double($0.bytesDone) / Double($0.bytesTotal))) : nil }
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Label(engine.progressText.isEmpty ? syncText(engine.isDryRun ? "simulating" : "running") : engine.progressText,
-                      systemImage: engine.isDryRun ? "eye" : "arrow.triangle.2.circlepath")
+                ProgressView().controlSize(.small)
+                    .accessibilityHidden(true)
+                Text(engine.progressText.isEmpty ? syncText(engine.isDryRun ? "simulating" : "running") : engine.progressText)
                     .font(.callout.weight(.medium)).lineLimit(1).truncationMode(.tail)
                 Spacer()
                 if let fraction { Text("\(Int(fraction * 100)) %").font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
@@ -682,13 +801,13 @@ struct SyncSectionView: View {
             Button { engine.syncPair(pair.id, dryRun: true) } label: {
                 Label(syncText(engine.previewRun(for: pair.id) == nil ? "simulate" : "resimulate"), systemImage: "eye")
             }
-            .disabled(!pair.enabled || engine.cooldownUntil(for: pair) != nil)
+            .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
             Button(syncText(pair.previewOnly || pair.needsResync && pair.direction.usesBisync ? "startSync" : "sync")) {
                 if pair.previewOnly || pair.needsResync && pair.direction.usesBisync { merging = pair }
                 else { engine.syncPair(pair.id) }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(!pair.enabled || engine.cooldownUntil(for: pair) != nil)
+            .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
             Spacer(minLength: 8)
             Menu {
                 Toggle(syncText("enabled"), isOn: enableBinding(pair))
@@ -699,20 +818,20 @@ struct SyncSectionView: View {
             } label: { Image(systemName: "ellipsis.circle") }
                 .accessibilityLabel(syncText("more"))
         }.controlSize(.regular)
-        .disabled(engine.busy || engine.storageError != nil)
+        .disabled(isQAScreen || engine.busy || engine.storageError != nil)
     }
 
     @ViewBuilder private func pairContextMenu(_ pair: SyncPair) -> some View {
         Button(syncText("simulate")) { engine.syncPair(pair.id, dryRun: true) }
-            .disabled(engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
+            .disabled(isQAScreen || engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
         Button(syncText("sync")) {
             if pair.previewOnly || pair.needsResync && pair.direction.usesBisync { merging = pair }
             else { engine.syncPair(pair.id) }
-        }.disabled(engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
-        Toggle(syncText("enabled"), isOn: enableBinding(pair)).disabled(engine.busy || engine.storageError != nil)
-        Button(syncText("edit")) { editing = pair }.disabled(engine.busy || engine.storageError != nil)
+        }.disabled(isQAScreen || engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
+        Toggle(syncText("enabled"), isOn: enableBinding(pair)).disabled(isQAScreen || engine.busy || engine.storageError != nil)
+        Button(syncText("edit")) { editing = pair }.disabled(isQAScreen || engine.busy || engine.storageError != nil)
         Divider()
-        Button(syncText("remove"), role: .destructive) { removing = pair }.disabled(engine.busy || engine.storageError != nil)
+        Button(syncText("remove"), role: .destructive) { removing = pair }.disabled(isQAScreen || engine.busy || engine.storageError != nil)
     }
 
     private func enableBinding(_ pair: SyncPair) -> Binding<Bool> {
@@ -960,6 +1079,7 @@ struct SyncPairForm: View {
     @State private var error: String?
     @State private var destinationMethod: String
     @State private var folderLink: String
+    private var isQAScreen: Bool { CommandLine.arguments.contains("--qa-screen") }
     init(original: SyncPair, engine: SyncEngine) {
         self.original = original; self.engine = engine
         _pair = State(initialValue: original)
@@ -969,10 +1089,12 @@ struct SyncPairForm: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(syncText("title")).font(.title2.bold())
+            Text(original.localPath.isEmpty ? syncText("createPair") : syncText("editPair")).font(.title2.bold())
+            Text(syncText("pairFormIntro")).font(.callout).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Form {
                 Section(syncText("local")) {
-                    TextField(syncText("name"), text: $pair.name)
+                    TextField(syncText("pairName"), text: $pair.name)
                     HStack {
                         TextField(syncText("local"), text: $pair.localPath)
                         Button(syncText("choose")) { choose() }
@@ -981,7 +1103,12 @@ struct SyncPairForm: View {
                 Section(syncText("driveDestination")) {
                     HStack {
                         LabeledContent(syncText("driveAccount"), value: pair.remote)
-                        Link(destination: browserDriveURL) { Label(syncText("openDrive"), systemImage: "arrow.up.right.square") }
+                        if isQAScreen {
+                            Label(syncText("qaDriveCard"), systemImage: "lock.fill")
+                                .foregroundStyle(.secondary).help(syncText("qaDriveHelp"))
+                        } else {
+                            Link(destination: browserDriveURL) { Label(syncText("openDrive"), systemImage: "arrow.up.right.square") }
+                        }
                     }
                     Picker(syncText("driveDestination"), selection: $destinationMethod) {
                         Text(syncText("folderLink")).tag("link")
