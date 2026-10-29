@@ -563,6 +563,16 @@ private struct ArchivePreferencesView: View {
                                         Button { editingSyncPair = pair } label: { Label(syncText("edit"), systemImage: "slider.horizontal.3") }
                                             .controlSize(.small).accessibilityLabel(syncText("edit"))
                                     }
+                                    DisclosureGroup(syncText("inventory")) {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            if let inventory = syncEngine.inventories[pair.id] {
+                                                Text("\(syncText("localSide")) · \(inventory.localFiles.map(syncFileCount) ?? "—")")
+                                                Text("\(syncText("remoteSide")) · \(inventory.remoteFiles.map(syncFileCount) ?? "—")")
+                                            }
+                                            Button(syncText("refreshCounts")) { syncEngine.refreshInventory(pair.id) }
+                                                .disabled(syncEngine.busy || syncEngine.inventoryBusy || syncEngine.storageError != nil)
+                                        }.font(.caption).foregroundStyle(.secondary).padding(.top, 6)
+                                    }
                                     if pair.id != syncEngine.pairs.last?.id { Divider() }
                                 }
                             }

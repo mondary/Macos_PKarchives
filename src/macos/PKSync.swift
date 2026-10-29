@@ -106,6 +106,9 @@ private let syncStrings: [String: [String]] = [
     "status.cadence": ["Automatique tant que l’app est ouverte · Mac : 45 s après un changement · Drive : environ chaque heure et au réveil", "Automatic while the app is open · Mac: 45 s after a change · Drive: about hourly and on wake", "Automático con la app abierta · Mac: 45 s tras un cambio · Drive: cada hora y al despertar", "Automatisch bei geöffneter App · Mac: 45 s nach Änderung · Drive: etwa stündlich und nach dem Aufwachen"],
     "status.cadenceOff": ["Contrôle automatique indisponible dans ce mode", "Automatic checks unavailable in this mode", "Comprobación automática no disponible en este modo", "Automatische Prüfung in diesem Modus nicht verfügbar"],
     "syncNow": ["Synchroniser maintenant", "Sync now", "Sincronizar ahora", "Jetzt synchronisieren"],
+    "refreshFiles": ["Actualiser les fichiers", "Refresh files", "Actualizar archivos", "Dateien aktualisieren"],
+    "unknownFiles": ["À actualiser · aucun transfert ne sera lancé", "Refresh needed · no transfer will start", "Actualizar · no se iniciará ninguna transferencia", "Aktualisieren · keine Übertragung wird gestartet"],
+    "comparingFiles": ["Comparaison des fichiers en cours… Aucun transfert.", "Comparing files… No transfer.", "Comparando archivos… Sin transferencia.", "Dateien werden verglichen… Keine Übertragung."],
     "resimulate": ["Relancer la simulation", "Re-run preview", "Repetir simulación", "Vorschau erneut"],
     "comparison": ["Comparaison Mac ↔ Drive", "Mac ↔ Drive comparison", "Comparación Mac ↔ Drive", "Vergleich Mac ↔ Drive"],
     "previewOf": ["Comparaison du", "Comparison from", "Comparación del", "Vergleich vom"],
@@ -396,21 +399,14 @@ struct SyncPairLocations: View {
                                                transferLabel: String, tint: Color, deletionCount: Int,
                                                showOps: Bool, transferKind: SyncOperationKind,
                                                deletionKind: SyncOperationKind) -> some View {
-        if showOps {
-            HStack(spacing: 8) {
-                Button { onOperation(transferKind) } label: {
-                    operationBadge(transferCount, title: transferLabel, symbol: transferIcon, tint: tint, coloredWhenZero: true)
-                }.buttonStyle(.plain).help(syncText("plannedFiles"))
-                Button { onOperation(deletionKind) } label: {
-                    operationBadge(deletionCount, title: syncText("deleteShort"), symbol: "trash", tint: .red)
-                }.buttonStyle(.plain).help(syncText("plannedFiles"))
-            }.fixedSize(horizontal: true, vertical: false)
-        } else {
-            Label(syncText("previewShort"), systemImage: "eye")
-                .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
-                .padding(.horizontal, 9).padding(.vertical, 6)
-                .background(Color.primary.opacity(0.05), in: Capsule())
-        }
+        HStack(spacing: 8) {
+            Button { onOperation(transferKind) } label: {
+                operationBadge(showOps ? transferCount : nil, title: transferLabel, symbol: transferIcon, tint: tint, coloredWhenZero: true)
+            }.buttonStyle(.plain).help(syncText(showOps ? "plannedFiles" : "unknownFiles"))
+            Button { onOperation(deletionKind) } label: {
+                operationBadge(showOps ? deletionCount : nil, title: syncText("deleteShort"), symbol: "trash", tint: .red)
+            }.buttonStyle(.plain).help(syncText(showOps ? "plannedFiles" : "unknownFiles"))
+        }.fixedSize(horizontal: true, vertical: false)
     }
 
     private func endpointPath(_ path: String) -> some View {
@@ -428,18 +424,18 @@ struct SyncPairLocations: View {
         }
     }
 
-    private func operationBadge(_ count: Int, title: String, symbol: String, tint: Color, coloredWhenZero: Bool = false) -> some View {
-        let color = count > 0 || coloredWhenZero ? tint : Color.secondary
+    private func operationBadge(_ count: Int?, title: String, symbol: String, tint: Color, coloredWhenZero: Bool = false) -> some View {
+        let color = (count ?? 0) > 0 || coloredWhenZero ? tint : Color.secondary
         return HStack(spacing: 4) {
             Image(systemName: symbol).font(.system(size: 11, weight: .bold))
-            Text("\(count)").font(.system(size: 14, weight: .heavy, design: .rounded)).monospacedDigit()
+            Text(count.map(String.init) ?? "—").font(.system(size: 14, weight: .heavy, design: .rounded)).monospacedDigit()
             Text(title).font(.system(size: 9, weight: .semibold)).lineLimit(1)
         }
         .foregroundStyle(color)
         .padding(.horizontal, 8).padding(.vertical, 6)
-        .background(color.opacity(count > 0 ? 0.11 : 0.07), in: Capsule())
+        .background(color.opacity((count ?? 0) > 0 ? 0.11 : 0.07), in: Capsule())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(count) \(title)")
+        .accessibilityLabel("\(count.map(String.init) ?? syncText("unknownFiles")) \(title)")
     }
 
     private func cardButton(_ title: String, icon: NSImage, tint: Color, disabled: Bool = false,
@@ -546,7 +542,6 @@ struct SyncSectionView: View {
     @State private var merging: SyncPair?
     @State private var removing: SyncPair?
     @State private var tab = "pairs"
-    @State private var expandedPairs: Set<UUID> = []
     @State private var selectedOperation: SelectedSyncOperation?
     @State private var pairError: String?
     private let onMountDrive: () -> Void
@@ -710,7 +705,8 @@ struct SyncSectionView: View {
 
     private func operationDrawer(_ selection: SelectedSyncOperation) -> some View {
         let run = engine.previewRun(for: selection.pairID)
-        let files = run?.plan.map { selection.kind.files(in: $0) } ?? []
+        let plan = engine.operationPlan(for: selection.pairID)
+        let files = plan.map { selection.kind.files(in: $0) } ?? []
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -721,6 +717,9 @@ struct SyncSectionView: View {
                     }
                     if let run {
                         Text((run.finished ?? run.started).formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    } else if let checked = engine.pairs.first(where: { $0.id == selection.pairID })?.lastRun, plan != nil {
+                        Text("\(syncText("status.lastChecked")) · \(checked.formatted(date: .abbreviated, time: .shortened))")
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                 }
@@ -734,7 +733,8 @@ struct SyncSectionView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if files.isEmpty {
-                        Text(syncText("noPlannedFiles")).foregroundStyle(.secondary).padding(20)
+                        Text(syncText(plan != nil ? "noPlannedFiles" : engine.busy && engine.isDryRun ? "comparingFiles" : "unknownFiles"))
+                            .foregroundStyle(.secondary).padding(20)
                     }
                     ForEach(files.indices, id: \.self) { index in
                         let file = files[index]
@@ -874,40 +874,33 @@ struct SyncSectionView: View {
         let state = presentation == "verified" && (engine.previewRun(for: pair.id)?.plan?.totalOps ?? 0) > 0 ? "pending" : presentation
         let running = engine.runningPairID == pair.id
         let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync"].contains(state)
-        let plan = engine.previewRun(for: pair.id)?.plan
+        let plan = engine.operationPlan(for: pair.id)
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
                     Text(pair.name.isEmpty ? URL(fileURLWithPath: pair.localPath).lastPathComponent : pair.name)
                         .font(.headline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
-                    Text(syncText("pairConnects")).font(.caption).foregroundStyle(.secondary)
-                }
                 Spacer(minLength: 8)
-                if pair.previewOnly { previewBadge(pair) }
-                status(state)
+                if !running { actionsRow(pair) }
             }
             SyncPairLocations(pair: pair, plan: plan, active: running, onMountDrive: onMountDrive,
-                              onOperation: { selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: $0) })
+                              onOperation: {
+                                  selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: $0)
+                                  if plan == nil { refreshFiles(pair) }
+                              })
+            if let preview = engine.previewRun(for: pair.id) {
+                Text("\(syncText("previewOf")) \((preview.finished ?? preview.started).formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let plan {
                 deletionWarning(plan)
+                typeRow(plan)
             }
             if !running {
                 if attention { warningStrip(pair, state: state) }
                 else if engine.pairs.count > 1 { metaLine(pair) }
-                actionsRow(pair).transition(.opacity)
             }
-            DisclosureGroup(syncText("inventory"), isExpanded: Binding(
-                get: { expandedPairs.contains(pair.id) },
-                set: { if $0 { expandedPairs.insert(pair.id) } else { expandedPairs.remove(pair.id) } }
-            )) {
-                inventoryRows(pair)
-            }.font(.callout)
-        }.padding(16)
-            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.primary.opacity(0.085), lineWidth: 1))
-            .shadow(color: Color.black.opacity(0.025), radius: 8, x: 0, y: 3)
+        }.padding(.vertical, 8)
             .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.22), value: running)
-            .contextMenu { pairContextMenu(pair) }
     }
 
     private func previewBadge(_ pair: SyncPair) -> some View {
@@ -955,8 +948,8 @@ struct SyncSectionView: View {
 
     private func actionsRow(_ pair: SyncPair) -> some View {
         HStack(spacing: 8) {
-            Button { engine.syncPair(pair.id, dryRun: true) } label: {
-                Label(syncText(engine.previewRun(for: pair.id) == nil ? "simulate" : "resimulate"), systemImage: "eye")
+            Button { refreshFiles(pair) } label: {
+                Label(syncText("refreshFiles"), systemImage: "arrow.clockwise")
             }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
             .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
             Button(syncText("syncNow")) {
@@ -965,17 +958,14 @@ struct SyncSectionView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
-            Spacer(minLength: 8)
-            Menu {
-                Toggle(syncText("enabled"), isOn: enableBinding(pair))
-                Button(syncText("edit")) { editing = pair }
-                if pair.direction.usesBisync { Button(syncText("needsResync")) { merging = pair } }
-                Divider()
-                Button(syncText("remove"), role: .destructive) { removing = pair }
-            } label: { Image(systemName: "ellipsis.circle") }
-                .accessibilityLabel(syncText("more"))
         }.controlSize(.regular)
         .disabled(isQAScreen || engine.busy || engine.storageError != nil)
+    }
+
+    private func refreshFiles(_ pair: SyncPair) {
+        guard !isQAScreen, !engine.busy, engine.storageError == nil, pair.enabled,
+              engine.cooldownUntil(for: pair) == nil else { return }
+        engine.syncPair(pair.id, dryRun: true)
     }
 
     @ViewBuilder private func pairContextMenu(_ pair: SyncPair) -> some View {
@@ -1183,6 +1173,7 @@ struct SyncPairForm: View {
     @State private var error: String?
     @State private var destinationMethod: String
     @State private var folderLink: String
+    @State private var confirmingRemoval = false
     private var isQAScreen: Bool { CommandLine.arguments.contains("--qa-screen") }
     init(original: SyncPair, engine: SyncEngine) {
         self.original = original; self.engine = engine
@@ -1257,6 +1248,12 @@ struct SyncPairForm: View {
                     TextEditor(text: $ignores).font(.system(.caption, design: .monospaced)).frame(height: 72)
                         .accessibilityLabel(syncText("ignores"))
                 }
+                if engine.pairs.contains(where: { $0.id == original.id }) {
+                    Section {
+                        Button(syncText("remove"), role: .destructive) { confirmingRemoval = true }
+                            .disabled(isQAScreen || engine.busy)
+                    }
+                }
             }.formStyle(.grouped).scrollContentBackground(.hidden)
             if let error { Label(error, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.red).textSelection(.enabled) }
             HStack {
@@ -1266,6 +1263,10 @@ struct SyncPairForm: View {
                 Button(syncText("save")) { save() }.keyboardShortcut(.defaultAction)
             }
         }.padding(20).frame(width: 580, height: 640)
+        .alert(syncText("remove"), isPresented: $confirmingRemoval) {
+            Button(syncText("remove"), role: .destructive) { engine.deletePair(original.id); dismiss() }
+            Button(syncText("cancel"), role: .cancel) {}
+        } message: { Text(syncText("removeNote")) }
     }
     private func choose() {
         let panel = NSOpenPanel()

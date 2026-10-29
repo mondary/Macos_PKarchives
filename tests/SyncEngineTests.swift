@@ -222,6 +222,7 @@ struct TestFailure: Error { let message: String }
         try wait(engine)
         try expect(engine.pairs[0].lastOutcome == "verified", "Push not verified: \(engine.runs[0].message)")
         try expect(engine.previewRun(for: pair.id) == nil, "Completed sync still displays stale preview operations")
+        try expect(engine.operationPlan(for: pair.id)?.totalOps == 0, "Verified pair lost its visible zero-operation counters")
         try expect(engine.runs[0].transfers?.sent == 2 && engine.runs[0].transfers?.received == 0,
                    "Real-run summary does not reflect uploaded files")
         try expect(read(dest.appendingPathComponent("sous dossier/été.txt")) == "bonjour 🌍", "UTF8/nested file missing")
@@ -499,6 +500,7 @@ struct TestFailure: Error { let message: String }
         engine.localChanged(path: local.appendingPathComponent("changed.txt").path)
         try wait(engine)
         try expect(engine.pairs[0].lastOutcome == "pending", "Concurrent local change falsely green")
+        try expect(engine.operationPlan(for: pair.id) == nil, "Unknown operations were presented as zero after local changes")
 
         // Persisted malformed configuration must fail closed, never be silently replaced by [].
         let badDisk = SyncDisk(base: root.appendingPathComponent("bad-data"), logs: root.appendingPathComponent("bad-logs"))

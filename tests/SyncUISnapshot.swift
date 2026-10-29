@@ -59,9 +59,9 @@ struct SettingsSectionHeader: View {
         guard args.count >= 3 else { fatalError("sync-snapshot TEST_ROOT OUTPUT.png [sync|history|quota|menu|menuArchive|form]") }
         let root = URL(fileURLWithPath: args[1])
         let kind = args.count > 3 ? args[3] : "sync"
-        let fixture = kind == "quota" ? "past-quota" : ["linked", "narrow", "drawer"].contains(kind) ? "linked" : "push"
+        let fixture = kind == "quota" ? "past-quota" : ["linked", "narrow", "drawer", "comparison"].contains(kind) ? "linked" : "push"
         var fixtureRoot = root.appendingPathComponent(fixture)
-        if kind == "drawer" {
+        if ["drawer", "comparison"].contains(kind) {
             // A fresh preview fixture: never show a completed run's obsolete file plan.
             let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("sync-drawer-\(UUID().uuidString)")
             try FileManager.default.copyItem(at: fixtureRoot, to: scratch)
@@ -144,7 +144,7 @@ struct SettingsSectionHeader: View {
                 SyncSectionView(engine: engine, initialTab: ["history", "quota"].contains(kind) ? "history" : "pairs",
                                 showSampleOperation: kind == "drawer")
             })
-            bounds = NSRect(x: 0, y: 0, width: ["narrow", "drawer"].contains(kind) ? 1000 : 1240, height: 820)
+            bounds = NSRect(x: 0, y: 0, width: ["narrow", "drawer", "comparison"].contains(kind) ? 1000 : 1240, height: 820)
         }
         let view = NSHostingView(rootView: content.background(Color(nsColor: .windowBackgroundColor)).environment(\.colorScheme, dark ? .dark : .light))
         if kind.hasPrefix("menu") { bounds.size.height = view.fittingSize.height }

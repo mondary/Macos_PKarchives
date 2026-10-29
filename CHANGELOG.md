@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.66` (statut de synchronisation et plan de simulation non périmé)
+Statut : `2026.10.67` (compteurs conservés, gestion de paire hors de la vue principale)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,12 @@ Statut : `2026.10.66` (statut de synchronisation et plan de simulation non péri
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.67] - 2026-10-29
+#### Changed
+- Les compteurs à envoyer, à rapatrier et à supprimer restent visibles dans Depuis / Vers, avec détail au clic. Un dernier contrôle vérifié affiche zéro opération ; une comparaison inconnue affiche « — », jamais un zéro inventé, et peut être actualisée sans transfert.
+- Suppression du grand conteneur de paire, du sous-texte explicatif, des badges de statut répétés, du menu de gestion et de l’inventaire dans la vue principale. L’inventaire rejoint Réglages → Synchronisation ; la suppression d’une paire est accessible dans son formulaire, avec confirmation.
+- « Actualiser les fichiers » remplace le libellé technique « Simuler » dans la vue principale, aux côtés de « Synchroniser maintenant ». Les compteurs ne réutilisent pas un ancien plan après une synchronisation réelle.
 
 ### [2026.10.66] - 2026-10-29
 #### Fixed

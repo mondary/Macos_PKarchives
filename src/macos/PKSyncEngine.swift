@@ -1068,6 +1068,13 @@ final class SyncEngine: ObservableObject {
               !runs.contains(where: { $0.pair.id == pairID && !$0.dryRun && $0.started >= preview.started }) else { return nil }
         return preview
     }
+    /// Keep the operation counters visible after a verified run without reviving an old plan.
+    /// Nil means unknown, never zero: the pair needs a fresh, read-only comparison.
+    func operationPlan(for pairID: UUID) -> PreviewPlan? {
+        if let plan = previewRun(for: pairID)?.plan { return plan }
+        guard !busy, let pair = pairs.first(where: { $0.id == pairID }), pair.lastOutcome == "verified" else { return nil }
+        return PreviewPlan()
+    }
     func readableReportURL(for run: SyncRun) -> URL? {
         // Leave historical raw reports intact. Generate a separate, decoded reading copy.
         let url = URL(fileURLWithPath: run.directory).appendingPathComponent("rapport-lecture.md")

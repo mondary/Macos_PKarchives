@@ -424,7 +424,7 @@ struct WorkspacePopoverView: View {
             if $0 { expandedPairs.insert(pair.id) } else { expandedPairs.remove(pair.id) }
         })) {
             VStack(alignment: .leading, spacing: 10) {
-                SyncPairLocations(pair: pair, plan: engine.previewRun(for: pair.id)?.plan)
+                SyncPairLocations(pair: pair, plan: engine.operationPlan(for: pair.id))
                 if let message = pair.lastMessage, attention {
                     Text(SyncDiagnostic.clean(message)).font(.caption).foregroundStyle(.secondary).lineLimit(3)
                 }
