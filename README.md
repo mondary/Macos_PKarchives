@@ -75,7 +75,9 @@ Le nouveau mode est disponible dans les sources et la build Dev, **pas encore da
 
 ![Dossiers liés et accès à l’historique dans la build Dev, avec données temporaires de test](store/media/04-sync-dev.png)
 
-![Panneaux de synchronisation empilés dans une fenêtre plus étroite, avec données de test](store/media/08-sync-narrow-dev.png)
+![Panneaux de synchronisation côte à côte à la largeur minimale, avec données de test](store/media/08-sync-narrow-dev.png)
+
+![Détail des fichiers à envoyer ouvert depuis leur compteur, avec données de test](store/media/09-sync-detail-dev.png)
 
 ![Choix du dossier Drive par collage de son lien complet, avec instructions et ouverture de Drive](store/media/05-drive-folder-dev.png)
 
@@ -87,7 +89,7 @@ Le nouveau mode est disponible dans les sources et la build Dev, **pas encore da
 
 **Réglages → Général** : lancement à l’ouverture de session (en arrière-plan, avec approbation macOS si nécessaire) et affichage de barre des menus : **Débit**, **Fichiers restants** ou **Icône seule**. Les chiffres proviennent des statistiques rclone de l’exécution en cours, actualisées environ toutes les 5 s ; les paires encore en attente ne sont pas comptées et le total peut évoluer pendant l’analyse. Analyse, simulation et vérification ont leur propre état ; au repos, seule l’icône reste affichée. L’archivage affiche le nombre d’éléments restants.
 
-**Paires de synchronisation** : deux grands panneaux **Depuis / Vers**, côte à côte sur grand écran et empilés quand la fenêtre rétrécit. Le nom, les compteurs, les chemins et les boutons restent lisibles dans les deux dispositions. Après simulation, chaque panneau affiche distinctement les éléments à envoyer ou rapatrier et les suppressions prévues. Pendant un transfert, la liaison et l’indicateur de progression s’animent selon l’état réel ; Finder, Drive et le montage du Drive sont accessibles directement hors mode test.
+**Paires de synchronisation** : les deux panneaux **Depuis / Vers** restent côte à côte, même à la largeur minimale de la fenêtre. Le contenu de chaque panneau se réorganise pour préserver la lisibilité. Après simulation, cliquez sur un compteur d’envoi, de rapatriement ou de suppression pour ouvrir directement le tiroir des fichiers concernés : chemin, sens et motif (nouveau, remplacé ou suppression propagée). L’inventaire reste distinct ; aucun second clic « Voir le détail » n’est requis. Pendant un transfert, la liaison et l’indicateur de progression s’animent selon l’état réel ; Finder, Drive et le montage du Drive sont accessibles directement hors mode test.
 
 **Réglages → Synchronisation** : pause globale de toutes les paires (1 h), mode par défaut « Simulation uniquement » pour les nouvelles paires, et liste des paires avec activation, mode simulation et formulaire complet. Ces réglages pilotent le moteur de synchronisation ; la configuration d’archivage reste dans sa propre section.
 

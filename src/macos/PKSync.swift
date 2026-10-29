@@ -114,6 +114,16 @@ private let syncStrings: [String: [String]] = [
     "deleteVerdictNote": ["Une synchronisation propage aussi les suppressions, ce n’est pas une sauvegarde immuable. Vérifie la liste avant de confirmer.", "Sync also propagates deletions; it is not an immutable backup. Review the list before confirming.", "La sincronización también propaga borrados; no es una copia inmutable. Revisa la lista antes de confirmar.", "Sync überträgt auch Löschungen; keine unveränderliche Sicherung. Liste vor dem Bestätigen prüfen."],
     "opsVerdict": ["%@ opérations prévues — rien ne bouge avant ta confirmation", "%@ planned operations — nothing changes before you confirm", "%@ operaciones previstas — nada cambia antes de confirmar", "%@ geplante Vorgänge — nichts ändert sich vor deiner Bestätigung"],
     "showDetail": ["Voir le détail", "Show details", "Ver detalles", "Details anzeigen"],
+    "plannedFiles": ["Fichiers concernés", "Affected files", "Archivos afectados", "Betroffene Dateien"],
+    "closeDrawer": ["Fermer le détail", "Close details", "Cerrar detalles", "Details schließen"],
+    "noPlannedFiles": ["Aucun fichier concerné dans cette catégorie.", "No files in this category.", "No hay archivos en esta categoría.", "Keine Dateien in dieser Kategorie."],
+    "previewTruncated": ["La simulation limite la liste à 5 000 fichiers par catégorie.", "The preview limits the list to 5,000 files per category.", "La simulación limita la lista a 5.000 archivos por categoría.", "Die Vorschau begrenzt die Liste auf 5.000 Dateien pro Kategorie."],
+    "reason.pushNew": ["Nouveau sur le Mac · à ajouter sur Drive", "New on Mac · add to Drive", "Nuevo en Mac · añadir a Drive", "Neu auf dem Mac · zu Drive hinzufügen"],
+    "reason.pushModified": ["Version du Mac retenue · remplacer sur Drive", "Mac version selected · replace on Drive", "Versión de Mac elegida · reemplazar en Drive", "Mac-Version ausgewählt · auf Drive ersetzen"],
+    "reason.pullNew": ["Nouveau sur Drive · à ajouter sur le Mac", "New on Drive · add to Mac", "Nuevo en Drive · añadir a Mac", "Neu auf Drive · zum Mac hinzufügen"],
+    "reason.pullModified": ["Version Drive retenue · remplacer sur le Mac", "Drive version selected · replace on Mac", "Versión de Drive elegida · reemplazar en Mac", "Drive-Version ausgewählt · auf dem Mac ersetzen"],
+    "reason.deleteRemote": ["Supprimé sur le Mac · suppression propagée sur Drive", "Deleted on Mac · deletion propagates to Drive", "Borrado en Mac · eliminación propagada a Drive", "Auf dem Mac gelöscht · Löschung auf Drive übertragen"],
+    "reason.deleteLocal": ["Supprimé sur Drive · suppression propagée sur le Mac", "Deleted on Drive · deletion propagates to Mac", "Borrado en Drive · eliminación propagada a Mac", "Auf Drive gelöscht · Löschung auf den Mac übertragen"],
     "runForReal": ["Lancer pour de vrai…", "Run for real…", "Ejecutar de verdad…", "Wirklich ausführen…"],
     "noComparison": ["Aucune comparaison récente. Lance « Simuler · dry run » pour voir précisément ce qui serait ajouté, remplacé ou supprimé — et ce qui reste intact.", "No recent comparison. Run “Preview · dry run” to see exactly what would be added, replaced or deleted — and what stays untouched.", "Sin comparación reciente. Ejecuta «Simular · dry run» para ver qué se añadiría, reemplazaría o borraría, y qué queda intacto.", "Kein aktueller Vergleich. „Vorschau · dry run“ zeigt genau, was hinzugefügt, ersetzt oder gelöscht würde — und was unberührt bleibt."],
     "history": ["Activité", "Activity", "Actividad", "Aktivität"],
@@ -206,6 +216,46 @@ func syncText(_ key: String) -> String {
 
 func syncFileCount(_ count: Int) -> String { "\(count) \(syncText(count == 1 ? "file" : "files"))" }
 
+enum SyncOperationKind: String {
+    case push, pull, deleteLocal, deleteRemote
+
+    var title: String {
+        switch self {
+        case .push: syncText("toPush")
+        case .pull: syncText("toPull")
+        case .deleteLocal: syncText("deleteOnMac")
+        case .deleteRemote: syncText("deleteOnDrive")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .push: "arrow.up"
+        case .pull: "arrow.down"
+        case .deleteLocal, .deleteRemote: "trash"
+        }
+    }
+
+    func files(in plan: PreviewPlan) -> [(path: String, reason: String)] {
+        switch self {
+        case .push:
+            return plan.pushNew.map { ($0, syncText("reason.pushNew")) }
+                + plan.pushModified.map { ($0, syncText("reason.pushModified")) }
+        case .pull:
+            return plan.pullNew.map { ($0, syncText("reason.pullNew")) }
+                + plan.pullModified.map { ($0, syncText("reason.pullModified")) }
+        case .deleteLocal: return plan.deleteLocal.map { ($0, syncText("reason.deleteLocal")) }
+        case .deleteRemote: return plan.deleteRemote.map { ($0, syncText("reason.deleteRemote")) }
+        }
+    }
+}
+
+private struct SelectedSyncOperation: Identifiable {
+    let pairID: UUID
+    let kind: SyncOperationKind
+    var id: String { "\(pairID.uuidString)-\(kind.rawValue)" }
+}
+
 /// Large source/destination panels inspired by the archive endpoint cards.
 /// Each side shows its own transfer and deletion counts from the latest preview.
 struct SyncPairLocations: View {
@@ -213,20 +263,14 @@ struct SyncPairLocations: View {
     var plan: PreviewPlan?
     var active = false
     var onMountDrive: () -> Void = {}
+    var onOperation: (SyncOperationKind) -> Void = { _ in }
     private var isQAScreen: Bool { CommandLine.arguments.contains("--qa-screen") }
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 18) {
-                localEndpoint(trailing: false, compact: false).frame(width: 470)
-                directionBridge(vertical: false).frame(width: 110)
-                remoteEndpoint(trailing: true, compact: false).frame(width: 470)
-            }.frame(maxWidth: .infinity, alignment: .center)
-            VStack(spacing: 10) {
-                localEndpoint(trailing: false, compact: true)
-                directionBridge(vertical: true)
-                remoteEndpoint(trailing: false, compact: true)
-            }
-        }
+        HStack(spacing: 10) {
+            localEndpoint(trailing: false, compact: false).frame(maxWidth: .infinity)
+            directionBridge(vertical: false).frame(width: 64)
+            remoteEndpoint(trailing: true, compact: false).frame(maxWidth: .infinity)
+        }.frame(maxWidth: .infinity)
     }
 
     private func localEndpoint(trailing: Bool, compact: Bool) -> some View {
@@ -236,6 +280,7 @@ struct SyncPairLocations: View {
             path: shortPath(pair.localPath), icon: finderIcon, tint: .blue, trailing: trailing, compact: compact,
             transferIcon: "arrow.up", transferCount: uploads, transferLabel: syncText("sendShort"),
             deletionCount: plan?.deleteLocal.count ?? 0, showOps: plan != nil,
+            transferKind: .push, deletionKind: .deleteLocal,
             actionTitle: syncText("openFinderCard"), actionIcon: finderIcon,
             action: { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: pair.localPath) }
         )
@@ -248,6 +293,7 @@ struct SyncPairLocations: View {
             icon: driveIcon, tint: .green, trailing: trailing, compact: compact,
             transferIcon: "arrow.down", transferCount: downloads, transferLabel: syncText("downloadShort"),
             deletionCount: plan?.deleteRemote.count ?? 0, showOps: plan != nil,
+            transferKind: .pull, deletionKind: .deleteRemote,
             actionTitle: syncText(isQAScreen ? "qaDriveCard" : "openDriveCard"), actionIcon: driveIcon,
             actionDisabled: isQAScreen, action: openDrive,
             mountAction: isQAScreen ? nil : onMountDrive
@@ -281,7 +327,8 @@ struct SyncPairLocations: View {
 
     private func endpoint(eyebrow: String, title: String, path: String, icon: NSImage, tint: Color, trailing: Bool, compact: Bool,
                           transferIcon: String, transferCount: Int, transferLabel: String,
-                          deletionCount: Int, showOps: Bool, actionTitle: String, actionIcon: NSImage,
+                          deletionCount: Int, showOps: Bool, transferKind: SyncOperationKind, deletionKind: SyncOperationKind,
+                          actionTitle: String, actionIcon: NSImage,
                           actionDisabled: Bool = false, action: @escaping () -> Void,
                           mountAction: (() -> Void)? = nil) -> some View {
         VStack(alignment: trailing ? .trailing : .leading, spacing: 0) {
@@ -293,13 +340,15 @@ struct SyncPairLocations: View {
                     if trailing { Spacer(minLength: 0) }
                     endpointTitle(title, icon: icon)
                     operationCounts(transferIcon: transferIcon, transferCount: transferCount,
-                                    transferLabel: transferLabel, tint: tint, deletionCount: deletionCount, showOps: showOps)
+                                    transferLabel: transferLabel, tint: tint, deletionCount: deletionCount, showOps: showOps,
+                                    transferKind: transferKind, deletionKind: deletionKind)
                     if !trailing { Spacer(minLength: 0) }
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     endpointTitle(title, icon: icon)
                     operationCounts(transferIcon: transferIcon, transferCount: transferCount,
-                                    transferLabel: transferLabel, tint: tint, deletionCount: deletionCount, showOps: showOps)
+                                    transferLabel: transferLabel, tint: tint, deletionCount: deletionCount, showOps: showOps,
+                                    transferKind: transferKind, deletionKind: deletionKind)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
             if compact {
@@ -324,7 +373,7 @@ struct SyncPairLocations: View {
                 }.padding(.top, 10)
             }
         }
-        .padding(.horizontal, 18).padding(.vertical, 20)
+        .padding(.horizontal, 12).padding(.vertical, 16)
         .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.045), lineWidth: 1))
@@ -345,11 +394,16 @@ struct SyncPairLocations: View {
 
     @ViewBuilder private func operationCounts(transferIcon: String, transferCount: Int,
                                                transferLabel: String, tint: Color, deletionCount: Int,
-                                               showOps: Bool) -> some View {
+                                               showOps: Bool, transferKind: SyncOperationKind,
+                                               deletionKind: SyncOperationKind) -> some View {
         if showOps {
             HStack(spacing: 8) {
-                operationBadge(transferCount, title: transferLabel, symbol: transferIcon, tint: tint, coloredWhenZero: true)
-                operationBadge(deletionCount, title: syncText("deleteShort"), symbol: "trash", tint: .red)
+                Button { onOperation(transferKind) } label: {
+                    operationBadge(transferCount, title: transferLabel, symbol: transferIcon, tint: tint, coloredWhenZero: true)
+                }.buttonStyle(.plain).help(syncText("plannedFiles"))
+                Button { onOperation(deletionKind) } label: {
+                    operationBadge(deletionCount, title: syncText("deleteShort"), symbol: "trash", tint: .red)
+                }.buttonStyle(.plain).help(syncText("plannedFiles"))
             }.fixedSize(horizontal: true, vertical: false)
         } else {
             Label(syncText("previewShort"), systemImage: "eye")
@@ -434,7 +488,8 @@ struct SyncPairLocations: View {
                             TransferFlowDot(reverse: pair.direction == .pull)
                         }
                     }
-                Text(label.uppercased()).font(.system(size: 9, weight: .heavy)).tracking(1.1).foregroundStyle(.secondary)
+                Text(label.uppercased()).font(.system(size: 9, weight: .heavy)).tracking(0.2)
+                    .lineLimit(1).minimumScaleFactor(0.65).foregroundStyle(.secondary)
             }
         }
     }
@@ -466,7 +521,7 @@ private struct TransferFlowDot: View {
     var body: some View {
         Circle().fill(Color.accentColor).frame(width: 7, height: 7)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .offset(x: moving ? (reverse ? 0 : 94) : (reverse ? 94 : 0))
+            .offset(x: moving ? (reverse ? 0 : 48) : (reverse ? 48 : 0))
             .animation(.linear(duration: 1.2).repeatForever(autoreverses: false), value: moving)
             .onAppear { moving = true }
             .accessibilityHidden(true)
@@ -492,13 +547,17 @@ struct SyncSectionView: View {
     @State private var removing: SyncPair?
     @State private var tab = "pairs"
     @State private var expandedPairs: Set<UUID> = []
+    @State private var selectedOperation: SelectedSyncOperation?
     @State private var pairError: String?
     private let onMountDrive: () -> Void
+    private let showSampleOperation: Bool
     private var isQAScreen: Bool { CommandLine.arguments.contains("--qa-screen") }
 
-    init(engine: SyncEngine = .shared, initialTab: String = "pairs", onMountDrive: @escaping () -> Void = {}) {
+    init(engine: SyncEngine = .shared, initialTab: String = "pairs", onMountDrive: @escaping () -> Void = {},
+         showSampleOperation: Bool = false) {
         self.engine = engine
         self.onMountDrive = onMountDrive
+        self.showSampleOperation = showSampleOperation
         _tab = State(initialValue: initialTab == "history" ? "history" : "pairs")
     }
 
@@ -562,11 +621,32 @@ struct SyncSectionView: View {
             .frame(maxWidth: 1800).frame(maxWidth: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .sheet(item: $editing) { SyncPairForm(original: $0, engine: engine) }
-        .onReceive(NotificationCenter.default.publisher(for: .pkShowSyncHistory)) { _ in tab = "history" }
-        .onChange(of: engine.runs.first?.outcome) { _, _ in
-            if let run = engine.runs.first, run.dryRun, run.finished != nil { expandedPairs.insert(run.pair.id) }
+        .overlay(alignment: .trailing) {
+            if let selection = selectedOperation {
+                GeometryReader { geometry in
+                    ZStack(alignment: .trailing) {
+                        Color.black.opacity(0.22)
+                            .contentShape(Rectangle())
+                            .onTapGesture { selectedOperation = nil }
+                        operationDrawer(selection)
+                            .frame(width: min(460, geometry.size.width * 0.88))
+                            .frame(maxHeight: .infinity)
+                            .background(Color(nsColor: .windowBackgroundColor))
+                            .shadow(color: .black.opacity(0.16), radius: 18, x: -5)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
+                }
+                .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeOut(duration: 0.2), value: selection.id)
+                .accessibilityAddTraits(.isModal)
+            }
         }
+        .sheet(item: $editing) { SyncPairForm(original: $0, engine: engine) }
+        .onAppear {
+            if showSampleOperation, let pair = engine.pairs.first {
+                selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: .push)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .pkShowSyncHistory)) { _ in tab = "history" }
         .alert(syncText("error"), isPresented: Binding(get: { pairError != nil }, set: { if !$0 { pairError = nil } })) {
             Button("OK") { pairError = nil }
         } message: { Text(pairError ?? "") }
@@ -579,6 +659,60 @@ struct SyncSectionView: View {
             Button(syncText("remove"), role: .destructive) { if let pair = removing { engine.deletePair(pair.id) } }
             Button(syncText("cancel"), role: .cancel) {}
         } message: { Text(syncText("removeNote")) }
+    }
+
+    private func operationDrawer(_ selection: SelectedSyncOperation) -> some View {
+        let run = engine.previewRun(for: selection.pairID)
+        let files = run?.plan.map { selection.kind.files(in: $0) } ?? []
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(syncText("plannedFiles")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Label(selection.kind.title, systemImage: selection.kind.symbol).font(.title3.weight(.bold))
+                    if let pair = engine.pairs.first(where: { $0.id == selection.pairID }) {
+                        Text(pair.name).font(.caption).foregroundStyle(.secondary)
+                    }
+                    if let run {
+                        Text((run.finished ?? run.started).formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+                Button { selectedOperation = nil } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain).font(.title3).foregroundStyle(.secondary)
+                    .accessibilityLabel(syncText("closeDrawer"))
+                    .keyboardShortcut(.cancelAction)
+            }.padding(20)
+            Divider()
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    if files.isEmpty {
+                        Text(syncText("noPlannedFiles")).foregroundStyle(.secondary).padding(20)
+                    }
+                    ForEach(files.indices, id: \.self) { index in
+                        let file = files[index]
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                Image(systemName: Self.fileTypeSymbol(file.path).symbol)
+                                    .foregroundStyle(Self.fileTypeSymbol(file.path).tint)
+                                Text((file.path as NSString).lastPathComponent)
+                                    .font(.callout.weight(.medium)).textSelection(.enabled)
+                            }
+                            Text(file.path).font(.caption.monospaced()).foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                            Label(file.reason, systemImage: selection.kind.symbol)
+                                .font(.caption).foregroundStyle(selection.kind == .deleteLocal || selection.kind == .deleteRemote ? .red : .secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 12)
+                        Divider().padding(.leading, 20)
+                    }
+                    if run?.plan?.truncated == true {
+                        Text(syncText("previewTruncated")).font(.caption).foregroundStyle(.orange).padding(20)
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("syncOperationDrawer")
     }
 
     private var qaFixtureNotice: some View {
@@ -704,7 +838,8 @@ struct SyncSectionView: View {
                 if pair.previewOnly { previewBadge(pair) }
                 status(state)
             }
-            SyncPairLocations(pair: pair, plan: plan, active: running, onMountDrive: onMountDrive)
+            SyncPairLocations(pair: pair, plan: plan, active: running, onMountDrive: onMountDrive,
+                              onOperation: { selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: $0) })
             if let plan {
                 deletionWarning(plan)
                 typeRow(plan)
@@ -715,12 +850,11 @@ struct SyncSectionView: View {
                 if attention { warningStrip(pair, state: state) } else { metaLine(pair) }
                 actionsRow(pair).transition(.opacity)
             }
-            DisclosureGroup(workspaceText("pairDetails"), isExpanded: Binding(
+            DisclosureGroup(syncText("inventory"), isExpanded: Binding(
                 get: { expandedPairs.contains(pair.id) },
                 set: { if $0 { expandedPairs.insert(pair.id) } else { expandedPairs.remove(pair.id) } }
             )) {
                 inventoryRows(pair)
-                comparisonSection(pair)
             }.font(.callout)
         }.padding(16)
             .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 22))
@@ -842,28 +976,6 @@ struct SyncSectionView: View {
         })
     }
 
-    /// Per-file detail of the latest preview. The counts themselves live in the
-    /// endpoint boxes above; only the date and the file list remain here.
-    @ViewBuilder private func comparisonSection(_ pair: SyncPair) -> some View {
-        Divider().padding(.vertical, 2)
-        if let run = engine.previewRun(for: pair.id), let plan = run.plan {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Label(syncText("comparison"), systemImage: "rectangle.split.2x1").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    Spacer()
-                    Text((run.finished ?? run.started).formatted(date: .abbreviated, time: .shortened))
-                        .font(.caption2).foregroundStyle(.secondary)
-                }
-                DisclosureGroup(syncText("showDetail")) {
-                    planDetail(plan)
-                }.font(.caption).foregroundStyle(.secondary)
-            }
-        } else {
-            Label(syncText("noComparison"), systemImage: "rectangle.split.2x1")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
     struct TypeCount: Identifiable {
         let symbol: String, tint: Color, count: Int
         var id: String { symbol }
@@ -921,37 +1033,6 @@ struct SyncSectionView: View {
         }
     }
 
-    /// Flat per-file list: type picto, file name, direction badge — no repeated long category sentences.
-    @ViewBuilder private func planDetail(_ plan: PreviewPlan) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            fileGroup(syncText("list.push"), plan.pushNew + plan.pushModified, badge: "arrow.up", badgeTint: .blue)
-            fileGroup(syncText("list.pull"), plan.pullNew + plan.pullModified, badge: "arrow.down", badgeTint: .blue)
-            fileGroup(syncText("list.deleteRemote"), plan.deleteRemote, badge: "trash", badgeTint: .red)
-            fileGroup(syncText("list.deleteLocal"), plan.deleteLocal, badge: "trash", badgeTint: .red)
-            fileGroup(syncText("list.conflicts"), plan.conflicts, badge: "bolt", badgeTint: .orange)
-            if plan.truncated { Text("Liste tronquée à 5 000 entrées par catégorie.") }
-        }.padding(.top, 6)
-    }
-    @ViewBuilder private func fileGroup(_ title: String, _ items: [String], badge: String, badgeTint: Color) -> some View {
-        if !items.isEmpty {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("\(title) · \(items.count)").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                ForEach(items.prefix(25), id: \.self) { name in
-                    HStack(spacing: 8) {
-                        Image(systemName: Self.fileTypeSymbol(name).symbol)
-                            .font(.system(size: 11, weight: .medium)).foregroundStyle(Self.fileTypeSymbol(name).tint)
-                            .frame(width: 16).accessibilityHidden(true)
-                        Text((name as NSString).lastPathComponent)
-                            .font(.system(.caption, design: .monospaced)).lineLimit(1).truncationMode(.middle)
-                            .help(name).textSelection(.enabled)
-                        Spacer(minLength: 6)
-                        Image(systemName: badge).font(.caption2.weight(.semibold)).foregroundStyle(badgeTint)
-                    }
-                }
-                if items.count > 25 { Text("… + \(items.count - 25)").font(.caption2) }
-            }
-        }
-    }
     @ViewBuilder private func deletionWarning(_ plan: PreviewPlan) -> some View {
         let deletions = plan.deleteRemote.count + plan.deleteLocal.count
         if deletions > 0 {

@@ -51,11 +51,15 @@ struct SettingsSectionHeader: View {
         precondition(MenuActivity.title(display: .speed, busy: true, dryRun: false, progress: progress) == "…")
         progress.phase = .pull; progress.speed = .infinity
         precondition(MenuActivity.title(display: .speed, busy: true, dryRun: false, progress: progress) == "…")
+        let samplePlan = PreviewPlan(pushNew: ["new.txt"], pushModified: ["changed.txt"], pullNew: ["remote.txt"], deleteLocal: ["removed.txt"])
+        precondition(SyncOperationKind.push.files(in: samplePlan).count == 2)
+        precondition(SyncOperationKind.push.files(in: samplePlan)[0].reason != SyncOperationKind.push.files(in: samplePlan)[1].reason)
+        precondition(SyncOperationKind.deleteLocal.files(in: samplePlan)[0].reason.contains(syncText("reason.deleteLocal")))
         print("Menu activity regressions passed")
         guard args.count >= 3 else { fatalError("sync-snapshot TEST_ROOT OUTPUT.png [sync|history|quota|menu|menuArchive|form]") }
         let root = URL(fileURLWithPath: args[1])
         let kind = args.count > 3 ? args[3] : "sync"
-        let fixture = kind == "quota" ? "past-quota" : ["linked", "narrow"].contains(kind) ? "linked" : "push"
+        let fixture = kind == "quota" ? "past-quota" : ["linked", "narrow", "drawer"].contains(kind) ? "linked" : "push"
         let disk = SyncDisk(base: root.appendingPathComponent("\(fixture)/data"), logs: root.appendingPathComponent("\(fixture)/logs"))
         // Status captures run read-only `rclone size` counts on the fixture remotes; every other
         // kind keeps the sentinel binary that can never launch a transfer.
@@ -122,9 +126,10 @@ struct SettingsSectionHeader: View {
         } else {
             content = AnyView(VStack(spacing: 0) {
                 WorkspaceHeaderView(navigation: navigation, select: { navigation.mode = $0 }, settings: { navigation.showingSettings = true })
-                SyncSectionView(engine: engine, initialTab: ["history", "quota"].contains(kind) ? "history" : "pairs")
+                SyncSectionView(engine: engine, initialTab: ["history", "quota"].contains(kind) ? "history" : "pairs",
+                                showSampleOperation: kind == "drawer")
             })
-            bounds = NSRect(x: 0, y: 0, width: kind == "narrow" ? 1000 : 1240, height: 820)
+            bounds = NSRect(x: 0, y: 0, width: ["narrow", "drawer"].contains(kind) ? 1000 : 1240, height: 820)
         }
         let view = NSHostingView(rootView: content.background(Color(nsColor: .windowBackgroundColor)).environment(\.colorScheme, dark ? .dark : .light))
         if kind.hasPrefix("menu") { bounds.size.height = view.fittingSize.height }

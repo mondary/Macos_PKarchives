@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.62` (synchronisation lisible en fenêtre réduite et animation d'exécution)
+Statut : `2026.10.63` (panneaux côte à côte et détail direct des opérations)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,12 @@ Statut : `2026.10.62` (synchronisation lisible en fenêtre réduite et animation
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.63] - 2026-10-29
+#### Changed
+- Les panneaux Depuis et Google Drive restent côte à côte à la largeur minimale de 1 000 px ; leur contenu interne se réorganise sans empiler les emplacements.
+- Chaque compteur de transfert ou suppression ouvre directement un tiroir latéral listant les chemins, le sens et la raison des opérations de la dernière simulation, y compris les catégories vides.
+- Le double parcours « Inventaire et comparaison » puis « Voir le détail » est supprimé ; l’inventaire conserve son accès distinct.
 
 ### [2026.10.62] - 2026-10-29
 #### Changed
