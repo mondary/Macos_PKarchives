@@ -677,6 +677,11 @@ struct TestFailure: Error { let message: String }
         watcher.tick(now: Date().addingTimeInterval(46))
         try wait(watcher)
         try expect(read(root.appendingPathComponent("remote/watcher/file.txt")) == "after", "Watcher queue did not sync change")
+        try expect(watcher.nextAutomaticCheck != nil, "Next automatic check not exposed to the interface")
+        watcher.pauseForHours(1)
+        try expect(watcher.nextAutomaticCheck == nil, "Paused engine still announces a next check")
+        watcher.resume()
+        try expect(watcher.nextAutomaticCheck != nil, "Resumed engine lost its next check")
         watcher.shutdown()
 
         print("PASS · \(checks) assertions · previews, push/pull/bisync, verification, recovery, retries, pause, locks")

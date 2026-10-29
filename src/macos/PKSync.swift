@@ -103,7 +103,11 @@ private let syncStrings: [String: [String]] = [
     "status.paused": ["Synchronisation en pause", "Sync paused", "Sincronización pausada", "Synchronisierung pausiert"],
     "status.lastChecked": ["Dernier contrôle vérifié", "Last verified check", "Última comprobación verificada", "Letzter bestätigter Abgleich"],
     "status.lastTransfers": ["Dernière synchronisation : %d envoyés · %d rapatriés · %d supprimés", "Last sync: %d sent · %d received · %d deleted", "Última sincronización: %d enviados · %d recibidos · %d borrados", "Letzter Abgleich: %d gesendet · %d empfangen · %d gelöscht"],
-    "status.cadence": ["Automatique tant que l’app est ouverte · Mac : 45 s après un changement · Drive : environ chaque heure et au réveil", "Automatic while the app is open · Mac: 45 s after a change · Drive: about hourly and on wake", "Automático con la app abierta · Mac: 45 s tras un cambio · Drive: cada hora y al despertar", "Automatisch bei geöffneter App · Mac: 45 s nach Änderung · Drive: etwa stündlich und nach dem Aufwachen"],
+    "status.cadence": ["Arrière-plan via l’icône 📦 tant que l’app est ouverte · Mac : 45 s après un changement · Drive : environ chaque heure et au réveil", "Background via the 📦 icon while the app is open · Mac: 45 s after a change · Drive: about hourly and on wake", "Segundo plano con el icono 📦 mientras la app está abierta · Mac: 45 s tras un cambio · Drive: cada hora y al despertar", "Hintergrund über das 📦-Symbol bei geöffneter App · Mac: 45 s nach Änderung · Drive: etwa stündlich und nach dem Aufwachen"],
+    "status.nextCheck": ["Prochain contrôle automatique :", "Next automatic check:", "Próxima comprobación automática:", "Nächste automatische Prüfung:"],
+    "refreshAllFiles": ["Actualiser tout", "Refresh all", "Actualizar todo", "Alle aktualisieren"],
+    "syncAllNow": ["Synchroniser tout", "Sync all", "Sincronizar todo", "Alle synchronisieren"],
+    "pausedUntilLabel": ["En pause jusqu’à %@", "Paused until %@", "En pausa hasta %@", "Pausiert bis %@"],
     "status.cadenceOff": ["Contrôle automatique indisponible dans ce mode", "Automatic checks unavailable in this mode", "Comprobación automática no disponible en este modo", "Automatische Prüfung in diesem Modus nicht verfügbar"],
     "syncNow": ["Synchroniser maintenant", "Sync now", "Sincronizar ahora", "Jetzt synchronisieren"],
     "refreshFiles": ["Actualiser les fichiers", "Refresh files", "Actualizar archivos", "Dateien aktualisieren"],
@@ -594,17 +598,6 @@ struct SyncSectionView: View {
                             .accessibilityLabel(syncText("createPair"))
                             .disabled(engine.busy || engine.storageError != nil)
                         Spacer()
-                        if engine.pairs.count > 1 {
-                            Menu {
-                                Button(syncText("simulateAll")) { engine.syncAll(dryRun: true) }
-                                Button(syncText("all")) { engine.syncAll() }
-                                Button(syncText("retryAll")) { engine.retryFailed() }
-                                Divider()
-                                if engine.isPaused { Button(syncText("resume")) { engine.resume() } }
-                                else { Button(syncText("pause")) { engine.pauseForHours(1) } }
-                            } label: { Label(syncText("globalActions"), systemImage: "ellipsis") }
-                            .disabled(isQAScreen || engine.busy)
-                        }
                         Button { tab = "history" } label: {
                             Label(syncText("viewHistory"), systemImage: "clock.arrow.circlepath")
                         }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
@@ -707,7 +700,31 @@ struct SyncSectionView: View {
         let lastVerified = enabled.compactMap(\.lastRun).min()
         let lastReal = enabled.count == 1 ? engine.runs.first(where: { $0.pair.id == enabled[0].id && !$0.dryRun && $0.finished != nil }) : nil
         return VStack(alignment: .leading, spacing: 9) {
-            Label(title, systemImage: symbol).font(.title3.weight(.semibold)).foregroundStyle(color)
+            HStack(alignment: .firstTextBaseline) {
+                Label(title, systemImage: symbol).font(.title3.weight(.semibold)).foregroundStyle(color)
+                Spacer(minLength: 12)
+                if !enabled.isEmpty {
+                    Button { engine.syncAll(dryRun: true) } label: {
+                        Label(syncText("refreshAllFiles"), systemImage: "arrow.clockwise")
+                    }.controlSize(.small)
+                        .disabled(isQAScreen || engine.busy || engine.storageError != nil)
+                    Button { engine.syncAll() } label: {
+                        Label(syncText("syncAllNow"), systemImage: "arrow.triangle.2.circlepath")
+                    }.buttonStyle(.borderedProminent).controlSize(.small)
+                        .disabled(isQAScreen || engine.busy || engine.storageError != nil)
+                    Menu {
+                        Button { engine.refreshAllInventories() } label: { Label(syncText("refreshCounts"), systemImage: "chart.bar.doc.horizontal") }
+                            .disabled(engine.inventoryBusy || engine.busy || engine.storageError != nil)
+                        Button { engine.retryFailed() } label: { Label(syncText("retryAll"), systemImage: "arrow.clockwise.circle") }
+                        Divider()
+                        if engine.isPaused { Button { engine.resume() } label: { Label(syncText("resume"), systemImage: "play.circle") } }
+                        else { Button { engine.pauseForHours(1) } label: { Label(syncText("pause"), systemImage: "pause.circle") } }
+                    } label: { Image(systemName: "ellipsis.circle") }
+                        .controlSize(.small)
+                        .accessibilityLabel(syncText("globalActions"))
+                        .disabled(isQAScreen)
+                }
+            }
             if engine.storageError != nil { Text(engine.storageError ?? "").font(.callout).foregroundStyle(.orange) }
             else if previewOnly { Text(syncText("status.previewOnlyNote")).font(.callout).foregroundStyle(.secondary) }
             else if verified { Text(syncText("status.checkedNote")).font(.callout).foregroundStyle(.secondary) }
@@ -720,7 +737,16 @@ struct SyncSectionView: View {
                 Text(String(format: syncText("status.lastTransfers"), transfers.sent, transfers.received, transfers.deleted))
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
-            Label(syncText(engine.automaticEnabled ? "status.cadence" : "status.cadenceOff"), systemImage: "clock")
+            if let paused = engine.pausedUntil {
+                Text(String(format: syncText("pausedUntilLabel"), paused.formatted(date: .omitted, time: .shortened)))
+                    .font(.caption.weight(.medium)).foregroundStyle(.orange)
+            } else if engine.automaticEnabled, let next = engine.nextAutomaticCheck {
+                TimelineView(.periodic(from: .now, by: 10)) { _ in
+                    Text("\(syncText("status.nextCheck")) \(next.formatted(.relative(presentation: .named))) (\(next.formatted(date: .omitted, time: .shortened)))")
+                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                }
+            }
+            Label(syncText(engine.automaticEnabled ? "status.cadence" : "status.cadenceOff"), systemImage: engine.automaticEnabled ? "menubar.rectangle" : "clock.slash")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)

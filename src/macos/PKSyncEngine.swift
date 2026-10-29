@@ -321,6 +321,8 @@ final class SyncEngine: ObservableObject {
     @Published private(set) var runProgress: RunProgress?
     @Published private(set) var archiveInProgress = false
     @Published private(set) var waitingForOperationLock = false
+    /// When the next automatic check fires while the app runs; nil when paused or unscheduled.
+    @Published private(set) var nextAutomaticCheck: Date?
     private var activePlan: PreviewPlan?
     private var planResyncDirection: String?
     let disk: SyncDisk
@@ -1395,14 +1397,19 @@ final class SyncEngine: ObservableObject {
     private func schedule() {
         guard automatic, storageError == nil, !shuttingDown else { return }
         timer?.invalidate(); timer = nil
-        guard pairs.contains(where: \.enabled) else { return }
+        guard pairs.contains(where: \.enabled) else { nextAutomaticCheck = nil; return }
         var deadlines = [remoteDue]
         deadlines += cooldowns.values.filter { $0 > Date() }
-        if let pausedUntil { deadlines = [pausedUntil] }
-        else {
+        if let pausedUntil {
+            deadlines = [pausedUntil]
+            nextAutomaticCheck = nil
+        } else {
             let eligible = pairs.filter { $0.enabled && !$0.archiveReviewRequired && !($0.direction.usesBisync && $0.needsResync) }
             deadlines += eligible.compactMap { pair in localDue[pair.id].map { max($0, cooldowns[pair.remote] ?? .distantPast) } }
             deadlines += eligible.compactMap { pair in pair.nextRetryAt.map { max($0, cooldowns[pair.remote] ?? .distantPast) } }
+            // Display purpose only: when the next comparison happens, cooldowns excluded.
+            nextAutomaticCheck = ([remoteDue] + eligible.compactMap { localDue[$0.id] } + eligible.compactMap { $0.nextRetryAt })
+                .filter { $0 > Date() }.min()
         }
         if waitingForOperationLock { deadlines.append(Date().addingTimeInterval(3)) }
         guard let next = deadlines.min() else { return }

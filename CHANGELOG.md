@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.68` (Bureau synchronisable et coordination archivage ↔ synchronisation)
+Statut : `2026.10.69` (actions globales visibles et prochain contrôle affiché)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,11 @@ Statut : `2026.10.68` (Bureau synchronisable et coordination archivage ↔ synch
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.69] - 2026-10-29
+#### Changed
+- « Actualiser tout » et « Synchroniser tout » sont des boutons visibles de la carte de statut, quelle que soit le nombre de paires ; le menu groupé reste pour l’inventaire, les relances et la pause.
+- La carte de statut affiche le prochain contrôle automatique avec son décompte et son heure, puis « En pause jusqu’à… » le cas échéant ; la cadence rappelle le fonctionnement en arrière-plan via l’icône de la barre des menus.
 
 ### [2026.10.68] - 2026-10-29
 #### Added
