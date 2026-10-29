@@ -267,17 +267,17 @@ struct SyncPairLocations: View {
     private var isQAScreen: Bool { CommandLine.arguments.contains("--qa-screen") }
     var body: some View {
         HStack(spacing: 10) {
-            localEndpoint(trailing: false, compact: false).frame(maxWidth: .infinity)
+            localEndpoint(trailing: false).frame(maxWidth: .infinity)
             directionBridge(vertical: false).frame(width: 64)
-            remoteEndpoint(trailing: true, compact: false).frame(maxWidth: .infinity)
+            remoteEndpoint(trailing: true).frame(maxWidth: .infinity)
         }.frame(maxWidth: .infinity)
     }
 
-    private func localEndpoint(trailing: Bool, compact: Bool) -> some View {
+    private func localEndpoint(trailing: Bool) -> some View {
         let uploads = (plan?.pushNew.count ?? 0) + (plan?.pushModified.count ?? 0)
         return endpoint(
             eyebrow: syncText("fromSide"), title: localFolderName,
-            path: shortPath(pair.localPath), icon: finderIcon, tint: .blue, trailing: trailing, compact: compact,
+            path: shortPath(pair.localPath), icon: finderIcon, tint: .blue, trailing: trailing,
             transferIcon: "arrow.up", transferCount: uploads, transferLabel: syncText("sendShort"),
             deletionCount: plan?.deleteLocal.count ?? 0, showOps: plan != nil,
             transferKind: .push, deletionKind: .deleteLocal,
@@ -286,11 +286,11 @@ struct SyncPairLocations: View {
         )
     }
 
-    private func remoteEndpoint(trailing: Bool, compact: Bool) -> some View {
+    private func remoteEndpoint(trailing: Bool) -> some View {
         let downloads = (plan?.pullNew.count ?? 0) + (plan?.pullModified.count ?? 0)
         return endpoint(
             eyebrow: syncText("toSide"), title: remoteFolderName, path: remotePath,
-            icon: driveIcon, tint: .green, trailing: trailing, compact: compact,
+            icon: driveIcon, tint: .green, trailing: trailing,
             transferIcon: "arrow.down", transferCount: downloads, transferLabel: syncText("downloadShort"),
             deletionCount: plan?.deleteRemote.count ?? 0, showOps: plan != nil,
             transferKind: .pull, deletionKind: .deleteRemote,
@@ -325,7 +325,7 @@ struct SyncPairLocations: View {
             ?? NSImage(size: NSSize(width: 18, height: 18))
     }
 
-    private func endpoint(eyebrow: String, title: String, path: String, icon: NSImage, tint: Color, trailing: Bool, compact: Bool,
+    private func endpoint(eyebrow: String, title: String, path: String, icon: NSImage, tint: Color, trailing: Bool,
                           transferIcon: String, transferCount: Int, transferLabel: String,
                           deletionCount: Int, showOps: Bool, transferKind: SyncOperationKind, deletionKind: SyncOperationKind,
                           actionTitle: String, actionIcon: NSImage,
@@ -351,27 +351,11 @@ struct SyncPairLocations: View {
                                     transferKind: transferKind, deletionKind: deletionKind)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
-            if compact {
-                VStack(alignment: .leading, spacing: 8) {
-                    endpointPath(path)
-                    endpointActions(actionTitle: actionTitle, actionIcon: actionIcon, tint: tint,
-                                    disabled: actionDisabled, action: action, mountAction: mountAction)
-                }.padding(.top, 10)
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) {
-                        endpointPath(path)
-                        Spacer(minLength: 8)
-                        endpointActions(actionTitle: actionTitle, actionIcon: actionIcon, tint: tint,
-                                        disabled: actionDisabled, action: action, mountAction: mountAction)
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        endpointPath(path)
-                        endpointActions(actionTitle: actionTitle, actionIcon: actionIcon, tint: tint,
-                                        disabled: actionDisabled, action: action, mountAction: mountAction)
-                    }
-                }.padding(.top, 10)
-            }
+            Spacer(minLength: 10)
+            endpointPath(path)
+            endpointActions(actionTitle: actionTitle, actionIcon: actionIcon, tint: tint,
+                            disabled: actionDisabled, action: action, mountAction: mountAction)
+                .padding(.top, 8)
         }
         .padding(.horizontal, 12).padding(.vertical, 16)
         .frame(maxWidth: .infinity, minHeight: 108, maxHeight: .infinity, alignment: .topLeading)

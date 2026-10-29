@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.64` (cartes Depuis et Vers de taille identique)
+Statut : `2026.10.65` (contenu et boutons alignés dans les deux cartes)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,10 @@ Statut : `2026.10.64` (cartes Depuis et Vers de taille identique)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.65] - 2026-10-29
+#### Fixed
+- Les chemins et les boutons d’ouverture sont désormais placés dans les mêmes rangées des cartes Depuis et Vers, avec les boutons alignés en bas même si les titres et compteurs occupent des hauteurs différentes.
 
 ### [2026.10.64] - 2026-10-29
 #### Fixed
