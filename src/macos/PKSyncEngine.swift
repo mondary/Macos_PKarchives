@@ -266,9 +266,19 @@ struct RunProgress: Equatable {
     var eta: TimeInterval?
     var elapsed: TimeInterval = 0
     var listed: Int64 = 0
+    var totalsKnown = false
+    var checksDone = 0, checksTotal = 0
+    var protectedDeletionPaths: Set<String> = []
+    var completedDeletions: Set<String> = []
+    var completedCopies: Set<String> = []
     var plannedDeletes: Int { deleteRemotePlanned + deleteLocalPlanned }
     var plannedPushes: Int { pushPlanned }
     var plannedPulls: Int { pullPlanned }
+    var operationFraction: Double? {
+        let total = plannedPushes + plannedPulls + plannedDeletes
+        guard totalsKnown, total > 0 else { return nil }
+        return min(1, max(0, Double(pushDone + pullDone + deleteDone) / Double(total)))
+    }
 }
 
 /// Exact comparison produced by a bisync pass: what each side would gain, update, lose
@@ -347,6 +357,8 @@ final class SyncEngine: ObservableObject {
     private var lastStat = Date.distantPast
     private var hasUncheckedHashes = false
     private var verifying = false
+    private var preflighting = false
+    private var orderedQueuePlan = PreviewPlan()
     private var skippedUnsupportedObject = false
     private var processErrors: [String] = []
     private var inventoryQueue: [UUID] = []
@@ -790,7 +802,7 @@ final class SyncEngine: ObservableObject {
         var run = SyncRun(pair: pair, dryRun: job.dryRun, resync: job.resync, directory: dir.path)
         run.archiveCleanupApproved = job.archiveCleanupApproved
         run.id = id
-        active = run; runningPairID = pair.id; cancelled = false; verifying = false; skippedUnsupportedObject = false
+        active = run; runningPairID = pair.id; cancelled = false; verifying = false; preflighting = false; skippedUnsupportedObject = false
         runProgress = RunProgress()
         if !pair.direction.usesBisync { runProgress?.phase = pair.direction == .push ? .push : .pull }
         activePlan = job.dryRun ? PreviewPlan() : nil
@@ -832,14 +844,25 @@ final class SyncEngine: ObservableObject {
             try filterRules(for: pair)
                 .joined(separator: "\n").appending("\n").write(to: filter, atomically: true, encoding: .utf8)
             let args = transferArguments(run, work: work, filter: filter)
-            execute(args, logURL: dir.appendingPathComponent("rclone.jsonl")) { [weak self] result in
+            let perform: () -> Void = { [weak self] in
+                self?.performTransfer(run, args: args, filter: filter)
+            }
+            if !run.dryRun, run.pair.direction.usesBisync, !run.resync {
+                prepareOrderedTransfers(run, work: work, filter: filter, completion: perform)
+            } else { perform() }
+        } catch { complete("error", message: error.localizedDescription) }
+    }
+
+    private func performTransfer(_ run: SyncRun, args: [String], filter: URL) {
+        let dir = URL(fileURLWithPath: run.directory)
+        execute(args, logURL: dir.appendingPathComponent("rclone.jsonl"), append: true) { [weak self] result in
                 guard let self else { return }
                 switch result {
                 case .failure(let error): self.complete("error", message: error.localizedDescription)
                 case .success(let exit):
                     if self.cancelled { self.complete("cancelled", message: "Arrêt demandé. Rien n’est déclaré vérifié.") }
                     else if exit != 0 { self.failedProcess(exit, at: dir.appendingPathComponent("rclone.jsonl")) }
-                    else if job.dryRun { self.complete("preview", message: "Simulation terminée. Aucune sauvegarde effectuée, aucun état vérifié modifié.") }
+                    else if run.dryRun { self.complete("preview", message: "Simulation terminée. Aucune sauvegarde effectuée, aucun état vérifié modifié.") }
                     else {
                         // Listings were committed by a successful real bisync. If the subsequent
                         // check fails, retry normal reconciliation, not a destructive reinitialization.
@@ -850,8 +873,112 @@ final class SyncEngine: ObservableObject {
                         self.verify(run, filter: filter)
                     }
                 }
+        }
+    }
+
+    /// Bisync deletes at the end of EACH direction, not after both directions. Before a
+    /// mixed run, perform and check the planned uploads and downloads with copy-only commands.
+    /// Keep the live baseline intact: only the final bisync commits reconciliation/deletions.
+    private func prepareOrderedTransfers(_ run: SyncRun, work: URL, filter: URL, completion: @escaping () -> Void) {
+        let dir = URL(fileURLWithPath: run.directory)
+        let previewWork = dir.appendingPathComponent("order-preview-state")
+        do {
+            try FileManager.default.copyItem(at: work, to: previewWork)
+            for file in try FileManager.default.contentsOfDirectory(at: previewWork, includingPropertiesForKeys: nil) where file.pathExtension == "lck" {
+                try FileManager.default.removeItem(at: file)
             }
-        } catch { complete("error", message: error.localizedDescription) }
+        } catch { complete("error", message: error.localizedDescription); return }
+        var preview = run; preview.dryRun = true
+        preflighting = true
+        orderedQueuePlan = PreviewPlan()
+        activePlan = PreviewPlan()
+        planResyncDirection = run.pair.archiveReviewRequired && mirrorAfterArchive(run.pair) ? "mirror" : nil
+        runProgress?.phase = .listing
+        let log = dir.appendingPathComponent("order-preview.jsonl")
+        execute(transferArguments(preview, work: previewWork, filter: filter), logURL: log) { [weak self] result in
+            guard let self else { return }
+            self.preflighting = false
+            guard self.stageSucceeded(result, log: log) else { self.activePlan = nil; return }
+            let plan = Self.finalizePlan(self.orderedQueuePlan)
+            let detectedDeletes = !(self.activePlan?.deleteLocal.isEmpty ?? true) || !(self.activePlan?.deleteRemote.isEmpty ?? true)
+            self.activePlan = nil; self.planResyncDirection = nil
+            self.runProgress = RunProgress()
+            self.runProgress?.pushPlanned = plan.pushNew.count + plan.pushModified.count
+            self.runProgress?.pullPlanned = plan.pullNew.count + plan.pullModified.count
+            self.runProgress?.deleteLocalPlanned = plan.deleteLocal.count
+            self.runProgress?.deleteRemotePlanned = plan.deleteRemote.count
+            self.runProgress?.protectedDeletionPaths = Set(plan.deleteLocal + plan.deleteRemote)
+            self.runProgress?.totalsKnown = !plan.truncated
+            guard !plan.truncated || !detectedDeletes else {
+                self.suspendCleanup("Comparaison incomplète : impossible de garantir l’ordre des copies et suppressions. Aucun nettoyage lancé.")
+                return
+            }
+            let mixed = !plan.deleteLocal.isEmpty || !plan.deleteRemote.isEmpty
+            guard mixed else { completion(); return }
+            // Never guess through conflicts, truncated lists, or a delete-vs-edit race.
+            let push = plan.pushNew + plan.pushModified, pull = plan.pullNew + plan.pullModified
+            let paths = push + pull
+            let deletes = Set(plan.deleteLocal + plan.deleteRemote)
+            guard !plan.truncated, plan.conflicts.isEmpty, Set(push).isDisjoint(with: Set(pull)),
+                  Set(paths).isDisjoint(with: deletes), paths.allSatisfy(Self.safeRelativeFile) else {
+                self.suspendCleanup("Nettoyage suspendu : conflits ou comparaison incomplète. Aucun fichier supprimé ; examiner une nouvelle comparaison avant de relancer.")
+                return
+            }
+            self.copyBeforeDeleting(run, push: push, pull: pull, filter: filter, completion: completion)
+        }
+    }
+
+    private static func safeRelativeFile(_ path: String) -> Bool {
+        !path.isEmpty && !path.hasPrefix("/") && !path.contains("\n") && !path.contains("\r") &&
+            !path.split(separator: "/", omittingEmptySubsequences: false).contains(where: { $0.isEmpty || $0 == "." || $0 == ".." })
+    }
+
+    private func suspendCleanup(_ message: String) {
+        active?.diagnostic = SyncDiagnostic(kind: .safety, details: message)
+        complete("error", message: message)
+    }
+
+    private func stageSucceeded(_ result: Result<Int32, Error>, log: URL) -> Bool {
+        if cancelled { complete("cancelled", message: "Arrêt demandé avant le nettoyage. Aucun nettoyage supplémentaire lancé."); return false }
+        switch result {
+        case .failure(let error): complete("error", message: error.localizedDescription); return false
+        case .success(let exit) where exit != 0: failedProcess(exit, at: log); return false
+        default: return true
+        }
+    }
+
+    private func copyBeforeDeleting(_ run: SyncRun, push: [String], pull: [String], filter: URL, completion: @escaping () -> Void) {
+        let dir = URL(fileURLWithPath: run.directory)
+        let uploading = !push.isEmpty
+        let paths = uploading ? push : pull
+        guard !paths.isEmpty else { completion(); return }
+        let name = uploading ? "push" : "pull"
+        let list = dir.appendingPathComponent("ordered-\(name).txt")
+        do { try paths.joined(separator: "\n").appending("\n").write(to: list, atomically: true, encoding: .utf8) }
+        catch { complete("error", message: error.localizedDescription); return }
+        let source = uploading ? run.pair.localPath : run.pair.target
+        let destination = uploading ? run.pair.target : run.pair.localPath
+        let backup = uploading ? "\(run.pair.endpoint):.PKarchives-recovery/\(run.pair.id)/\(run.id)"
+            : disk.base.appendingPathComponent("recovery/\(run.pair.id)/\(run.id)").path
+        runProgress?.phase = uploading ? .push : .pull
+        let log = dir.appendingPathComponent("rclone.jsonl")
+        // This whitelist was produced with the pair's filters. rclone does not allow
+        // combining --files-from-raw with --filter-from.
+        let flags = ["--files-from-raw", list.path]
+        execute(["copy", source, destination, "--checksum", "--backup-dir", backup] + flags + Self.lightFlags,
+                logURL: log, append: true) { [weak self] result in
+            guard let self, self.stageSucceeded(result, log: log) else { return }
+            let checkLog = dir.appendingPathComponent("ordered-\(name)-check.jsonl")
+            self.execute(["check", source, destination, "--one-way"] + flags + Self.lightFlags, logURL: checkLog) { [weak self] result in
+                guard let self, self.stageSucceeded(result, log: checkLog) else { return }
+                if self.uncheckedHashes(at: checkLog) {
+                    self.complete("unverified", message: "Copies non vérifiables par empreinte : nettoyage suspendu. Aucun nettoyage lancé.")
+                    return
+                }
+                if uploading { self.copyBeforeDeleting(run, push: [], pull: pull, filter: filter, completion: completion) }
+                else { completion() }
+            }
+        }
     }
 
     // A 403 quota refusal is per-minute: retry with growing backoff so a listing waits out the
@@ -890,12 +1017,13 @@ final class SyncEngine: ObservableObject {
             // bisync refuses an empty Path1 — exactly the state after a full archive. Mirror the
             // emptied workspace instead; removed Drive copies land in the recovery folder.
             if archiveCleanup && mirrorAfterArchive(p) {
-                var mirror = ["sync", p.localPath, p.target, "--filter-from", filter.path]
+                var mirror = ["sync", p.localPath, p.target, "--filter-from", filter.path, "--delete-after"]
                 if run.dryRun { mirror += ["--dry-run"] }
                 else { mirror += ["--backup-dir", "\(p.endpoint):.PKarchives-recovery/\(p.id)/\(run.id)"] }
                 return mirror + Self.lightFlags
             }
             args = ["bisync", p.localPath, p.target, "--workdir", work.path, "--filters-file", filter.path,
+                    "--delete-after",
                     "--check-sync", "true", "--resilient", "--recover", "--max-lock", "2m", "--max-delete", archiveCleanup ? "100" : "50",
                     "--conflict-resolve", p.conflictPolicy.argument, "--conflict-loser", "num", "--conflict-suffix", "conflict"]
             if run.resync { args += ["--resync-mode", p.conflictPolicy.argument] }
@@ -903,7 +1031,7 @@ final class SyncEngine: ObservableObject {
         } else {
             let source = p.direction == .push ? p.localPath : p.target
             let dest = p.direction == .push ? p.target : p.localPath
-            args = ["copy", source, dest, "--checksum", "--filter-from", filter.path]
+            args = ["copy", source, dest, "--checksum", "--check-first", "--filter-from", filter.path]
         }
         if run.dryRun { args += ["--dry-run"] }
         else {
@@ -950,8 +1078,9 @@ final class SyncEngine: ObservableObject {
 
     /// Drain UTF-8 by whole lines on one worker, with bounded memory. Completion is dispatched only
     /// after EOF, so final errors cannot race against the process exit callback.
-    private func execute(_ args: [String], logURL: URL, completion: @escaping (Result<Int32, Error>) -> Void) {
+    private func execute(_ args: [String], logURL: URL, append: Bool = false, completion: @escaping (Result<Int32, Error>) -> Void) {
         processErrors = []
+        lastStat = .distantPast
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binary.contains("/") ? binary : "/usr/bin/env")
         proc.arguments = binary.contains("/") ? args : [binary] + args
@@ -977,7 +1106,9 @@ final class SyncEngine: ObservableObject {
             var buffer = Data()
             var loggingError: Error?
             do {
-                let handle = try FileHandle(forWritingTo: Self.makeLog(logURL))
+                if !append || !FileManager.default.fileExists(atPath: logURL.path) { _ = try Self.makeLog(logURL) }
+                let handle = try FileHandle(forWritingTo: logURL)
+                if append { try handle.seekToEnd() }
                 defer { try? handle.close() }
                 while true {
                     let chunk = pipe.fileHandleForReading.availableData
@@ -1018,7 +1149,7 @@ final class SyncEngine: ObservableObject {
         guard let data = line.data(using: .utf8), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         let message = SyncDiagnostic.clean(json["msg"] as? String ?? "")
         let object = json["object"] as? String ?? ""
-        if var progress = runProgress {
+        if !preflighting, !verifying, var progress = runProgress {
             Self.apply(message: message, object: object, to: &progress)
             if verifying { progress.phase = .verifying }
             runProgress = progress
@@ -1026,6 +1157,10 @@ final class SyncEngine: ObservableObject {
         if activePlan != nil {
             let oneWay: Bool? = active.map { $0.pair.direction == .bidirectional ? nil : $0.pair.direction == .push } ?? nil
             Self.applyPlan(message: message, object: object, to: &activePlan!, resyncDirection: &planResyncDirection, oneWay: oneWay)
+            if preflighting {
+                if planResyncDirection == "mirror" { orderedQueuePlan = activePlan! }
+                else { captureOrderedQueue(message: message) }
+            }
         }
         if json["level"] as? String == "error", processErrors.count < 64 { processErrors.append(String(message.prefix(8192))) }
         if message.lowercased().contains("hashes could not be checked") || message.lowercased().contains("no hashes in common") { hasUncheckedHashes = true }
@@ -1033,8 +1168,23 @@ final class SyncEngine: ObservableObject {
         if let stats = json["stats"] as? [String: Any], Date().timeIntervalSince(lastStat) > 1 {
             lastStat = Date()
             if var progress = runProgress {
-                Self.apply(stats: stats, to: &progress)
-                if verifying { progress.phase = .verifying }
+                if preflighting {
+                    progress.listed = (stats["listed"] as? NSNumber)?.int64Value ?? progress.listed
+                } else if verifying {
+                    progress.phase = .verifying
+                    progress.checksDone = (stats["checks"] as? NSNumber)?.intValue ?? progress.checksDone
+                    progress.checksTotal = (stats["totalChecks"] as? NSNumber)?.intValue ?? progress.checksTotal
+                } else {
+                    Self.apply(stats: stats, to: &progress)
+                    // copy --check-first finishes listing before copying. Do not mark a
+                    // partially enumerated total as final until a real copy has completed.
+                    if !isDryRun, let direction = active?.pair.direction, direction != .bidirectional,
+                       progress.transfersTotal > 0, progress.pushDone + progress.pullDone > 0 {
+                        if direction == .push { progress.pushPlanned = progress.transfersTotal }
+                        else { progress.pullPlanned = progress.transfersTotal }
+                        progress.totalsKnown = true
+                    }
+                }
                 runProgress = progress
             }
             let bytes = (stats["bytes"] as? NSNumber)?.int64Value ?? 0
@@ -1050,17 +1200,36 @@ final class SyncEngine: ObservableObject {
             catch { storageError = error.localizedDescription; cancelled = true; process?.interrupt() }
         }
     }
+    private func captureOrderedQueue(message: String) {
+        let lower = message.lowercased()
+        guard lower.contains("queue copy") || lower.contains("queue delete"),
+              let separator = message.range(of: " - ", options: .backwards), let deltas = activePlan else { return }
+        let destination = String(message[separator.upperBound...]).precomposedStringWithCanonicalMapping
+        let candidates = Set(deltas.pushNew + deltas.pushModified + deltas.pullNew + deltas.pullModified + deltas.deleteLocal + deltas.deleteRemote)
+            .filter { destination == $0.precomposedStringWithCanonicalMapping || destination.hasSuffix("/" + $0.precomposedStringWithCanonicalMapping) }
+        guard candidates.count == 1, let path = candidates.first else { orderedQueuePlan.truncated = true; return }
+        if lower.contains("queue copy to path2") { Self.add(path, to: \.pushNew, plan: &orderedQueuePlan, limit: 5000) }
+        else if lower.contains("queue copy to path1") { Self.add(path, to: \.pullNew, plan: &orderedQueuePlan, limit: 5000) }
+        else if message.hasPrefix("- Path1") { Self.add(path, to: \.deleteLocal, plan: &orderedQueuePlan, limit: 5000) }
+        else { Self.add(path, to: \.deleteRemote, plan: &orderedQueuePlan, limit: 5000) }
+    }
     static func apply(message rawMessage: String, object: String, to progress: inout RunProgress) {
         let message = SyncDiagnostic.clean(rawMessage)
         let text = message.lowercased()
-        if text.contains("queue copy to path2") { progress.pushPlanned += 1 }
-        else if text.contains("queue copy to path1") { progress.pullPlanned += 1 }
-        else if text.contains("queue delete") {
-            if text.contains("path2") { progress.deleteRemotePlanned += 1 } else { progress.deleteLocalPlanned += 1 }
+        if !progress.totalsKnown {
+            if text.contains("queue copy to path2") { progress.pushPlanned += 1 }
+            else if text.contains("queue copy to path1") { progress.pullPlanned += 1 }
+            else if text.contains("queue delete") {
+                if text.contains("path2") { progress.deleteRemotePlanned += 1 } else { progress.deleteLocalPlanned += 1 }
+            }
         }
+        if text.contains("queue delete"), let separator = message.range(of: " - ", options: .backwards) {
+            progress.protectedDeletionPaths.insert(String(message[separator.upperBound...]).precomposedStringWithCanonicalMapping)
+        }
+        if text.contains("do queued copies") || text.contains("do queued deletes") { progress.totalsKnown = true }
         if text.contains("do queued copies to path1") { progress.phase = .pull }
         else if text.contains("do queued copies to path2") { progress.phase = .push }
-        else if text.contains("do queued deletes") || text.contains("applying changes") { progress.phase = .deleting }
+        else if text.contains("do queued deletes") { progress.phase = .deleting }
         else if text.contains("copying files to") {
             let path1 = text.range(of: "path1", options: .backwards)?.lowerBound
             let path2 = text.range(of: "path2", options: .backwards)?.lowerBound
@@ -1069,13 +1238,22 @@ final class SyncEngine: ObservableObject {
             else if path2 != nil { progress.phase = .push }
         }
         if message.hasPrefix("Copied (") {
+            let key = "\(progress.phase.rawValue):\(object.precomposedStringWithCanonicalMapping)"
+            guard object.isEmpty || progress.completedCopies.insert(key).inserted else { return }
             switch progress.phase {
             case .pull: progress.pullDone += 1
             case .push: progress.pushDone += 1
             default: break
             }
-        } else if message == "Deleted" || message.hasPrefix("Deleted ") {
-            progress.deleteDone += 1
+        } else if message == "Deleted" || message.hasPrefix("Deleted ") || text == "moved into backup dir" {
+            let path = object.precomposedStringWithCanonicalMapping
+            let planned = progress.protectedDeletionPaths.contains { $0 == path || $0.hasSuffix("/" + path) || path.hasSuffix("/" + $0) }
+            // Replacements are also moved to backup; only count announced deletions here.
+            guard text != "moved into backup dir" || (!path.isEmpty && planned) else { return }
+            if path.isEmpty || progress.completedDeletions.insert(path).inserted {
+                progress.deleteDone += 1
+                progress.phase = .deleting
+            }
         }
         _ = object
     }
@@ -1224,6 +1402,7 @@ final class SyncEngine: ObservableObject {
         } catch { storageError = error.localizedDescription }
         active = nil; runningPairID = nil; progressText = message; process = nil
         runProgress = nil
+        preflighting = false
         releaseOperation()
         drainArchive()
         refreshBadge()

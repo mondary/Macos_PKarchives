@@ -129,7 +129,22 @@ struct SettingsSectionHeader: View {
         navigation.mode = kind == "menuArchive" ? .archive : .sync
         let content: AnyView
         var bounds: NSRect
-        if kind == "general" {
+        if kind == "actions" || kind == "actions16" {
+            var measured = RunProgress()
+            measured.totalsKnown = true
+            measured.phase = .pull
+            measured.pushPlanned = kind == "actions16" ? 16 : 3
+            measured.pushDone = kind == "actions16" ? 2 : 3
+            measured.pullPlanned = kind == "actions16" ? 0 : 130
+            measured.pullDone = kind == "actions16" ? 0 : 65
+            measured.deleteRemotePlanned = kind == "actions16" ? 0 : 234
+            content = AnyView(VStack(alignment: .leading, spacing: 14) {
+                Text("Données de test · progression par fichier terminé").font(.caption).foregroundStyle(.secondary)
+                Text("Synchronisation en cours").font(.headline)
+                SyncActionProgressView(progress: measured, dryRun: false)
+            }.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading))
+            bounds = NSRect(x: 0, y: 0, width: 1000, height: 220)
+        } else if kind == "general" {
             content = AnyView(WorkspaceGeneralSettings())
             bounds = NSRect(x: 0, y: 0, width: 660, height: 480)
         } else if kind == "form" {

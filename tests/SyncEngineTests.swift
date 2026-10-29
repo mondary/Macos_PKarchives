@@ -449,11 +449,71 @@ struct TestFailure: Error { let message: String }
         try expect(preserved.contains(Data("MAC EDIT".utf8)) && preserved.contains(Data("DRIVE EDIT".utf8)), "Conflict version lost")
 
         try fm.removeItem(at: bl.appendingPathComponent("mac.txt"))
+        try fm.removeItem(at: bd.appendingPathComponent("new.txt"))
+        try write("late copy", bl.appendingPathComponent("late.txt"))
+        try write("incoming copy", bd.appendingPathComponent("incoming.txt"))
         bidir.syncPair(bp.id)
         try wait(bidir)
         try expect(bidir.pairs[0].lastOutcome == "verified", "Delete propagation failed: \(bidir.runs[0].message)")
         try expect(!fm.fileExists(atPath: bd.appendingPathComponent("mac.txt").path), "Deleted file remained")
         try expect(files(root.appendingPathComponent("remote/.PKarchives-recovery")).values.contains(Data("mac".utf8)), "Deleted file not recoverable")
+        try expect(bidir.runs[0].transfers == SyncTransferSummary(sent: 1, received: 1, deleted: 2),
+                   "Mixed run counters must include both recovered deletions without double-counting copies")
+        // Execution order guarantee: every queued copy completes before any deletion runs,
+        // so a file is never deleted from one side while its counterpart copy is in flight.
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: bidir.runs[0].directory).appendingPathComponent("rclone.jsonl")),
+           let log = String(data: data, encoding: .utf8) {
+            var lastCopy: Int?
+            var firstDeletion: Int?
+            for (index, line) in log.split(separator: "\n").enumerated() {
+                guard let lineData = String(line).data(using: .utf8),
+                      let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else { continue }
+                let message = (json["msg"] as? String ?? "").lowercased()
+                if message.hasPrefix("copied (") { lastCopy = index }
+                if message == "deleted" || message.hasPrefix("deleted ") || message.contains("moved into backup dir") {
+                    firstDeletion = firstDeletion ?? index
+                }
+            }
+            try expect(lastCopy != nil && firstDeletion != nil, "Copy or deletion evidence missing from the execution log")
+            try expect(lastCopy != nil && firstDeletion != nil && firstDeletion! > lastCopy!,
+                       "A deletion executed before the copies completed")
+        } else {
+            throw TestFailure(message: "Delete-propagation run kept no execution log")
+        }
+
+        // Deterministic action steps: 16 completions, not bytes or elapsed time.
+        var measured = RunProgress()
+        measured.pushPlanned = 16; measured.totalsKnown = true; measured.phase = .push
+        try expect(measured.operationFraction == 0, "Known operations should start at zero")
+        for index in 1...16 {
+            SyncEngine.apply(message: "Copied (new)", object: "\(index).txt", to: &measured)
+            try expect(measured.operationFraction == Double(index) / 16, "Progress is not one sixteenth per completed file")
+        }
+        SyncEngine.apply(message: "Copied (new)", object: "16.txt", to: &measured)
+        try expect(measured.pushDone == 16, "Duplicate copy log incremented operation progress")
+        measured.totalsKnown = false
+        try expect(measured.operationFraction == nil, "Unknown totals must not invent a completion percentage")
+        measured.totalsKnown = true; measured.pushPlanned = 3; measured.pullPlanned = 130
+        measured.deleteRemotePlanned = 234; measured.pushDone = 3; measured.pullDone = 65; measured.deleteDone = 0
+        try expect(measured.operationFraction == Double(68) / 367, "Global progress must weight file actions, not operation categories")
+
+        // If the copy phase fails, do not start any cleanup.
+        let orderedFailureBinary = root.appendingPathComponent("ordered-copy-failure")
+        try write("#!/bin/bash\nif [[ $1 == copy ]]; then echo '{\"level\":\"error\",\"msg\":\"ordered copy fixture failure\"}'; exit 1; fi\nexec '\(rcloneBinary())' \"$@\"\n", orderedFailureBinary)
+        try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: orderedFailureBinary.path)
+        let (orderedFailure, orderedPair, orderedRemote) = try setup("ordered-failure", direction: .bidirectional, binary: orderedFailureBinary.path)
+        let orderedLocal = URL(fileURLWithPath: orderedPair.localPath)
+        try fm.createDirectory(at: orderedRemote, withIntermediateDirectories: true)
+        try write("keep until upload succeeds", orderedLocal.appendingPathComponent("removed.txt"))
+        try write("stable", orderedLocal.appendingPathComponent("stable.txt"))
+        orderedFailure.syncPair(orderedPair.id, resync: true)
+        try wait(orderedFailure)
+        try fm.removeItem(at: orderedLocal.appendingPathComponent("removed.txt"))
+        try write("new upload", orderedLocal.appendingPathComponent("new.txt"))
+        orderedFailure.syncPair(orderedPair.id)
+        try wait(orderedFailure)
+        try expect(orderedFailure.pairs[0].lastOutcome == "error", "Failed ordered copy was declared successful")
+        try expect(read(orderedRemote.appendingPathComponent("removed.txt")) == "keep until upload succeeds", "Cleanup ran after a failed upload")
 
         // A failing pair must not stop another pair in the same queue.
         var second = SyncPair()

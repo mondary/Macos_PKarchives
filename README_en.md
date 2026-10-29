@@ -82,7 +82,9 @@ The new mode is available in the sources and Dev build, **not yet in the Stable 
 
 ![Drive folder selection by pasting its full link, with instructions and an Open Drive button](store/media/05-drive-folder-dev.png)
 
-**Run feedback**: during a sync, a banner shows the current direction, files done / planned, volume and percentage, speed, elapsed time and rclone’s estimated remaining time, plus planned and completed operations per direction (↑ push, ↓ pull, deletions). During a preview nothing is transferred, but the comparison and its volumes stay visible.
+**Run feedback**: the status block progresses by **completed action**, not duration or bytes: with 16 operations, the first completed file fills 1/16 of the bar, the second 2/16. Three counters and bars distinguish uploads, downloads and deletions (for example: 3/3, 65/130, 0/234). Unknown totals never produce an invented percentage. Previews show planned actions without pretending to transfer files; final verification has its own check counter. An incremental bidirectional sync first runs an isolated comparison; if the plan mixes copies and deletions, copies are completed and checked before cleanup. This preparation adds a scan of the endpoints. A failed copy or check stops cleanup; ambiguous conflicts or a truncated comparison require review rather than unsafe deletion.
+
+![Action-based progress with sample data: uploads complete, downloads running, deletions waiting](store/media/10-sync-actions-dev.png)
 
 **Menu bar**: left-click, right-click or a 550 ms hover opens the native panel, directly on Synchronization when pairs are configured. Expand each row for Mac ↔ Drive locations, actual state, preview, sync and the latest report. Active runs show progress, speed, remaining files, ETA and a stop action. **Sync all** respects each pair’s preview mode. Hover never starts a transfer; disable automatic opening under **…** or **Settings → General**.
 

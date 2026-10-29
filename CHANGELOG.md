@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.71` (un bloc d’état unique et paires triées par activité)
+Statut : `2026.10.72` (progression réelle par action et copies avant nettoyage)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,14 @@ Statut : `2026.10.71` (un bloc d’état unique et paires triées par activité)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.72] - 2026-10-29
+#### Changed
+- La barre progresse au nombre d’actions terminées : pour 16 opérations, chaque fichier terminé ajoute exactement 1/16. Trois compteurs et leurs barres détaillent les envois, rapatriements et suppressions ; ni octets ni temps estimé n’alimentent le pourcentage.
+- Un total encore inconnu reste indéterminé sans pourcentage inventé. La simulation affiche ses prévisions, jamais des transferts réalisés ; la vérification finale dispose d’un compteur de contrôle séparé.
+- Avant une synchronisation bidirectionnelle incrémentale, une comparaison isolée prépare les opérations. Si le plan mêle copies et suppressions, les envois puis les rapatriements sont copiés et vérifiés avant de lancer la réconciliation avec nettoyage après transfert. Un échec de copie ou de contrôle bloque ce nettoyage ; un conflit ambigu ou une liste incomplète demande une nouvelle comparaison sans forçage.
+#### Fixed
+- Les suppressions conservées dans le dossier de récupération sont comptées comme actions terminées, sans confondre les remplacements avec des suppressions ni recompter une ligne de copie dupliquée.
 
 ### [2026.10.71] - 2026-10-29
 #### Changed

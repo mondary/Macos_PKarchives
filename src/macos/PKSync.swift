@@ -85,6 +85,15 @@ private let syncStrings: [String: [String]] = [
     "remaining": ["restant", "remaining", "restante", "verbleibend"],
     "elapsedShort": ["écoulé", "elapsed", "transcurrido", "vergangen"],
     "analyzing": ["Analyse… %@ objets listés", "Analyzing… %@ objects listed", "Analizando… %@ objetos listados", "Analyse… %@ Objekte gelistet"],
+    "progressPush": ["↑ %@/%@ vers Drive", "↑ %@/%@ to Drive", "↑ %@/%@ a Drive", "↑ %@/%@ zu Drive"],
+    "progressPull": ["↓ %@/%@ vers le Mac", "↓ %@/%@ to the Mac", "↓ %@/%@ al Mac", "↓ %@/%@ zum Mac"],
+    "progressDelete": ["🗑 %@/%@ suppressions", "🗑 %@/%@ deletions", "🗑 %@/%@ borrados", "🗑 %@/%@ Löschungen"],
+    "actionCount": ["%d / %d actions terminées", "%d / %d actions completed", "%d / %d acciones terminadas", "%d / %d Aktionen abgeschlossen"],
+    "actionsUnknown": ["%d actions terminées · total en cours de calcul", "%d actions completed · calculating total", "%d acciones terminadas · calculando total", "%d Aktionen abgeschlossen · Gesamtzahl wird ermittelt"],
+    "checksCount": ["Vérification : %d / %d fichiers contrôlés", "Verification: %d / %d files checked", "Verificación: %d / %d archivos comprobados", "Prüfung: %d / %d Dateien geprüft"],
+    "previewMeasured": ["Simulation · aucun fichier modifié", "Preview · no file modified", "Simulación · ningún archivo modificado", "Vorschau · keine Datei geändert"],
+    "plannedActions": ["%d actions prévues", "%d planned actions", "%d acciones previstas", "%d geplante Aktionen"],
+    "noActions": ["Aucune action à effectuer", "No actions needed", "No hay acciones pendientes", "Keine Aktionen erforderlich"],
     "filesProgress": ["%@ / %@ fichiers", "%@ / %@ files", "%@ / %@ archivos", "%@ / %@ Dateien"],
     "stopRun": ["Arrêter l’exécution", "Stop run", "Detener la ejecución", "Lauf stoppen"],
     "pairs": ["Paires", "Pairs", "Parejas", "Paare"],
@@ -535,6 +544,64 @@ private struct TransferFlowDot: View {
     }
 }
 
+/// One completed operation is one step, regardless of its size or duration.
+struct SyncActionProgressView: View {
+    let progress: RunProgress
+    let dryRun: Bool
+
+    private var total: Int { progress.plannedPushes + progress.plannedPulls + progress.plannedDeletes }
+    private var done: Int { progress.pushDone + progress.pullDone + progress.deleteDone }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if dryRun {
+                Text(syncText("previewMeasured")).font(.caption.weight(.medium))
+                Text(String(format: syncText("analyzing"), "\(progress.listed)"))
+                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            } else if let fraction = progress.operationFraction {
+                HStack {
+                    Text(String(format: syncText("actionCount"), done, total))
+                    Spacer(minLength: 8)
+                    Text("\(Int(fraction * 100)) %")
+                }.font(.caption.monospacedDigit())
+                ProgressView(value: fraction).controlSize(.small)
+                    .accessibilityLabel(syncText("plannedFiles"))
+            } else if progress.totalsKnown && total == 0 {
+                Text(syncText("noActions")).font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text(done > 0 ? String(format: syncText("actionsUnknown"), done)
+                     : String(format: syncText("analyzing"), "\(progress.listed)"))
+                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            }
+            HStack(alignment: .top, spacing: 16) {
+                action(syncText("sendShort"), symbol: "arrow.up", completed: progress.pushDone, planned: progress.plannedPushes, tint: .blue)
+                action(syncText("downloadShort"), symbol: "arrow.down", completed: progress.pullDone, planned: progress.plannedPulls, tint: .green)
+                action(syncText("deleteShort"), symbol: "trash", completed: progress.deleteDone, planned: progress.plannedDeletes, tint: .orange)
+            }
+            if !dryRun && progress.phase == .verifying {
+                Text(progress.checksTotal > 0 ? String(format: syncText("checksCount"), progress.checksDone, progress.checksTotal) : syncText("verifying"))
+                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func action(_ title: String, symbol: String, completed: Int, planned: Int, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol).foregroundStyle(tint).accessibilityHidden(true)
+                Text(title).lineLimit(1)
+                Spacer(minLength: 0)
+                Text(dryRun ? "\(planned)" : "\(completed) / \(progress.totalsKnown ? String(planned) : "—")")
+                    .monospacedDigit()
+            }.font(.caption)
+            if !dryRun && progress.totalsKnown && planned > 0 {
+                ProgressView(value: min(Double(completed), Double(planned)), total: Double(planned))
+                    .controlSize(.mini).tint(tint).accessibilityLabel(title)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 extension SyncEngine {
     func presentationState(for pair: SyncPair) -> String {
         if runningPairID == pair.id { return isDryRun ? "simulating" : runProgress?.phase == .verifying ? "verifying" : "running" }
@@ -764,7 +831,7 @@ struct SyncSectionView: View {
         return syncText("status.previewChanges")
     }
 
-    /// The live run inside the status block: name, phase, one metrics line, one done line.
+    /// Progress uses completed file operations only; never elapsed time or simulated bytes.
     private var runSummary: some View {
         let progress = engine.runProgress ?? RunProgress()
         let pair = engine.pairs.first { $0.id == engine.runningPairID }
@@ -777,25 +844,14 @@ struct SyncSectionView: View {
             case .verifying: return syncText("phase.verifying")
             }
         }()
-        let fraction: Double? = progress.bytesTotal > 0 ? min(1, max(0, Double(progress.bytesDone) / Double(progress.bytesTotal))) : nil
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 ProgressView().controlSize(.mini).accessibilityHidden(true)
                 Text("\(pair?.name ?? "—") — \(phase)").font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 8)
-                if let fraction { Text("\(Int(fraction * 100)) %").font(.callout.monospacedDigit()) }
                 Button(syncText("stop")) { engine.stopRunning() }.controlSize(.mini)
             }
-            if progress.transfersTotal > 0 {
-                Text("\(String(format: syncText("filesProgress"), "\(progress.transfersDone)", "\(progress.transfersTotal)")) · \(SyncEngine.byteText(progress.bytesDone)) / \(SyncEngine.byteText(progress.bytesTotal))\(progress.speed > 0 ? " · \(SyncEngine.byteText(Int64(progress.speed)))/s" : "")\(progress.eta != nil ? " · \(syncText("remaining")) ~\(Self.durationText(progress.eta!))" : "")")
-                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                ProgressView(value: fraction ?? 0).controlSize(.small)
-            } else {
-                Text(String(format: syncText("analyzing"), "\(progress.listed)"))
-                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-            }
-            Text("\(syncText("doneCount")) : \(String(format: syncText("pushCount"), "\(progress.pushDone)")) · \(String(format: syncText("pullCount"), "\(progress.pullDone)")) · \(String(format: syncText("deleteCount"), "\(progress.deleteDone)")) · \(syncText("elapsedShort")) \(Self.durationText(progress.elapsed))")
-                .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+            SyncActionProgressView(progress: progress, dryRun: engine.isDryRun)
         }
         .padding(10)
         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))

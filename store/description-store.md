@@ -3,11 +3,11 @@
 Matériel de présentation de l'application.
 Captures : `store/media/` (données de démo, desktop).
 
-## Aperçu Dev — 2026.10.53 (non publié en Stable)
+## Aperçu Dev — 2026.10.72 (non publié en Stable)
 
-FR : paires Mac ↔ Drive compactes et dépliables, actions au clic droit, progression dans le panneau et choix débit/fichiers restants dans la barre des menus. Lancement à l’ouverture de session disponible dans Général. Captures natives de test : `04-sync-dev.png`, `06-menu-version-dev.png`, `08-general-dev.png`.
+FR : paires Mac ↔ Drive avec panneaux « Depuis / Vers » côte à côte et actions au clic droit. Un bloc de statut regroupe les actions globales, la cadence et la progression par action terminée : 1/16, 2/16, etc., avec compteurs séparés pour les envois, rapatriements et suppressions, sans pourcentage inventé si le total est inconnu. Les copies d’un plan bidirectionnel mixte sont vérifiées avant le nettoyage. Lancement à l’ouverture de session disponible dans Général. Captures natives de test : `04-sync-dev.png`, `08-sync-narrow-dev.png`, `09-sync-detail-dev.png`, `10-sync-actions-dev.png` (données de démonstration).
 
-EN: compact, expandable Mac ↔ Drive pairs, right-click actions, progress in the panel and a speed/remaining-files menu bar display. Launch at login is available under General. Native test screenshots: `04-sync-dev.png`, `06-menu-version-dev.png`, `08-general-dev.png`.
+EN: Mac ↔ Drive pairs with side-by-side “From / To” panels and right-click actions. One status block combines global actions, cadence and progress by completed action: 1/16, 2/16, etc., with separate upload, download and deletion counters, never an invented percentage when totals are unknown. Copies in a mixed bidirectional plan are checked before cleanup. Launch at login is available under General. Native test screenshots: `04-sync-dev.png`, `08-sync-narrow-dev.png`, `09-sync-detail-dev.png`, `10-sync-actions-dev.png` (sample data).
 
 La landing et le hub publics décrivent la version Stable ; leur actualisation attend la validation du mode Synchronisation (ROADMAP.md).
 The public landing and hub describe Stable; updates await validation of Synchronization mode (ROADMAP.md).
