@@ -90,6 +90,22 @@ private let syncStrings: [String: [String]] = [
     "pairs": ["Paires", "Pairs", "Parejas", "Paare"],
     "linkedFolders": ["Dossiers liés", "Linked folders", "Carpetas vinculadas", "Verknüpfte Ordner"],
     "viewHistory": ["Voir l’historique", "View history", "Ver historial", "Verlauf anzeigen"],
+    "status.checked": ["À jour au dernier contrôle", "Up to date at last check", "Al día en la última comprobación", "Beim letzten Abgleich aktuell"],
+    "status.checkedNote": ["Les fichiers inclus ont été vérifiés à cette date. Les changements ultérieurs seront contrôlés au prochain passage.", "Included files were verified then. Later changes will be checked on the next pass.", "Los archivos incluidos se verificaron entonces. Los cambios posteriores se comprobarán después.", "Enthaltene Dateien wurden damals geprüft. Spätere Änderungen werden beim nächsten Lauf geprüft."],
+    "status.action": ["Action nécessaire", "Action needed", "Acción necesaria", "Aktion erforderlich"],
+    "status.pending": ["Changements à vérifier", "Changes awaiting check", "Cambios pendientes de comprobar", "Änderungen warten auf Prüfung"],
+    "status.previewChanges": ["La dernière simulation prévoit des opérations. Consultez les compteurs avant de synchroniser.", "The latest preview plans changes. Review the counts before syncing.", "La última simulación prevé cambios. Revise los contadores antes de sincronizar.", "Die letzte Vorschau sieht Änderungen vor. Vor dem Abgleich die Zähler prüfen."],
+    "status.previewOnly": ["Simulation uniquement", "Preview only", "Solo simulación", "Nur Vorschau"],
+    "status.previewOnlyNote": ["Aucun transfert automatique tant qu’une première synchronisation réelle n’a pas été confirmée.", "No automatic transfer until a first real sync is confirmed.", "No hay transferencia automática hasta confirmar la primera sincronización real.", "Keine automatische Übertragung vor Bestätigung des ersten echten Abgleichs."],
+    "status.never": ["Jamais vérifié", "Never verified", "Nunca verificado", "Nie geprüft"],
+    "status.running": ["Synchronisation en cours", "Sync in progress", "Sincronización en curso", "Synchronisierung läuft"],
+    "status.simulating": ["Simulation en cours", "Preview in progress", "Simulación en curso", "Vorschau läuft"],
+    "status.paused": ["Synchronisation en pause", "Sync paused", "Sincronización pausada", "Synchronisierung pausiert"],
+    "status.lastChecked": ["Dernier contrôle vérifié", "Last verified check", "Última comprobación verificada", "Letzter bestätigter Abgleich"],
+    "status.lastTransfers": ["Dernière synchronisation : %d envoyés · %d rapatriés · %d supprimés", "Last sync: %d sent · %d received · %d deleted", "Última sincronización: %d enviados · %d recibidos · %d borrados", "Letzter Abgleich: %d gesendet · %d empfangen · %d gelöscht"],
+    "status.cadence": ["Automatique tant que l’app est ouverte · Mac : 45 s après un changement · Drive : environ chaque heure et au réveil", "Automatic while the app is open · Mac: 45 s after a change · Drive: about hourly and on wake", "Automático con la app abierta · Mac: 45 s tras un cambio · Drive: cada hora y al despertar", "Automatisch bei geöffneter App · Mac: 45 s nach Änderung · Drive: etwa stündlich und nach dem Aufwachen"],
+    "status.cadenceOff": ["Contrôle automatique indisponible dans ce mode", "Automatic checks unavailable in this mode", "Comprobación automática no disponible en este modo", "Automatische Prüfung in diesem Modus nicht verfügbar"],
+    "syncNow": ["Synchroniser maintenant", "Sync now", "Sincronizar ahora", "Jetzt synchronisieren"],
     "resimulate": ["Relancer la simulation", "Re-run preview", "Repetir simulación", "Vorschau erneut"],
     "comparison": ["Comparaison Mac ↔ Drive", "Mac ↔ Drive comparison", "Comparación Mac ↔ Drive", "Vergleich Mac ↔ Drive"],
     "previewOf": ["Comparaison du", "Comparison from", "Comparación del", "Vergleich vom"],
@@ -553,29 +569,37 @@ struct SyncSectionView: View {
                 if let error = engine.storageError {
                     Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red).textSelection(.enabled)
                 }
-                HStack {
+                if engine.pairs.isEmpty {
                     Button { editing = SyncPair() } label: { Label(syncText("createPair"), systemImage: "plus") }
                         .buttonStyle(.borderedProminent).disabled(engine.busy || engine.storageError != nil)
-                    Spacer()
-                    Button { engine.syncAll(dryRun: true) } label: { Label(syncText("simulateAll"), systemImage: "eye") }
-                        .disabled(isQAScreen || engine.busy || !engine.pairs.contains(where: { $0.enabled && engine.cooldownUntil(for: $0) == nil }))
-                    Menu {
-                        Button(syncText("all")) { engine.syncAll() }.disabled(isQAScreen || !engine.pairs.contains(where: { $0.enabled && engine.cooldownUntil(for: $0) == nil }))
-                        Button(syncText("retryAll")) { engine.retryFailed() }.disabled(isQAScreen)
-                        if engine.isPaused { Button(syncText("resume")) { engine.resume() } }
-                        else { Button(syncText("pause")) { engine.pauseForHours(1) } }
-                    } label: { Label(syncText("globalActions"), systemImage: "ellipsis") }
+                    Label(syncText("pairSetupHelp"), systemImage: "arrow.left.arrow.right")
+                        .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Label(syncText("safe"), systemImage: "eye.circle")
+                        .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                } else {
+                    globalStatus
                 }
-                Label(syncText("pairSetupHelp"), systemImage: "arrow.left.arrow.right")
-                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                Label(syncText("safe"), systemImage: "eye.circle")
-                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 if engine.busy { progressBanner }
                 HStack {
                     if tab == "pairs" {
                         Text("\(syncText("linkedFolders")) · \(engine.pairs.count)")
                             .font(.headline).foregroundStyle(.secondary)
+                        Button { editing = SyncPair() } label: { Image(systemName: "plus.circle") }
+                            .buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                            .accessibilityLabel(syncText("createPair"))
+                            .disabled(engine.busy || engine.storageError != nil)
                         Spacer()
+                        if engine.pairs.count > 1 {
+                            Menu {
+                                Button(syncText("simulateAll")) { engine.syncAll(dryRun: true) }
+                                Button(syncText("all")) { engine.syncAll() }
+                                Button(syncText("retryAll")) { engine.retryFailed() }
+                                Divider()
+                                if engine.isPaused { Button(syncText("resume")) { engine.resume() } }
+                                else { Button(syncText("pause")) { engine.pauseForHours(1) } }
+                            } label: { Label(syncText("globalActions"), systemImage: "ellipsis") }
+                            .disabled(isQAScreen || engine.busy)
+                        }
                         Button { tab = "history" } label: {
                             Label(syncText("viewHistory"), systemImage: "clock.arrow.circlepath")
                         }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
@@ -643,6 +667,45 @@ struct SyncSectionView: View {
             Button(syncText("remove"), role: .destructive) { if let pair = removing { engine.deletePair(pair.id) } }
             Button(syncText("cancel"), role: .cancel) {}
         } message: { Text(syncText("removeNote")) }
+    }
+
+    private var globalStatus: some View {
+        let enabled = engine.pairs.filter(\.enabled)
+        let failed = engine.storageError != nil || enabled.contains { ["error", "unverified", "interrupted", "rateLimited", "needsResync"].contains(engine.presentationState(for: $0)) }
+        let previewOnly = enabled.contains { $0.previewOnly }
+        let previewChanges = enabled.contains { (engine.previewRun(for: $0.id)?.plan?.totalOps ?? 0) > 0 }
+        let verified = !enabled.isEmpty && !previewChanges && enabled.allSatisfy { engine.presentationState(for: $0) == "verified" }
+        let title: String = engine.busy ? syncText(engine.isDryRun ? "status.simulating" : "status.running")
+            : engine.isPaused ? syncText("status.paused")
+            : failed ? syncText("status.action")
+            : previewOnly ? syncText("status.previewOnly")
+            : verified ? syncText("status.checked")
+            : previewChanges || enabled.contains(where: { $0.lastOutcome == "pending" }) ? syncText("status.pending") : syncText("status.never")
+        let symbol = engine.busy ? "arrow.triangle.2.circlepath" : failed ? "exclamationmark.circle.fill"
+            : verified ? "checkmark.seal.fill" : "clock.arrow.circlepath"
+        let color: Color = failed ? .orange : verified ? .green : .accentColor
+        let lastVerified = enabled.compactMap(\.lastRun).min()
+        let lastReal = enabled.count == 1 ? engine.runs.first(where: { $0.pair.id == enabled[0].id && !$0.dryRun && $0.finished != nil }) : nil
+        return VStack(alignment: .leading, spacing: 9) {
+            Label(title, systemImage: symbol).font(.title3.weight(.semibold)).foregroundStyle(color)
+            if engine.storageError != nil { Text(engine.storageError ?? "").font(.callout).foregroundStyle(.orange) }
+            else if previewOnly { Text(syncText("status.previewOnlyNote")).font(.callout).foregroundStyle(.secondary) }
+            else if verified { Text(syncText("status.checkedNote")).font(.callout).foregroundStyle(.secondary) }
+            else if previewChanges { Text(syncText("status.previewChanges")).font(.callout).foregroundStyle(.secondary) }
+            if let lastVerified {
+                Text("\(syncText("status.lastChecked")) · \(lastVerified.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if let transfers = lastReal?.transfers {
+                Text(String(format: syncText("status.lastTransfers"), transfers.sent, transfers.received, transfers.deleted))
+                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            }
+            Label(syncText(engine.automaticEnabled ? "status.cadence" : "status.cadenceOff"), systemImage: "clock")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(color.opacity(0.19), lineWidth: 1))
     }
 
     private func operationDrawer(_ selection: SelectedSyncOperation) -> some View {
@@ -795,7 +858,7 @@ struct SyncSectionView: View {
     }
     private var pairsView: some View {
         VStack(spacing: 12) {
-            if !engine.pairs.isEmpty && (engine.busy || !engine.queue.isEmpty || engine.inventoryBusy) { queueHeader }
+            if !engine.pairs.isEmpty && (!engine.queue.isEmpty || engine.inventoryBusy) { queueHeader }
             if engine.pairs.isEmpty {
                 VStack(spacing: 14) {
                     Image(systemName: "folder.badge.gearshape").font(.system(size: 36)).foregroundStyle(.secondary).accessibilityHidden(true)
@@ -807,7 +870,8 @@ struct SyncSectionView: View {
         }
     }
     private func pairCard(_ pair: SyncPair) -> some View {
-        let state = engine.presentationState(for: pair)
+        let presentation = engine.presentationState(for: pair)
+        let state = presentation == "verified" && (engine.previewRun(for: pair.id)?.plan?.totalOps ?? 0) > 0 ? "pending" : presentation
         let running = engine.runningPairID == pair.id
         let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync"].contains(state)
         let plan = engine.previewRun(for: pair.id)?.plan
@@ -826,12 +890,10 @@ struct SyncSectionView: View {
                               onOperation: { selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: $0) })
             if let plan {
                 deletionWarning(plan)
-                typeRow(plan)
             }
-            if running {
-                runningBlock(pair).transition(.opacity.combined(with: .scale(scale: 0.98)))
-            } else {
-                if attention { warningStrip(pair, state: state) } else { metaLine(pair) }
+            if !running {
+                if attention { warningStrip(pair, state: state) }
+                else if engine.pairs.count > 1 { metaLine(pair) }
                 actionsRow(pair).transition(.opacity)
             }
             DisclosureGroup(syncText("inventory"), isExpanded: Binding(
@@ -854,29 +916,6 @@ struct SyncSectionView: View {
             .padding(.horizontal, 7).padding(.vertical, 2)
             .background(Color.secondary.opacity(0.12), in: Capsule())
             .help(syncText("previewOnlyNote"))
-    }
-
-    /// Live execution inside the card: one phase line + thin bar. Full numbers live in the top banner.
-    private func runningBlock(_ pair: SyncPair) -> some View {
-        let progress = engine.runProgress
-        let fraction: Double? = progress.flatMap { $0.bytesTotal > 0 ? min(1, max(0, Double($0.bytesDone) / Double($0.bytesTotal))) : nil }
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                ProgressView().controlSize(.small)
-                    .accessibilityHidden(true)
-                Text(engine.progressText.isEmpty ? syncText(engine.isDryRun ? "simulating" : "running") : engine.progressText)
-                    .font(.callout.weight(.medium)).lineLimit(1).truncationMode(.tail)
-                Spacer()
-                if let fraction { Text("\(Int(fraction * 100)) %").font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
-                Button(syncText("stop")) { engine.stopRunning() }.controlSize(.small)
-            }
-            if let fraction {
-                ProgressView(value: fraction).controlSize(.small)
-            } else {
-                ProgressView().controlSize(.small)
-            }
-        }.padding(10)
-        .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 9))
     }
 
     /// Attention states get one explicit tinted strip instead of scattered caption lines.
@@ -918,9 +957,9 @@ struct SyncSectionView: View {
         HStack(spacing: 8) {
             Button { engine.syncPair(pair.id, dryRun: true) } label: {
                 Label(syncText(engine.previewRun(for: pair.id) == nil ? "simulate" : "resimulate"), systemImage: "eye")
-            }
+            }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
             .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
-            Button(syncText(pair.previewOnly || pair.needsResync && pair.direction.usesBisync ? "startSync" : "sync")) {
+            Button(syncText("syncNow")) {
                 if pair.previewOnly || pair.needsResync && pair.direction.usesBisync { merging = pair }
                 else { engine.syncPair(pair.id) }
             }

@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.65` (contenu et boutons alignés dans les deux cartes)
+Statut : `2026.10.66` (statut de synchronisation et plan de simulation non périmé)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,14 @@ Statut : `2026.10.65` (contenu et boutons alignés dans les deux cartes)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.66] - 2026-10-29
+#### Fixed
+- Une simulation ne reste plus affichée comme une liste d’opérations à effectuer après le lancement d’une synchronisation réelle ; les compteurs sont recalculés à la prochaine simulation.
+- Chaque nouvelle exécution réelle conserve le nombre de fichiers effectivement envoyés, rapatriés et supprimés, indépendamment des estimations de la simulation.
+#### Changed
+- Un bandeau de statut global annonce le dernier contrôle vérifié, les changements en attente, la pause, les erreurs ou le mode simulation uniquement, ainsi que le rythme automatique réel (45 s après changement local, environ une heure pour Drive et au réveil, pendant que l’app est ouverte).
+- L’écran retire les explications et commandes globales redondantes pour une paire existante ; la paire conserve « Simuler » et une action principale « Synchroniser maintenant ». Les actions groupées n’apparaissent qu’avec plusieurs paires.
 
 ### [2026.10.65] - 2026-10-29
 #### Fixed

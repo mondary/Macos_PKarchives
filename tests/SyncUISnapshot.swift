@@ -60,7 +60,22 @@ struct SettingsSectionHeader: View {
         let root = URL(fileURLWithPath: args[1])
         let kind = args.count > 3 ? args[3] : "sync"
         let fixture = kind == "quota" ? "past-quota" : ["linked", "narrow", "drawer"].contains(kind) ? "linked" : "push"
-        let disk = SyncDisk(base: root.appendingPathComponent("\(fixture)/data"), logs: root.appendingPathComponent("\(fixture)/logs"))
+        var fixtureRoot = root.appendingPathComponent(fixture)
+        if kind == "drawer" {
+            // A fresh preview fixture: never show a completed run's obsolete file plan.
+            let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("sync-drawer-\(UUID().uuidString)")
+            try FileManager.default.copyItem(at: fixtureRoot, to: scratch)
+            fixtureRoot = scratch
+            let runsURL = scratch.appendingPathComponent("data/runs.json")
+            let runs = try JSONDecoder().decode([SyncRun].self, from: Data(contentsOf: runsURL))
+            let previews = runs.filter { $0.plan != nil }
+            try JSONEncoder().encode(previews).write(to: runsURL)
+            let pairsURL = scratch.appendingPathComponent("data/sync.json")
+            var pairs = try JSONDecoder().decode([SyncPair].self, from: Data(contentsOf: pairsURL))
+            for i in pairs.indices { pairs[i].lastOutcome = "pending"; pairs[i].lastRun = nil }
+            try JSONEncoder().encode(pairs).write(to: pairsURL)
+        }
+        let disk = SyncDisk(base: fixtureRoot.appendingPathComponent("data"), logs: fixtureRoot.appendingPathComponent("logs"))
         // Status captures run read-only `rclone size` counts on the fixture remotes; every other
         // kind keeps the sentinel binary that can never launch a transfer.
         var inventoryBinary: String? = nil

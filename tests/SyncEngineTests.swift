@@ -216,10 +216,14 @@ struct TestFailure: Error { let message: String }
         } else {
             throw TestFailure(message: "Preview produced no comparison plan")
         }
+        try expect(engine.previewRun(for: pair.id)?.plan != nil, "Fresh preview is not visible")
         try expect(read(engine.disk.journal).contains("Skipped"), "Readable preview contains no planned operation")
         engine.syncPair(pair.id)
         try wait(engine)
         try expect(engine.pairs[0].lastOutcome == "verified", "Push not verified: \(engine.runs[0].message)")
+        try expect(engine.previewRun(for: pair.id) == nil, "Completed sync still displays stale preview operations")
+        try expect(engine.runs[0].transfers?.sent == 2 && engine.runs[0].transfers?.received == 0,
+                   "Real-run summary does not reflect uploaded files")
         try expect(read(dest.appendingPathComponent("sous dossier/été.txt")) == "bonjour 🌍", "UTF8/nested file missing")
         try expect(!fm.fileExists(atPath: dest.appendingPathComponent("node_modules/cache.txt").path), "Exclude ignored")
         try expect(read(URL(fileURLWithPath: engine.runs[0].directory).appendingPathComponent("verification.txt")).contains("= same.txt"), "Missing verification evidence")
@@ -392,6 +396,8 @@ struct TestFailure: Error { let message: String }
         try wait(bidir)
         try expect(bidir.pairs[0].lastOutcome == "verified" && !bidir.pairs[0].needsResync, "First merge failed: \(bidir.runs[0].message)")
         try expect(read(bl.appendingPathComponent("drive.txt")) == "drive" && read(bd.appendingPathComponent("mac.txt")) == "mac", "Merge not bidirectional")
+        try expect((bidir.runs[0].transfers?.sent ?? 0) > 0 && (bidir.runs[0].transfers?.received ?? 0) > 0,
+                   "Bidirectional run summary did not distinguish sent and received files")
         let initialBackups = Array(files(bidir.disk.base.appendingPathComponent("recovery")).values) + Array(files(root.appendingPathComponent("remote/.PKarchives-recovery")).values)
         try expect(initialBackups.contains(Data("initial mac version".utf8)), "Initial-merge loser was not retained")
 

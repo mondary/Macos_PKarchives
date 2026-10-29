@@ -167,6 +167,14 @@ struct SyncRun: Codable, Identifiable {
     var diagnostic: SyncDiagnostic?
     /// Present for previews: exact per-file comparison used by the UI and the report.
     var plan: PreviewPlan?
+    /// Actual file operations observed in the real rclone log, not the preview estimate.
+    var transfers: SyncTransferSummary?
+}
+
+struct SyncTransferSummary: Codable, Equatable {
+    let sent: Int
+    let received: Int
+    let deleted: Int
 }
 
 enum SyncFailure: LocalizedError {
@@ -395,6 +403,7 @@ final class SyncEngine: ObservableObject {
     var isPaused: Bool { pausedUntil != nil }
     var isDryRun: Bool { active?.dryRun ?? false }
     var busy: Bool { runningPairID != nil }
+    var automaticEnabled: Bool { automatic && storageError == nil && !shuttingDown }
     func cooldownUntil(for pair: SyncPair) -> Date? { cooldowns[pair.remote].flatMap { $0 > Date() ? $0 : nil } }
 
     func validationError(_ pair: SyncPair) -> String? {
@@ -1003,6 +1012,9 @@ final class SyncEngine: ObservableObject {
     private func complete(_ outcome: String, message: String) {
         guard var run = active else { return }
         run.outcome = outcome; run.message = message; run.finished = Date()
+        if !run.dryRun, let progress = runProgress {
+            run.transfers = SyncTransferSummary(sent: progress.pushDone, received: progress.pullDone, deleted: progress.deleteDone)
+        }
         if run.dryRun, outcome == "preview", var plan = activePlan {
             let inventory = inventories[run.pair.id]
             plan.localFiles = inventory?.localFiles
@@ -1050,7 +1062,11 @@ final class SyncEngine: ObservableObject {
     }
     /// Latest preview that carries a per-file comparison, for the pair's card.
     func previewRun(for pairID: UUID) -> SyncRun? {
-        runs.first { $0.pair.id == pairID && $0.plan != nil }
+        // A preview is a point-in-time proposal, not a durable queue of unfinished files.
+        // Never display its counts after a real run has started, even if that run failed.
+        guard let preview = runs.first(where: { $0.pair.id == pairID && $0.plan != nil }),
+              !runs.contains(where: { $0.pair.id == pairID && !$0.dryRun && $0.started >= preview.started }) else { return nil }
+        return preview
     }
     func readableReportURL(for run: SyncRun) -> URL? {
         // Leave historical raw reports intact. Generate a separate, decoded reading copy.
