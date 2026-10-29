@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.55` (déduplication de la paire en cours entre bloc live et liste)
+Statut : `2026.10.56` (compteurs de la comparaison intégrés dans chaque côté de la paire)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -19,7 +19,9 @@ Statut : `2026.10.55` (déduplication de la paire en cours entre bloc live et li
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
 
-Statut : `2026.10.55` (déduplication de la paire en cours entre bloc live et liste)
+### [2026.10.56] - 2026-10-29
+#### Changed
+- Compteurs de la dernière simulation intégrés dans les boîtes de chaque côté : ↑ à envoyer et 🗑 à supprimer sur le Mac, ↓ à rapatrier et 🗑 à supprimer sur Drive, visibles carte repliée (y compris les zéros après une comparaison sans opération) ; le verdict et les pictos par type restent au niveau de la carte.
 
 ### [2026.10.55] - 2026-10-28
 #### Fixed

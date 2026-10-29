@@ -180,27 +180,50 @@ func syncText(_ key: String) -> String {
 
 func syncFileCount(_ count: Int) -> String { "\(count) \(syncText(count == 1 ? "file" : "files"))" }
 
-/// Source and destination as two real endpoints, joined by the actual transfer direction.
+/// Source and destination as two real endpoints, each showing its own pending
+/// operations from the latest preview: uploads and local deletions on the Mac,
+/// downloads and remote deletions on Drive.
 struct SyncPairLocations: View {
     let pair: SyncPair
+    var plan: PreviewPlan?
     var body: some View {
-        HStack(spacing: 8) {
-            endpoint(syncText("localSide"), path: shortPath(pair.localPath), symbol: "laptopcomputer", tint: .accentColor)
+        let push = (plan?.pushNew.count ?? 0) + (plan?.pushModified.count ?? 0)
+        let pull = (plan?.pullNew.count ?? 0) + (plan?.pullModified.count ?? 0)
+        // A completed preview with no work is still meaningful: show explicit zeroes.
+        let showOps = plan != nil
+        return HStack(spacing: 8) {
+            endpoint(syncText("localSide"), path: shortPath(pair.localPath), symbol: "laptopcomputer", tint: .accentColor,
+                     transferIcon: "arrow.up", transfers: push, deletions: plan?.deleteLocal.count ?? 0,
+                     transferHelp: syncText("toPush"), deleteHelp: syncText("list.deleteLocal"), showOps: showOps)
             Image(systemName: pair.direction == .bidirectional ? "arrow.left.arrow.right" : pair.direction == .push ? "arrow.right" : "arrow.left")
                 .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.accentColor)
                 .accessibilityLabel(pair.direction.label).help(pair.direction.label)
-            endpoint(syncText("remoteSide"), path: pair.destinationDescription, symbol: "externaldrive", tint: .green)
+            endpoint(syncText("remoteSide"), path: pair.destinationDescription, symbol: "externaldrive", tint: .green,
+                     transferIcon: "arrow.down", transfers: pull, deletions: plan?.deleteRemote.count ?? 0,
+                     transferHelp: syncText("toPull"), deleteHelp: syncText("list.deleteRemote"), showOps: showOps)
         }
     }
-    private func endpoint(_ title: String, path: String, symbol: String, tint: Color) -> some View {
+    private func endpoint(_ title: String, path: String, symbol: String, tint: Color,
+                          transferIcon: String, transfers: Int, deletions: Int,
+                          transferHelp: String, deleteHelp: String, showOps: Bool) -> some View {
         HStack(spacing: 9) {
             Image(systemName: symbol).font(.system(size: 13, weight: .medium)).foregroundStyle(tint)
                 .frame(width: 26, height: 26).background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.caption2.weight(.medium)).foregroundStyle(.secondary)
                 Text(path).font(.system(.caption, design: .monospaced)).lineLimit(1).truncationMode(.middle)
                     .help(path).textSelection(.enabled)
+                if showOps {
+                    HStack(spacing: 10) {
+                        Label("\(transfers)", systemImage: transferIcon)
+                            .foregroundStyle(transfers > 0 ? Color.blue : Color.secondary.opacity(0.45))
+                            .help(transferHelp).accessibilityLabel("\(transfers) \(transferHelp)")
+                        Label("\(deletions)", systemImage: "trash")
+                            .foregroundStyle(deletions > 0 ? Color.red : Color.secondary.opacity(0.45))
+                            .help(deleteHelp).accessibilityLabel("\(deletions) \(deleteHelp)")
+                    }.font(.caption2.weight(.semibold)).monospacedDigit()
+                }
             }
         }.padding(.horizontal, 10).padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -401,6 +424,7 @@ struct SyncSectionView: View {
         let state = engine.presentationState(for: pair)
         let running = engine.runningPairID == pair.id
         let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync"].contains(state)
+        let plan = engine.previewRun(for: pair.id)?.plan
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(pair.name).font(.system(size: 15, weight: .semibold))
@@ -408,7 +432,11 @@ struct SyncSectionView: View {
                 Spacer(minLength: 12)
                 status(state)
             }
-            SyncPairLocations(pair: pair)
+            SyncPairLocations(pair: pair, plan: plan)
+            if let plan {
+                verdict(plan)
+                typeRow(plan)
+            }
             if running {
                 runningBlock(pair)
             } else {
@@ -541,7 +569,8 @@ struct SyncSectionView: View {
         })
     }
 
-    /// What a preview would add, replace or delete, plus what stays untouched.
+    /// Per-file detail of the latest preview. The counts themselves live in the
+    /// endpoint boxes above; only the date and the file list remain here.
     @ViewBuilder private func comparisonSection(_ pair: SyncPair) -> some View {
         Divider().padding(.vertical, 2)
         if let run = engine.previewRun(for: pair.id), let plan = run.plan {
@@ -552,16 +581,6 @@ struct SyncSectionView: View {
                     Text((run.finished ?? run.started).formatted(date: .abbreviated, time: .shortened))
                         .font(.caption2).foregroundStyle(.secondary)
                 }
-                HStack(spacing: 14) {
-                    if let same = plan.unchanged { opStat("checkmark.circle", same, syncText("identical"), tint: .green) }
-                    opStat("arrow.up", plan.pushNew.count + plan.pushModified.count, syncText("toPush"), tint: .blue)
-                    opStat("arrow.down", plan.pullNew.count + plan.pullModified.count, syncText("toPull"), tint: .blue)
-                    let deletions = plan.deleteRemote.count + plan.deleteLocal.count
-                    opStat("trash", deletions, syncText("deletions"), tint: deletions > 0 ? .red : .secondary)
-                    if !plan.conflicts.isEmpty { opStat("bolt", plan.conflicts.count, syncText("conflictsLabel"), tint: .orange) }
-                }
-                verdict(plan)
-                typeRow(plan)
                 DisclosureGroup(syncText("showDetail")) {
                     planDetail(plan)
                 }.font(.caption).foregroundStyle(.secondary)
@@ -569,15 +588,6 @@ struct SyncSectionView: View {
         } else {
             Label(syncText("noComparison"), systemImage: "rectangle.split.2x1")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    /// One compact icon+count+label stat, replacing the oversized number chips.
-    private func opStat(_ icon: String, _ count: Int, _ label: String, tint: Color) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Image(systemName: icon).font(.caption.weight(.semibold)).foregroundStyle(tint)
-            Text("\(count)").font(.callout.weight(.semibold)).monospacedDigit()
-            Text(label).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 
