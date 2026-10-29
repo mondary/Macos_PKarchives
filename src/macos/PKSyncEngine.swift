@@ -108,11 +108,13 @@ struct SyncPair: Codable, Identifiable, Equatable {
     var consecutiveFailures = 0
     var nextRetryAt: Date?
     var volumeUUID: String?
+    var archiveReviewRequired = false
+    var archiveChangedAt: Date?
 
     init() {}
     enum CodingKeys: String, CodingKey {
         case id, name, localPath, drivePath, driveFolderID, direction, conflictPolicy, ignores, enabled, previewOnly,
-             remoteOverride, lastRun, lastOutcome, lastMessage, needsResync, consecutiveFailures, nextRetryAt, volumeUUID
+             remoteOverride, lastRun, lastOutcome, lastMessage, needsResync, consecutiveFailures, nextRetryAt, volumeUUID, archiveReviewRequired, archiveChangedAt
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -136,6 +138,8 @@ struct SyncPair: Codable, Identifiable, Equatable {
         consecutiveFailures = try c.decodeIfPresent(Int.self, forKey: .consecutiveFailures) ?? 0
         nextRetryAt = try c.decodeIfPresent(Date.self, forKey: .nextRetryAt)
         volumeUUID = try c.decodeIfPresent(String.self, forKey: .volumeUUID)
+        archiveReviewRequired = try c.decodeIfPresent(Bool.self, forKey: .archiveReviewRequired) ?? false
+        archiveChangedAt = try c.decodeIfPresent(Date.self, forKey: .archiveChangedAt)
     }
 
     var remote: String { remoteOverride ?? (loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive").trimmingCharacters(in: CharacterSet(charactersIn: ":")) }
@@ -151,6 +155,7 @@ struct SyncJob: Codable, Equatable {
     let pairID: UUID
     let dryRun: Bool
     let resync: Bool
+    var archiveCleanupApproved = false
 }
 
 struct SyncRun: Codable, Identifiable {
@@ -169,6 +174,7 @@ struct SyncRun: Codable, Identifiable {
     var plan: PreviewPlan?
     /// Actual file operations observed in the real rclone log, not the preview estimate.
     var transfers: SyncTransferSummary?
+    var archiveCleanupApproved: Bool?
 }
 
 struct SyncTransferSummary: Codable, Equatable {
@@ -188,6 +194,7 @@ struct SyncDisk {
     var config: URL { base.appendingPathComponent("sync.json") }
     var history: URL { base.appendingPathComponent("runs.json") }
     var journal: URL { logs.appendingPathComponent("sync.log") }
+    var operationLock: URL { base.appendingPathComponent("workspace-operations.lock") }
 
     static var standard: SyncDisk {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -312,6 +319,8 @@ final class SyncEngine: ObservableObject {
     @Published private(set) var inventories: [UUID: PairInventory] = [:]
     @Published private(set) var inventoryBusy = false
     @Published private(set) var runProgress: RunProgress?
+    @Published private(set) var archiveInProgress = false
+    @Published private(set) var waitingForOperationLock = false
     private var activePlan: PreviewPlan?
     private var planResyncDirection: String?
     let disk: SyncDisk
@@ -322,6 +331,10 @@ final class SyncEngine: ObservableObject {
     private var cancelled = false
     private var shuttingDown = false
     private var lockFD: Int32 = -1
+    private var operationFD: Int32 = -1
+    private var operationHeld = false
+    private var archiveReady: (() -> Void)?
+    private var archiveSource: String?
     private var wakeObserver: NSObjectProtocol?
     private var timer: Timer?
     private var stream: FSEventStreamRef?
@@ -347,6 +360,8 @@ final class SyncEngine: ObservableObject {
             guard lockFD >= 0, flock(lockFD, LOCK_EX | LOCK_NB) == 0 else {
                 throw SyncFailure.message("Une autre instance utilise déjà la synchronisation.")
             }
+            operationFD = Darwin.open(disk.operationLock.path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
+            guard operationFD >= 0 else { throw SyncFailure.message("Verrou commun archivage/synchronisation inaccessible.") }
             pairs = try disk.load([SyncPair].self, at: disk.config, fallback: [])
             runs = try disk.load([SyncRun].self, at: disk.history, fallback: [])
             cooldowns = try disk.load([String: Date].self, at: disk.base.appendingPathComponent("cooldowns.json"), fallback: [:])
@@ -384,6 +399,7 @@ final class SyncEngine: ObservableObject {
                 pairs[i].lastMessage = "Synchronisation interrompue ; nouvelle vérification nécessaire."
                 pairs[i].nextRetryAt = Date().addingTimeInterval(120)
             }
+            if acquireOperation() { consumeArchiveReviews(); releaseOperation() }
             try saveState()
             if let text = try? String(contentsOf: disk.journal, encoding: .utf8) {
                 journalLines = Array(text.components(separatedBy: .newlines).suffix(240)).map(SyncDiagnostic.clean)
@@ -398,6 +414,7 @@ final class SyncEngine: ObservableObject {
         timer?.invalidate()
         if let observer = wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         if lockFD >= 0 { Darwin.close(lockFD) }
+        if operationFD >= 0 { Darwin.close(operationFD) }
     }
 
     var isPaused: Bool { pausedUntil != nil }
@@ -406,16 +423,100 @@ final class SyncEngine: ObservableObject {
     var automaticEnabled: Bool { automatic && storageError == nil && !shuttingDown }
     func cooldownUntil(for pair: SyncPair) -> Date? { cooldowns[pair.remote].flatMap { $0 > Date() ? $0 : nil } }
 
+    /// Reserve the next idle slot for the archive script. Never interrupt an in-flight copy/check.
+    @discardableResult func prepareArchive(source: String, ready: @escaping () -> Void) -> Bool {
+        guard !archiveInProgress, !shuttingDown, storageError == nil else { return false }
+        archiveSource = source
+        archiveReady = ready
+        archiveInProgress = true
+        drainArchive()
+        return true
+    }
+
+    private func drainArchive() {
+        guard archiveInProgress, !busy, !inventoryBusy, let ready = archiveReady, !shuttingDown else { return }
+        archiveReady = nil
+        ready()
+    }
+
+    func finishArchive(changed: Bool) {
+        guard archiveInProgress else { return }
+        if changed, let source = archiveSource {
+            markArchiveChanges(source: source)
+        }
+        if acquireOperation() { consumeArchiveReviews(); releaseOperation() }
+        archiveSource = nil
+        archiveReady = nil
+        archiveInProgress = false
+        startNext()
+        drainInventories()
+        schedule()
+    }
+
+    private func markArchiveChanges(source: String) {
+        for i in pairs.indices where Self.overlap(source, pairs[i].localPath) {
+                let id = pairs[i].id
+                revisions[id, default: 0] += 1
+                pairs[i].lastOutcome = "pending"
+                pairs[i].lastMessage = "Archivage terminé : actualiser les fichiers puis confirmer la réconciliation de la copie Drive de travail. Les archives mensuelles restent séparées."
+                pairs[i].nextRetryAt = nil
+                // Even a pull-only pair must not silently restore the just-archived files.
+                pairs[i].archiveReviewRequired = true
+                pairs[i].archiveChangedAt = Date()
+                localDue[id] = nil
+                queue.removeAll { $0.pairID == id && !$0.dryRun }
+        }
+        persist()
+    }
+
+    /// Written before any local deletion by archive.sh, including CLI runs and app crashes.
+    /// Read only while holding the common lock, so a live archive cannot race this import.
+    private func consumeArchiveReviews() {
+        let directory = disk.base.appendingPathComponent("archive-reviews")
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        for file in files where file.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: file),
+                  let receipt = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let source = receipt["source"] as? String, source.hasPrefix("/") else {
+                storageError = "Compte rendu d’archivage illisible. Vérifier les données de coordination avant de relancer."
+                return
+            }
+            markArchiveChanges(source: source)
+            if storageError == nil { try? FileManager.default.removeItem(at: file) }
+        }
+    }
+
+    private func acquireOperation() -> Bool {
+        guard !operationHeld, operationFD >= 0 else { return false }
+        if flock(operationFD, LOCK_EX | LOCK_NB) == 0 {
+            operationHeld = true
+            waitingForOperationLock = false
+            return true
+        }
+        waitingForOperationLock = true
+        return false
+    }
+
+    private func releaseOperation() {
+        if operationHeld { flock(operationFD, LOCK_UN); operationHeld = false }
+    }
+
     func validationError(_ pair: SyncPair) -> String? {
         let path = URL(fileURLWithPath: expandedPath(pair.localPath)).resolvingSymlinksInPath().standardized.path
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else { return "Dossier local introuvable : \(path)" }
         guard path != "/", path != NSHomeDirectory() else { return "Choisir un sous-dossier dédié, pas la racine ou le dossier personnel." }
-        let reserved = [disk.base.path, disk.logs.path, mountPath(), desktopPath()]
-        if reserved.contains(where: { Self.overlap(path, $0) }) { return "Ce dossier chevauche l’archivage du Bureau, le montage Drive ou les données de l’application. Choisir un dossier séparé." }
+        let reserved = [disk.base.path, disk.logs.path, mountPath()]
+        if let protected = reserved.first(where: { Self.overlap(path, $0) }) {
+            return "Ce dossier chevauche un emplacement protégé : \(shortPath(protected)). Le Bureau est autorisé, mais pas le montage Drive ni les données de l’application."
+        }
         let remote = pair.remote
         guard !remote.isEmpty, !remote.contains(":"), !remote.contains(","), !remote.contains("/"), !remote.contains("\n"), !remote.contains("\r") else { return "Nom de remote rclone invalide." }
         if let id = pair.driveFolderID, !DriveFolderLink.validID(id) { return "Identifiant de dossier Drive invalide. Coller le lien du dossier, pas son nom." }
+        if pair.remote == (loadEnv("PKARCHIVES_RCLONE_REMOTE") ?? "gdrive").trimmingCharacters(in: CharacterSet(charactersIn: ":")),
+           let archiveID = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID"), pair.driveFolderID == archiveID {
+            return "Le dossier Drive de travail doit être distinct de la racine des archives mensuelles. Choisir un dossier Drive séparé."
+        }
         let parts = pair.drivePath.split(separator: "/", omittingEmptySubsequences: false)
         let validPath = pair.drivePath.isEmpty ? pair.driveFolderID != nil : !parts.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." })
         guard validPath,
@@ -481,27 +582,34 @@ final class SyncEngine: ObservableObject {
     }
 
     func syncAll(dryRun: Bool = false) {
-        for pair in pairs where pair.enabled && cooldownUntil(for: pair) == nil && (dryRun || pair.previewOnly || !pair.direction.usesBisync || !pair.needsResync) {
+        for pair in pairs where pair.enabled && cooldownUntil(for: pair) == nil && (dryRun || !pair.archiveReviewRequired) && (dryRun || pair.previewOnly || !pair.direction.usesBisync || !pair.needsResync) {
             enqueue(SyncJob(pairID: pair.id, dryRun: dryRun || pair.previewOnly, resync: pair.direction.usesBisync && pair.needsResync))
         }
         startNext()
     }
-    func syncPair(_ id: UUID, dryRun: Bool = false, resync: Bool = false) {
+    func syncPair(_ id: UUID, dryRun: Bool = false, resync: Bool = false, archiveCleanupApproved: Bool = false) {
         guard let p = pairs.first(where: { $0.id == id }), !p.direction.usesBisync || !p.needsResync || resync || dryRun else {
             progressText = syncText("needsResync"); return
         }
         guard cooldownUntil(for: p) == nil else { progressText = SyncDiagnostic(kind: .quota, details: "").summary; return }
+        if p.archiveReviewRequired && !dryRun {
+            guard archiveCleanupApproved, !resync, !(p.direction.usesBisync && p.needsResync) else {
+                progressText = "Confirmer la réconciliation après archivage. Une fusion automatique pourrait rapatrier les fichiers archivés."
+                return
+            }
+        }
         // Only an explicit per-pair real-run action activates live syncing. Global/automatic
         // actions always respect previewOnly and cannot silently promote a preview.
         if !dryRun, storageError == nil, !busy, let i = pairs.firstIndex(where: { $0.id == id }) {
             pairs[i].previewOnly = false
             persist()
         }
-        enqueue(SyncJob(pairID: id, dryRun: dryRun, resync: resync || (dryRun && p.needsResync)))
+        enqueue(SyncJob(pairID: id, dryRun: dryRun, resync: resync || (dryRun && p.needsResync),
+                        archiveCleanupApproved: archiveCleanupApproved))
         startNext()
     }
     func retryFailed() {
-        for pair in pairs where pair.enabled && pair.lastOutcome == "error" && !pair.needsResync {
+        for pair in pairs where pair.enabled && pair.lastOutcome == "error" && !pair.needsResync && !pair.archiveReviewRequired {
             enqueue(SyncJob(pairID: pair.id, dryRun: pair.previewOnly, resync: false))
         }
         startNext()
@@ -555,9 +663,10 @@ final class SyncEngine: ObservableObject {
     /// Serialized with transfers: never a second rclone while a run is executing. Retried after
     /// each completion and on scheduler ticks, so a busy engine simply delays the counting.
     private func drainInventories() {
-        guard !inventoryBusy, !busy, !isPaused, storageError == nil, !shuttingDown,
+        guard !archiveInProgress, !inventoryBusy, !busy, !isPaused, storageError == nil, !shuttingDown,
               let id = inventoryQueue.first,
               let pair = pairs.first(where: { $0.id == id }) else { return }
+        guard acquireOperation() else { schedule(); return }
         inventoryQueue.removeFirst()
         inventoryBusy = true
         refreshBadge()
@@ -571,7 +680,9 @@ final class SyncEngine: ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.applyInventory(local: local, remote: remote, deferred: deferred, pair: pair)
+                self.releaseOperation()
                 self.inventoryBusy = false
+                self.drainArchive()
                 self.refreshBadge()
                 self.drainInventories()
                 self.startNext()
@@ -581,9 +692,22 @@ final class SyncEngine: ObservableObject {
     private func inventoryFilterURL(_ pair: SyncPair) -> URL {
         let url = disk.base.appendingPathComponent("inventory/\(pair.id)-filters.txt")
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? (["- /.PKarchives-recovery/**"] + pair.ignores.map { "- \($0)" })
+        try? filterRules(for: pair)
             .joined(separator: "\n").appending("\n").write(to: url, atomically: true, encoding: .utf8)
         return url
+    }
+
+    private func filterRules(for pair: SyncPair) -> [String] {
+        var rules = ["- /.PKarchives-recovery/**"]
+        // The Desktop's mount shortcut is not working data. Do not follow/download it.
+        let root = URL(fileURLWithPath: pair.localPath).standardized.path
+        let link = URL(fileURLWithPath: desktopPath()).appendingPathComponent(URL(fileURLWithPath: mountPath()).lastPathComponent).standardized.path
+        if link.hasPrefix(root + "/") {
+            let relative = String(link.dropFirst(root.count + 1))
+            let escaped = relative.map { "\\*?[]{}".contains($0) ? "\\\($0)" : String($0) }.joined()
+            rules += ["- /\(escaped)", "- /\(escaped)/**"]
+        }
+        return rules + pair.ignores.map { "- \($0)" }
     }
     private func applyInventory(local: (exit: Int32, output: String), remote: (exit: Int32, output: String)?, deferred: Bool, pair: SyncPair) {
         var inventory = inventories[pair.id] ?? PairInventory()
@@ -640,8 +764,16 @@ final class SyncEngine: ObservableObject {
     }
     private func startNext() {
         guard !busy, !inventoryBusy, !isPaused, !shuttingDown, storageError == nil else { return }
-        queue.removeAll { job in !pairs.contains(where: { $0.id == job.pairID && $0.enabled }) }
-        if let index = queue.firstIndex(where: { job in pairs.first(where: { $0.id == job.pairID }).map { cooldownUntil(for: $0) == nil } ?? false }) {
+        if archiveInProgress { drainArchive(); return }
+        queue.removeAll { job in !pairs.contains(where: { $0.id == job.pairID && $0.enabled && (!($0.archiveReviewRequired) || job.dryRun || job.archiveCleanupApproved) }) }
+        if queue.contains(where: { job in pairs.first(where: { $0.id == job.pairID }).map { cooldownUntil(for: $0) == nil } ?? false }) {
+            guard acquireOperation() else { schedule(); return }
+            consumeArchiveReviews()
+            guard storageError == nil else { releaseOperation(); return }
+            // Import may remove real jobs awaiting post-archive approval.
+            guard let index = queue.firstIndex(where: { job in pairs.first(where: { $0.id == job.pairID }).map { cooldownUntil(for: $0) == nil } ?? false }) else {
+                releaseOperation(); schedule(); return
+            }
             let job = queue.remove(at: index)
             guard let pair = pairs.first(where: { $0.id == job.pairID }) else { return }
             begin(pair, job: job)
@@ -654,12 +786,16 @@ final class SyncEngine: ObservableObject {
         let id = UUID()
         let dir = disk.logs.appendingPathComponent("runs/\(id)")
         var run = SyncRun(pair: pair, dryRun: job.dryRun, resync: job.resync, directory: dir.path)
+        run.archiveCleanupApproved = job.archiveCleanupApproved
         run.id = id
         active = run; runningPairID = pair.id; cancelled = false; verifying = false; skippedUnsupportedObject = false
         runProgress = RunProgress()
         if !pair.direction.usesBisync { runProgress?.phase = pair.direction == .push ? .push : .pull }
         activePlan = job.dryRun ? PreviewPlan() : nil
         planResyncDirection = nil
+        // An emptied workspace previews through mirror mode; flag it so per-file delete
+        // lines land in the right bucket instead of bisync's Path1/Path2 wording.
+        if job.dryRun, pair.archiveReviewRequired, mirrorAfterArchive(pair) { planResyncDirection = "mirror" }
         runRevision = revisions[pair.id, default: 0]
         progressText = job.dryRun ? syncText("simulating") : syncText("running")
         if !job.dryRun, let i = pairs.firstIndex(where: { $0.id == pair.id }) {
@@ -691,7 +827,7 @@ final class SyncEngine: ObservableObject {
             let filter = work.appendingPathComponent("filters.txt")
             // A folder-link destination is itself the remote root. Keep recovery copies in
             // an explicitly excluded namespace on that SAME scoped remote (rclone requires it).
-            try (["- /.PKarchives-recovery/**"] + pair.ignores.map { "- \($0)" })
+            try filterRules(for: pair)
                 .joined(separator: "\n").appending("\n").write(to: filter, atomically: true, encoding: .utf8)
             let args = transferArguments(run, work: work, filter: filter)
             execute(args, logURL: dir.appendingPathComponent("rclone.jsonl")) { [weak self] result in
@@ -724,14 +860,44 @@ final class SyncEngine: ObservableObject {
                              "--drive-pacer-burst", "20",
                              "--contimeout", "15s", "--timeout", "2m", "--stats", "5s", "--use-json-log", "--log-level", "INFO"]
 
+    /// True when an archive emptied the local folder: bisync would refuse an empty Path1.
+    /// Mirroring the emptied workspace is the only faithful reconciliation; removed Drive
+    /// copies are preserved through the remote recovery folder, never destroyed.
+    private func mirrorAfterArchive(_ p: SyncPair) -> Bool {
+        let entries = (try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: p.localPath), includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+        for entry in entries where !excludedEntryNames(p).contains(entry.lastPathComponent) {
+            let isDir = (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if !isDir { return false }
+        }
+        return true
+    }
+
+    private func excludedEntryNames(_ p: SyncPair) -> Set<String> {
+        var names: Set<String> = [".DS_Store", URL(fileURLWithPath: mountPath()).lastPathComponent]
+        names.formUnion(p.ignores.filter { !$0.contains("*") && !$0.contains("/") && !$0.contains("\\") })
+        return names
+    }
+
     func transferArguments(_ run: SyncRun, work: URL, filter: URL) -> [String] {
         let p = run.pair
         var args: [String]
         if p.direction.usesBisync {
+            // Only an explicit, per-run post-archive approval may relax bulk-deletion guards.
+            // A preview can inspect the same operations, but uses its isolated state + --dry-run.
+            let archiveCleanup = p.archiveReviewRequired && !run.resync && (run.dryRun || run.archiveCleanupApproved == true)
+            // bisync refuses an empty Path1 — exactly the state after a full archive. Mirror the
+            // emptied workspace instead; removed Drive copies land in the recovery folder.
+            if archiveCleanup && mirrorAfterArchive(p) {
+                var mirror = ["sync", p.localPath, p.target, "--filter-from", filter.path]
+                if run.dryRun { mirror += ["--dry-run"] }
+                else { mirror += ["--backup-dir", "\(p.endpoint):.PKarchives-recovery/\(p.id)/\(run.id)"] }
+                return mirror + Self.lightFlags
+            }
             args = ["bisync", p.localPath, p.target, "--workdir", work.path, "--filters-file", filter.path,
-                    "--check-sync", "true", "--resilient", "--recover", "--max-lock", "2m", "--max-delete", "50",
+                    "--check-sync", "true", "--resilient", "--recover", "--max-lock", "2m", "--max-delete", archiveCleanup ? "100" : "50",
                     "--conflict-resolve", p.conflictPolicy.argument, "--conflict-loser", "num", "--conflict-suffix", "conflict"]
             if run.resync { args += ["--resync-mode", p.conflictPolicy.argument] }
+            if archiveCleanup { args += ["--force"] }
         } else {
             let source = p.direction == .push ? p.localPath : p.target
             let dest = p.direction == .push ? p.target : p.localPath
@@ -936,6 +1102,11 @@ final class SyncEngine: ObservableObject {
             }
         }
         let isCopyHeader = lower.contains("files to path1") || lower.contains("files to path2") || lower.contains("copying files to")
+        if resyncDirection == "mirror" && (lower.contains("skipped delete as --dry-run") || lower.contains("would delete")) {
+            guard !object.isEmpty else { return }
+            add(object, to: \.deleteRemote, plan: &plan, limit: 5000)
+            return
+        }
         if isCopyHeader {
             let lastPath1 = lower.range(of: "path1", options: .backwards)?.lowerBound
             let lastPath2 = lower.range(of: "path2", options: .backwards)?.lowerBound
@@ -1030,6 +1201,7 @@ final class SyncEngine: ObservableObject {
             pairs[i].lastOutcome = outcome; pairs[i].lastMessage = message
             if outcome == "verified" {
                 pairs[i].lastRun = Date(); pairs[i].needsResync = false
+                pairs[i].archiveReviewRequired = false
                 pairs[i].consecutiveFailures = 0; pairs[i].nextRetryAt = nil
             } else if outcome == "needsResync" {
                 pairs[i].needsResync = true; pairs[i].nextRetryAt = nil
@@ -1050,6 +1222,8 @@ final class SyncEngine: ObservableObject {
         } catch { storageError = error.localizedDescription }
         active = nil; runningPairID = nil; progressText = message; process = nil
         runProgress = nil
+        releaseOperation()
+        drainArchive()
         refreshBadge()
         startNext()
         drainInventories()
@@ -1066,13 +1240,14 @@ final class SyncEngine: ObservableObject {
         // Never display its counts after a real run has started, even if that run failed.
         guard let preview = runs.first(where: { $0.pair.id == pairID && $0.plan != nil }),
               !runs.contains(where: { $0.pair.id == pairID && !$0.dryRun && $0.started >= preview.started }) else { return nil }
+        if let changed = pairs.first(where: { $0.id == pairID })?.archiveChangedAt, changed > preview.started { return nil }
         return preview
     }
     /// Keep the operation counters visible after a verified run without reviving an old plan.
     /// Nil means unknown, never zero: the pair needs a fresh, read-only comparison.
     func operationPlan(for pairID: UUID) -> PreviewPlan? {
         if let plan = previewRun(for: pairID)?.plan { return plan }
-        guard !busy, let pair = pairs.first(where: { $0.id == pairID }), pair.lastOutcome == "verified" else { return nil }
+        guard !busy, let pair = pairs.first(where: { $0.id == pairID }), pair.lastOutcome == "verified", !pair.archiveReviewRequired else { return nil }
         return PreviewPlan()
     }
     func readableReportURL(for run: SyncRun) -> URL? {
@@ -1170,7 +1345,7 @@ final class SyncEngine: ObservableObject {
         journalLines = Array(journalLines.suffix(240))
     }
     private func refreshBadge() {
-        let badge = storageError != nil ? "⚠︎" : busy ? (isDryRun ? "◌" : "⟳") : isPaused ? "⏸" : pairs.contains(where: { ["error", "unverified", "needsResync", "rateLimited"].contains($0.lastOutcome) || cooldownUntil(for: $0) != nil }) ? "⚠︎" : "📦"
+        let badge = storageError != nil ? "⚠︎" : busy ? (isDryRun ? "◌" : "⟳") : archiveInProgress || waitingForOperationLock || isPaused ? "⏸" : pairs.contains(where: { $0.archiveReviewRequired || ["error", "unverified", "needsResync", "rateLimited"].contains($0.lastOutcome) || cooldownUntil(for: $0) != nil }) ? "⚠︎" : "📦"
         if statusBadgeSubject != badge { statusBadgeSubject = badge }
     }
     static func stamp(_ date: Date) -> String { ISO8601DateFormatter().string(from: date) }
@@ -1225,10 +1400,11 @@ final class SyncEngine: ObservableObject {
         deadlines += cooldowns.values.filter { $0 > Date() }
         if let pausedUntil { deadlines = [pausedUntil] }
         else {
-            let eligible = pairs.filter { $0.enabled && !($0.direction.usesBisync && $0.needsResync) }
+            let eligible = pairs.filter { $0.enabled && !$0.archiveReviewRequired && !($0.direction.usesBisync && $0.needsResync) }
             deadlines += eligible.compactMap { pair in localDue[pair.id].map { max($0, cooldowns[pair.remote] ?? .distantPast) } }
             deadlines += eligible.compactMap { pair in pair.nextRetryAt.map { max($0, cooldowns[pair.remote] ?? .distantPast) } }
         }
+        if waitingForOperationLock { deadlines.append(Date().addingTimeInterval(3)) }
         guard let next = deadlines.min() else { return }
         timer = Timer.scheduledTimer(withTimeInterval: max(1, next.timeIntervalSinceNow), repeats: false) { [weak self] _ in self?.tick() }
         timer?.tolerance = 5
@@ -1241,7 +1417,7 @@ final class SyncEngine: ObservableObject {
         }
         let remoteReady = remoteDue <= now
         if remoteReady { remoteDue = now.addingTimeInterval(3600) }
-        for pair in pairs where pair.enabled && cooldownUntil(for: pair) == nil && !(pair.direction.usesBisync && pair.needsResync) {
+        for pair in pairs where pair.enabled && !pair.archiveReviewRequired && cooldownUntil(for: pair) == nil && !(pair.direction.usesBisync && pair.needsResync) {
             let retry = pair.nextRetryAt.map { $0 <= now } ?? false
             let local = localDue[pair.id].map { $0 <= now } ?? false
             if retry || ((local || remoteReady) && pair.nextRetryAt == nil) {

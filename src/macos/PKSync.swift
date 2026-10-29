@@ -109,6 +109,13 @@ private let syncStrings: [String: [String]] = [
     "refreshFiles": ["Actualiser les fichiers", "Refresh files", "Actualizar archivos", "Dateien aktualisieren"],
     "unknownFiles": ["À actualiser · aucun transfert ne sera lancé", "Refresh needed · no transfer will start", "Actualizar · no se iniciará ninguna transferencia", "Aktualisieren · keine Übertragung wird gestartet"],
     "comparingFiles": ["Comparaison des fichiers en cours… Aucun transfert.", "Comparing files… No transfer.", "Comparando archivos… Sin transferencia.", "Dateien werden verglichen… Keine Übertragung."],
+    "archiveWaiting": ["Archivage prioritaire · synchronisation en attente", "Archive has priority · sync waiting", "Archivado prioritario · sincronización en espera", "Archivierung hat Vorrang · Abgleich wartet"],
+    "archiveReview": ["Archivage terminé · copie de travail à réconcilier", "Archive finished · reconcile working copy", "Archivado terminado · reconciliar copia de trabajo", "Archivierung beendet · Arbeitskopie abgleichen"],
+    "archiveCleanupTitle": ["Réconcilier après l’archivage ?", "Reconcile after archiving?", "¿Reconciliar tras archivar?", "Nach Archivierung abgleichen?"],
+    "archiveCleanupConfirm": ["Confirmer la réconciliation", "Confirm reconciliation", "Confirmar reconciliación", "Abgleich bestätigen"],
+    "archiveCleanupNote": ["Les fichiers retirés du Bureau par l’archivage seront aussi retirés de la copie Drive de travail — même si cela dépasse la moitié des fichiers — avec une copie conservée dans le dossier de récupération. Les fichiers présents uniquement sur Drive seront pareillement déplacés vers la récupération. Les archives mensuelles restent dans une destination distincte et ne sont jamais la cible. Actualisez d’abord les fichiers pour vérifier la liste ; l’autorisation ne vaut que pour cette exécution.", "Files removed from the Desktop by archiving will also be removed from the working Drive copy — even if that exceeds half the files — with a copy kept in the recovery folder. Files present only on Drive are likewise moved to recovery. Monthly archives stay in a separate destination and are never targeted. Refresh files first to review the list; approval applies to this run only.", "Los archivos retirados del Escritorio por el archivado también se retirarán de la copia Drive de trabajo — incluso si superan la mitad — con una copia en la carpeta de recuperación. Los archivos presentes solo en Drive también se moverán a recuperación. El archivo mensual permanece en un destino distinto y nunca es el objetivo. Actualice primero los archivos; la autorización solo vale para esta ejecución.", "Durch Archivierung entfernte Desktop-Dateien werden auch aus der Drive-Arbeitskopie entfernt — auch bei mehr als der Hälfte — mit Kopie im Wiederherstellungsordner. Nur auf Drive vorhandene Dateien werden ebenfalls dorthin verschoben. Monatsarchive bleiben getrennt und sind nie das Ziel. Zuerst die Dateiliste aktualisieren; die Freigabe gilt nur für diesen Lauf."],
+    "archiveMissingBaseline": ["L’état de comparaison manque. Une fusion pourrait rapatrier les fichiers archivés : aucune réinitialisation automatique n’est autorisée. Consultez l’historique avant de reconstruire la paire.", "Comparison state is missing. A merge could restore archived files: automatic reset is not allowed. Review history before rebuilding the pair.", "Falta el estado de comparación. Una fusión podría restaurar archivos: no se permite reinicio automático. Revise el historial.", "Vergleichsstand fehlt. Zusammenführen könnte archivierte Dateien zurückholen: kein automatisches Zurücksetzen. Verlauf prüfen."],
+    "archiveOneWayNote": ["L’archivage a retiré des fichiers de l’espace de travail. Cette paire utilise un seul sens : Mac vers Drive conserve les copies Drive supplémentaires ; Drive vers Mac peut rapatrier les fichiers que vous venez d’archiver. Confirmez seulement si c’est le comportement souhaité.", "Archiving removed working files. This pair is one-way: Mac to Drive keeps extra Drive copies; Drive to Mac may restore files just archived. Confirm only if intended.", "El archivado retiró archivos. Esta pareja es unidireccional: Mac a Drive conserva copias extra; Drive a Mac puede restaurar lo archivado. Confirme solo si lo desea.", "Archivierung hat Arbeitsdateien entfernt. Einseitig: Mac zu Drive behält zusätzliche Drive-Kopien; Drive zu Mac kann gerade archivierte Dateien zurückholen. Nur bestätigen, wenn gewünscht."],
     "resimulate": ["Relancer la simulation", "Re-run preview", "Repetir simulación", "Vorschau erneut"],
     "comparison": ["Comparaison Mac ↔ Drive", "Mac ↔ Drive comparison", "Comparación Mac ↔ Drive", "Vergleich Mac ↔ Drive"],
     "previewOf": ["Comparaison du", "Comparison from", "Comparación del", "Vergleich vom"],
@@ -527,7 +534,9 @@ private struct TransferFlowDot: View {
 extension SyncEngine {
     func presentationState(for pair: SyncPair) -> String {
         if runningPairID == pair.id { return isDryRun ? "simulating" : runProgress?.phase == .verifying ? "verifying" : "running" }
+        if archiveInProgress || waitingForOperationLock { return "archiveWaiting" }
         if !pair.enabled { return "pairPaused" }
+        if pair.archiveReviewRequired { return "archiveReview" }
         if cooldownUntil(for: pair) != nil { return "rateLimited" }
         if isPaused { return "pausedAll" }
         if queue.contains(where: { $0.pairID == pair.id }) { return "queued" }
@@ -540,6 +549,7 @@ struct SyncSectionView: View {
     @AppStorage("app-language") private var language = "fr"
     @State private var editing: SyncPair?
     @State private var merging: SyncPair?
+    @State private var archiveCleanup: SyncPair?
     @State private var removing: SyncPair?
     @State private var tab = "pairs"
     @State private var selectedOperation: SelectedSyncOperation?
@@ -658,6 +668,19 @@ struct SyncSectionView: View {
             Button(syncText("sync")) { if let pair = merging { engine.syncPair(pair.id, resync: pair.direction.usesBisync && pair.needsResync) } }
             Button(syncText("cancel"), role: .cancel) {}
         } message: { Text(syncText(merging?.direction.usesBisync == true ? "mergeNote" : "directionNote")) }
+        .alert(syncText("archiveCleanupTitle"), isPresented: Binding(get: { archiveCleanup != nil }, set: { if !$0 { archiveCleanup = nil } })) {
+            Button(syncText("refreshFiles")) { if let pair = archiveCleanup { refreshFiles(pair) } }
+            if let pair = archiveCleanup, !(pair.direction.usesBisync && pair.needsResync) {
+                Button(syncText("archiveCleanupConfirm"), role: .destructive) {
+                    engine.syncPair(pair.id, archiveCleanupApproved: true)
+                }
+            }
+            Button(syncText("cancel"), role: .cancel) {}
+        } message: {
+            if let pair = archiveCleanup {
+                Text(syncText(pair.direction.usesBisync && pair.needsResync ? "archiveMissingBaseline" : pair.direction.usesBisync ? "archiveCleanupNote" : "archiveOneWayNote") + "\n\n" + pair.destinationDescription)
+            }
+        }
         .alert(syncText("remove"), isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
             Button(syncText("remove"), role: .destructive) { if let pair = removing { engine.deletePair(pair.id) } }
             Button(syncText("cancel"), role: .cancel) {}
@@ -666,11 +689,13 @@ struct SyncSectionView: View {
 
     private var globalStatus: some View {
         let enabled = engine.pairs.filter(\.enabled)
-        let failed = engine.storageError != nil || enabled.contains { ["error", "unverified", "interrupted", "rateLimited", "needsResync"].contains(engine.presentationState(for: $0)) }
+        let failed = engine.storageError != nil || enabled.contains { ["error", "unverified", "interrupted", "rateLimited", "needsResync", "archiveReview"].contains(engine.presentationState(for: $0)) }
         let previewOnly = enabled.contains { $0.previewOnly }
         let previewChanges = enabled.contains { (engine.previewRun(for: $0.id)?.plan?.totalOps ?? 0) > 0 }
         let verified = !enabled.isEmpty && !previewChanges && enabled.allSatisfy { engine.presentationState(for: $0) == "verified" }
-        let title: String = engine.busy ? syncText(engine.isDryRun ? "status.simulating" : "status.running")
+        let title: String = engine.archiveInProgress || engine.waitingForOperationLock ? syncText("archiveWaiting")
+            : enabled.contains(where: \.archiveReviewRequired) ? syncText("archiveReview")
+            : engine.busy ? syncText(engine.isDryRun ? "status.simulating" : "status.running")
             : engine.isPaused ? syncText("status.paused")
             : failed ? syncText("status.action")
             : previewOnly ? syncText("status.previewOnly")
@@ -873,7 +898,7 @@ struct SyncSectionView: View {
         let presentation = engine.presentationState(for: pair)
         let state = presentation == "verified" && (engine.previewRun(for: pair.id)?.plan?.totalOps ?? 0) > 0 ? "pending" : presentation
         let running = engine.runningPairID == pair.id
-        let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync"].contains(state)
+        let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync", "archiveReview"].contains(state)
         let plan = engine.operationPlan(for: pair.id)
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 10) {
@@ -916,6 +941,8 @@ struct SyncSectionView: View {
         VStack(alignment: .leading, spacing: 5) {
             if state == "rateLimited" {
                 Label(syncText("failure.quota.title"), systemImage: "hourglass").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
+            } else if state == "archiveReview" {
+                Label(syncText("archiveReview"), systemImage: "archivebox").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
             } else if state == "needsResync" {
                 Label(syncText("needsResync"), systemImage: "arrow.triangle.2.circlepath").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
             } else if let message = pair.lastMessage {
@@ -953,13 +980,14 @@ struct SyncSectionView: View {
             }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
             .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
             Button(syncText("syncNow")) {
-                if pair.previewOnly || pair.needsResync && pair.direction.usesBisync { merging = pair }
+                if pair.archiveReviewRequired { archiveCleanup = pair }
+                else if pair.previewOnly || pair.needsResync && pair.direction.usesBisync { merging = pair }
                 else { engine.syncPair(pair.id) }
             }
             .buttonStyle(.borderedProminent)
             .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
         }.controlSize(.regular)
-        .disabled(isQAScreen || engine.busy || engine.storageError != nil)
+        .disabled(isQAScreen || engine.busy || engine.archiveInProgress || engine.waitingForOperationLock || engine.storageError != nil)
     }
 
     private func refreshFiles(_ pair: SyncPair) {

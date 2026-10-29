@@ -2,6 +2,27 @@
 
 set -uo pipefail
 
+# Share the same OS lock as the native sync engine. Perl ships with macOS and
+# preserves this descriptor across exec; the kernel releases it even after a crash.
+# Other entry points (CLI / v1 / scripts) use the same wrapper, not just the v2 UI.
+coordination_file="${PKARCHIVES_COORDINATION_FILE:-${HOME}/Library/Application Support/PKarchives/workspace-operations.lock}"
+if [[ "${PKARCHIVES_COORDINATED_PID:-}" != "$$" ]]; then
+  umask 077
+  mkdir -p "$(dirname "${coordination_file}")" || exit 1
+  exec /usr/bin/perl -MFcntl=:DEFAULT,:flock -e '
+    $^F = 255;
+    my $path = shift @ARGV;
+    sysopen(my $lock, $path, O_WRONLY | O_CREAT, 0600) or die "Verrou de coordination inaccessible: $!\n";
+    unless (flock($lock, LOCK_EX | LOCK_NB)) {
+      print STDERR "Une synchronisation ou un archivage est en cours. Attendre sa fin puis relancer.\n";
+      exit 75;
+    }
+    $ENV{PKARCHIVES_COORDINATED_PID} = $$;
+    exec "/bin/bash", @ARGV;
+    die "Impossible de lancer archive.sh: $!\n";
+  ' "${coordination_file}" "${BASH_SOURCE[0]}" "$@"
+fi
+
 # --- Load .env helper ---
 load_env() {
   local key="$1" default="$2"
@@ -37,6 +58,23 @@ rclone_remote="${rclone_remote%:}"
 rclone_bin="${PKARCHIVES_RCLONE_BINARY:-${HOME}/.local/share/pkarchives/bin/rclone}"
 [[ -x "${rclone_bin}" ]] || rclone_bin="rclone"
 
+# The monthly archive root must never also be a live sync destination.
+/usr/bin/perl -MJSON::PP -e '
+  my ($file, $remote, $archive) = @ARGV;
+  exit 0 unless -e $file;
+  open my $fh, "<", $file or die "Configuration de synchronisation inaccessible\n";
+  local $/; my $pairs = decode_json(<$fh>);
+  die "Configuration de synchronisation invalide\n" unless ref($pairs) eq "ARRAY";
+  for my $pair (@$pairs) {
+    next if exists($pair->{enabled}) && !$pair->{enabled};
+    my $connection = $pair->{remoteOverride} // $remote;
+    $connection =~ s/:$//;
+    if ($connection eq $remote && ($pair->{driveFolderID} // "") eq $archive) {
+      die "Le dossier Drive de travail est aussi la racine des archives mensuelles. Choisir des destinations distinctes.\n";
+    }
+  }
+' "$(dirname "${coordination_file}")/sync.json" "${rclone_remote}" "${DRIVE_FOLDER_ID}" || exit 1
+
 # Mode de suppression : "trash" (Corbeille, défaut sûr) ou "delete" (définitif).
 delete_mode="$(load_env "PKARCHIVES_DELETE_MODE" "trash")"
 del_label="→ Corbeille"
@@ -51,7 +89,26 @@ trash_item() {
 }
 
 # Suppression selon le mode configuré.
+# Persist a review receipt BEFORE deleting anything. If the app exits mid-archive,
+# the next sync still knows these are deliberate archival removals, not a lost volume.
+archive_receipt=""
+record_archive_review() {
+  [[ -n "${archive_receipt}" ]] && return 0
+  local review_dir pending
+  review_dir="$(dirname "${coordination_file}")/archive-reviews"
+  mkdir -p "${review_dir}" || return 1
+  pending=$(mktemp "${review_dir}/pending.XXXXXXXX") || return 1
+  if /usr/bin/perl -MJSON::PP -e 'print encode_json({source => $ARGV[0]})' "${desktop_path}" > "${pending}" &&
+     mv "${pending}" "${pending}.json"; then
+    archive_receipt="${pending}.json"
+    return 0
+  fi
+  rm -f "${pending}"
+  return 1
+}
+
 delete_item() {
+  record_archive_review || { echo "Compte rendu d’archivage inaccessible : fichier conservé." >&2; return 1; }
   if [[ "${delete_mode}" == "delete" ]]; then
     rm -rf "$1"
   else

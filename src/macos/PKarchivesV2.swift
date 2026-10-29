@@ -1892,8 +1892,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
 
     func startArchive(mode: String) {
         guard !isRunning else { return }
-        selectedMode = mode
+        let source = desktopPath()
         isRunning = true
+        sendEV(["type": "status", "text": "Archivage en attente de la fin des opérations de synchronisation…"])
+        guard SyncEngine.shared.prepareArchive(source: source, ready: { [weak self] in
+            self?.launchArchive(mode: mode, source: source)
+        }) else {
+            isRunning = false
+            sendEV(["type": "log", "line": "Archivage indisponible : vérifier le statut de synchronisation.", "cls": "err"])
+            return
+        }
+    }
+
+    private func launchArchive(mode: String, source: String) {
+        selectedMode = mode
         lastTotal = 0; deletedCount = 0; uploadedBytes = 0; eventOffset = 0
         sendEV(["type": "log", "line": "— Lancement de l'archivage —", "cls": "dim"])
 
@@ -1909,6 +1921,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         guard let scriptPath = candidates.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
             sendEV(["type": "log", "line": "❌ Script archive.sh introuvable", "cls": "err"])
             isRunning = false
+            SyncEngine.shared.finishArchive(changed: false)
             return
         }
 
@@ -1927,7 +1940,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         env["PKARCHIVES_STATUS_FILE"] = statusFile
         env["PKARCHIVES_EVENT_FILE"] = eventFile
         if let v = loadEnv("PKARCHIVES_DRIVE_FOLDER_ID") { env["PKARCHIVES_DRIVE_FOLDER_ID"] = v }
-        if let v = loadEnv("PKARCHIVES_DESKTOP_PATH"), !v.isEmpty { env["PKARCHIVES_DESKTOP_PATH"] = v }
+        env["PKARCHIVES_DESKTOP_PATH"] = source
+        env["PKARCHIVES_COORDINATION_FILE"] = SyncEngine.shared.disk.operationLock.path
         if let v = loadEnv("PKARCHIVES_DESKTOP_LINK_NAME"), !v.isEmpty { env["PKARCHIVES_DESKTOP_LINK_NAME"] = v }
         if let v = loadEnv("PKARCHIVES_RCLONE_REMOTE"), !v.isEmpty { env["PKARCHIVES_RCLONE_REMOTE"] = v }
         env["PKARCHIVES_RCLONE_BINARY"] = rcloneBinary()
@@ -1962,6 +1976,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
                 self.process = nil
                 self.timer?.invalidate()
                 let ok = p.terminationStatus == 0
+                SyncEngine.shared.finishArchive(changed: self.deletedCount > 0)
                 self.sendEV(["type": "runDone", "ok": ok, "success": self.deletedCount, "total": max(self.lastTotal, self.deletedCount)])
                 if ok && self.deletedCount > 0 {
                     let run = ArchiveRun(date: Date(), mode: self.selectedMode,
@@ -1980,6 +1995,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         do { try proc.run() } catch {
             sendEV(["type": "log", "line": "❌ Erreur: \(error.localizedDescription)", "cls": "err"])
             isRunning = false
+            SyncEngine.shared.finishArchive(changed: false)
             timer?.invalidate()
             return
         }

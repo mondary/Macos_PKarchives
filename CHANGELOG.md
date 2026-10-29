@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.67` (compteurs conservés, gestion de paire hors de la vue principale)
+Statut : `2026.10.68` (Bureau synchronisable et coordination archivage ↔ synchronisation)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,16 @@ Statut : `2026.10.67` (compteurs conservés, gestion de paire hors de la vue pri
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.68] - 2026-10-29
+#### Added
+- Le Bureau et ses sous-dossiers peuvent désormais être liés à une paire de synchronisation : l’espace de travail (Bureau, Documents, Téléchargements) se synchronise pendant que l’archivage mensuel continue de le nettoyer.
+- Verrou commun archivage ↔ synchronisation : un archivage attend la fin d’un transfert en cours, un transfert attend la fin d’un archivage, et `archive.sh` lancé seul refuse de démarrer pendant une synchronisation — y compris depuis la CLI ou un script.
+- Après un archivage, la paire concernée exige une réconciliation explicite : les suppressions volontaires sont listées par la comparaison, la confirmation tient en un bouton, les fichiers retirés de la copie Drive passent par le dossier de récupération, et un Bureau entièrement vidé est réconcilié par mise en miroir — bisync refusant un dossier vide. Les archives mensuelles restent hors de toute paire et ne sont jamais la cible.
+- Un compte rendu d’archivage est écrit avant toute suppression locale : même après un plantage de l’app, la prochaine exécution sait que ces fichiers ont été archivés volontairement.
+#### Fixed
+- Un dossier Drive identique à la racine des archives mensuelles est refusé à la création de la paire et au lancement de l’archivage, dans les deux sens.
+- Le raccourci du montage Drive posé sur le Bureau est exclu des comparaisons et transferts d’une paire Bureau.
 
 ### [2026.10.67] - 2026-10-29
 #### Changed

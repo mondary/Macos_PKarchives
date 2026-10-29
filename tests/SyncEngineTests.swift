@@ -7,8 +7,8 @@ func loadEnv(_ key: String) -> String? { ProcessInfo.processInfo.environment[key
 func rcloneBinary() -> String { ProcessInfo.processInfo.environment["PK_TEST_RCLONE"]! }
 func expandedPath(_ path: String) -> String { (path as NSString).expandingTildeInPath }
 func shortPath(_ path: String) -> String { path }
-func mountPath() -> String { "/__pk_tests_no_mount__" }
-func desktopPath() -> String { "/__pk_tests_no_archive__" }
+func mountPath() -> String { ProcessInfo.processInfo.environment["PK_TEST_MOUNT"] ?? "/__pk_tests_no_mount__" }
+func desktopPath() -> String { ProcessInfo.processInfo.environment["PK_TEST_ARCHIVE_SOURCE"] ?? "/__pk_tests_no_archive__" }
 func syncText(_ key: String) -> String { key }
 
 struct TestFailure: Error { let message: String }
@@ -57,14 +57,37 @@ struct TestFailure: Error { let message: String }
     }
     static func files(_ url: URL) -> [String: Data] {
         var result = [String: Data]()
+        // The enumerator resolves /var into /private/var; normalize both sides so keys stay exact.
+        let base = url.resolvingSymlinksInPath().path
         if let en = fm.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey]) {
             for case let file as URL in en {
                 if (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
-                    result[String(file.path.dropFirst(url.path.count))] = try? Data(contentsOf: file)
+                    result[String(file.resolvingSymlinksInPath().path.dropFirst(base.count))] = try? Data(contentsOf: file)
                 }
             }
         }
         return result
+    }
+    static func runArchive(source: URL, disk: SyncDisk) throws -> (Int32, String) {
+        let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("src/shared/archive.sh")
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = [script.path, "all"]
+        var env = ProcessInfo.processInfo.environment
+        env["PKARCHIVES_COORDINATION_FILE"] = disk.operationLock.path
+        env["PKARCHIVES_DESKTOP_PATH"] = source.path
+        env["PKARCHIVES_RCLONE_REMOTE"] = "testdrive"
+        env["PKARCHIVES_DRIVE_FOLDER_ID"] = "1ArchiveFixture_1234567890"
+        env["PKARCHIVES_RCLONE_BINARY"] = rcloneBinary()
+        env["PKARCHIVES_DELETE_MODE"] = "delete" // ONLY inside the isolated PK_TEST_ROOT.
+        env["PKARCHIVES_STATUS_FILE"] = root.appendingPathComponent("archive-status").path
+        env["PKARCHIVES_EVENT_FILE"] = root.appendingPathComponent("archive-events").path
+        process.environment = env
+        let pipe = Pipe(); process.standardOutput = pipe; process.standardError = pipe
+        try process.run()
+        let output = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return (process.terminationStatus, String(decoding: output, as: UTF8.self))
     }
     static func main() {
         do { try runTests() }
@@ -547,6 +570,92 @@ struct TestFailure: Error { let message: String }
         try orphanDisk.save([orphan], to: orphanDisk.history)
         let orphanEngine = SyncEngine(disk: orphanDisk, automatic: false)
         try expect(orphanEngine.storageError != nil, "A live orphan process was ignored")
+
+        // Desktop working copies and monthly archives can coexist, but never mutate concurrently.
+        let (desktop, desktopPair, desktopRemote) = try setup("desktop-working", direction: .bidirectional)
+        let desktopLocal = URL(fileURLWithPath: desktopPair.localPath)
+        setenv("PK_TEST_ARCHIVE_SOURCE", desktopLocal.path, 1)
+        try expect(desktop.validationError(desktopPair) == nil, "Desktop itself is still forbidden")
+        var child = desktopPair
+        child.localPath = desktopLocal.appendingPathComponent("epub + test").path
+        try fm.createDirectory(atPath: child.localPath, withIntermediateDirectories: true)
+        try expect(desktop.validationError(child) == nil, "Desktop child is still forbidden")
+        var protectedPair = desktopPair
+        protectedPair.localPath = desktop.disk.base.path
+        try expect(desktop.validationError(protectedPair) != nil, "Sync app data is no longer protected")
+        let mount = root.appendingPathComponent("protected-mount")
+        try fm.createDirectory(at: mount, withIntermediateDirectories: true)
+        setenv("PK_TEST_MOUNT", mount.path, 1)
+        protectedPair.localPath = mount.path
+        try expect(desktop.validationError(protectedPair) != nil, "Drive mount is no longer protected")
+        unsetenv("PK_TEST_MOUNT")
+        try write("archive A", desktopLocal.appendingPathComponent("a.txt"))
+        try write("archive B", desktopLocal.appendingPathComponent("b.txt"))
+        try write("nested archive", URL(fileURLWithPath: child.localPath).appendingPathComponent("épreuve.txt"))
+        try fm.createDirectory(at: desktopRemote, withIntermediateDirectories: true)
+        desktop.syncPair(desktopPair.id, resync: true)
+        try wait(desktop)
+        try expect(desktop.pairs[0].lastOutcome == "verified", "Desktop baseline failed")
+        let normalRun = desktop.runs[0]
+        try expect(!desktop.transferArguments(normalRun, work: desktop.disk.workdir(desktopPair.id), filter: root.appendingPathComponent("f")).contains("--force"), "Normal sync bypasses bulk-deletion safeguards")
+        var archiveReady = false
+        try expect(desktop.prepareArchive(source: desktopLocal.path) { archiveReady = true }, "Archive reservation rejected")
+        try expect(archiveReady && desktop.archiveInProgress, "Idle archive did not get priority")
+        desktop.syncPair(desktopPair.id)
+        desktop.refreshInventory(desktopPair.id)
+        try expect(!desktop.busy && !desktop.inventoryBusy, "Sync or inventory started during archive")
+        let archiveResult = try runArchive(source: desktopLocal, disk: desktop.disk)
+        try expect(archiveResult.0 == 0, "Isolated archive failed: \(archiveResult.1)")
+        try expect(files(desktopLocal).isEmpty, "Archive did not clear the working Desktop")
+        let monthlyArchives = files(root.appendingPathComponent("remote")).filter { !$0.key.hasPrefix("/desktop-working/") && !$0.key.hasPrefix("/.PKarchives-recovery/") }
+        try expect(monthlyArchives.values.contains(Data("archive A".utf8)) && monthlyArchives.values.contains(Data("nested archive".utf8)), "Monthly archive lacks original contents")
+        desktop.finishArchive(changed: true)
+        try waitInventory(desktop)
+        try expect(desktop.pairs[0].archiveReviewRequired && desktop.queue.isEmpty, "Archive removals were silently synchronized")
+        let postArchiveCount = desktop.runs.count
+        desktop.tick(now: Date().addingTimeInterval(3601)); desktop.syncAll(); desktop.syncPair(desktopPair.id)
+        try expect(desktop.runs.count == postArchiveCount && !desktop.busy, "Automatic/unapproved sync bypassed post-archive review")
+        desktop.syncPair(desktopPair.id, resync: true, archiveCleanupApproved: true)
+        try expect(!desktop.busy, "Post-archive action blindly rebuilt listings and could restore archived files")
+        desktop.syncPair(desktopPair.id, dryRun: true)
+        try wait(desktop)
+        try expect(desktop.runs[0].outcome == "preview", "Empty-Desktop preview failed: \(desktop.runs[0].message)")
+        try expect((desktop.runs[0].plan?.deleteRemote.count ?? 0) >= 3, "Post-archive preview missed bulk deletions")
+        try expect(!files(desktopRemote).isEmpty && files(desktopLocal).isEmpty, "Post-archive preview mutated either working side")
+        desktop.syncPair(desktopPair.id, archiveCleanupApproved: true)
+        try wait(desktop)
+        try expect(desktop.pairs[0].lastOutcome == "verified" && !desktop.pairs[0].archiveReviewRequired,
+                   "Approved empty-Desktop reconciliation failed: \(desktop.runs[0].message)")
+        try expect(files(desktopRemote).isEmpty && files(desktopLocal).isEmpty, "Archive files were restored into the working Desktop")
+        let remoteAfterReconciliation = files(root.appendingPathComponent("remote"))
+        let alteredMonthly = monthlyArchives.filter { remoteAfterReconciliation[$0.key] != $0.value }
+        try expect(alteredMonthly.isEmpty, "Reconciliation touched monthly archives: \(alteredMonthly.keys.sorted().prefix(6))")
+        try expect(monthlyArchives.values.contains(Data("archive A".utf8)) && remoteAfterReconciliation.contains { $0.key.hasSuffix("a.txt") && $0.value == Data("archive A".utf8) },
+                   "Monthly archive lost its contents during reconciliation")
+        let persistedDesktop = try desktop.disk.load([SyncPair].self, at: desktop.disk.config, fallback: [])
+        try expect(persistedDesktop.first?.archiveReviewRequired == false, "Successful archive review was not persisted")
+        unsetenv("PK_TEST_ARCHIVE_SOURCE")
+
+        // A real copy holds the shared OS lock, even against a standalone archive.sh.
+        stoppable.syncPair(stopPair.id)
+        var delayedArchiveReady = false
+        try expect(stoppable.prepareArchive(source: desktopLocal.path) { delayedArchiveReady = true }, "Cannot queue an archive after a copy")
+        try expect(!delayedArchiveReady, "Archive interrupted an active rclone")
+        try write("must stay local", desktopLocal.appendingPathComponent("locked.txt"))
+        let refusedArchive = try runArchive(source: desktopLocal, disk: stoppable.disk)
+        try expect(refusedArchive.0 == 75 && fm.fileExists(atPath: desktopLocal.appendingPathComponent("locked.txt").path), "Standalone archive bypassed a live sync lock")
+        stoppable.stopRunning()
+        try wait(stoppable, seconds: 8)
+        try expect(delayedArchiveReady && stoppable.archiveInProgress, "Queued archive did not start after the copy stopped")
+        stoppable.finishArchive(changed: false)
+
+        // CLI/crash receipts survive until the next native engine imports them.
+        let (receiptEngine, receiptPair, _) = try setup("archive-receipt")
+        let receipts = receiptEngine.disk.base.appendingPathComponent("archive-reviews/receipt.json")
+        try write("{\"source\":\"\(receiptPair.localPath)\"}", receipts)
+        receiptEngine.syncPair(receiptPair.id, dryRun: true)
+        try wait(receiptEngine)
+        try expect(receiptEngine.pairs[0].archiveReviewRequired && !fm.fileExists(atPath: receipts.path), "Archive receipt was lost or ignored")
 
         // Actual FSEvents, on an isolated local pair. No clock-based scans are involved.
         let watcherBase = root.appendingPathComponent("watcher")
