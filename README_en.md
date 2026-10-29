@@ -85,7 +85,7 @@ The new mode is available in the sources and Dev build, **not yet in the Stable 
 
 **Settings → General**: launch at login (in the background, with macOS approval if needed) and menu bar display: **Transfer speed**, **Remaining files** or **Icon only**. Numbers come from the current run’s rclone stats, updated roughly every 5 s; queued pairs are excluded and totals may change during scanning. Scanning, preview and verification have distinct states; only the icon remains when idle. Archiving shows the remaining item count.
 
-**Sync pairs**: each card shows its name and status, followed by two Local ⇄ Remote boxes. After a preview, counters appear inside each side: ↑ to send and 🗑 to delete on the Mac; ↓ to bring back and 🗑 to delete on Drive. The verdict and file-type pictos stay visible; inventory and per-file details expand on demand. Enable and secondary actions are in **⋯** and the context menu.
+**Sync pairs**: two large **From ⇄ To** panels show the locations, paths and readable preview counts: ↑ to send / 🗑 to delete on the Mac, ↓ to bring back / 🗑 to delete on Drive. Finder and Google Drive are one click away; file-type pictos, inventory and per-file details remain available without a redundant warning banner for ordinary transfers.
 
 **Settings → Synchronization**: global pause of all pairs (1 h), default “Preview only” mode for new pairs, and the pair list with enable/preview switches and the full form. These settings drive the sync engine; archiving configuration stays in its own section.
 

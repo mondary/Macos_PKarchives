@@ -36,6 +36,17 @@ private let syncStrings: [String: [String]] = [
     "file": ["fichier", "file", "archivo", "Datei"],
     "localSide": ["Local", "Local", "Local", "Lokal"],
     "remoteSide": ["Distant", "Remote", "Remoto", "Entfernt"],
+    "fromSide": ["Depuis", "From", "Desde", "Von"],
+    "toSide": ["Vers", "To", "Hacia", "Nach"],
+    "driveTitle": ["Google Drive", "Google Drive", "Google Drive", "Google Drive"],
+    "flowBoth": ["Deux sens", "Two-way", "Dos sentidos", "Beidseitig"],
+    "flowToDrive": ["Vers Drive", "To Drive", "A Drive", "Zu Drive"],
+    "flowToMac": ["Vers le Mac", "To Mac", "Al Mac", "Zum Mac"],
+    "sendShort": ["à envoyer", "to send", "por enviar", "zu senden"],
+    "downloadShort": ["à rapatrier", "to bring back", "por descargar", "herunterzuladen"],
+    "deleteShort": ["à supprimer", "to delete", "por eliminar", "zu löschen"],
+    "previewCounters": ["Simulez pour afficher les opérations prévues", "Preview to see planned operations", "Simula para ver las operaciones previstas", "Vorschau starten, um geplante Vorgänge zu sehen"],
+    "conflictsShort": ["conflits", "conflicts", "conflictos", "Konflikte"],
     "gap": ["Écart", "Gap", "Diferencia", "Differenz"],
     "aligned": ["Alignés", "Aligned", "Alineados", "Abgeglichen"],
     "gapNote": ["Estimation sur la taille cumulée des écarts, à 4 Mo/s de référence. Les fichiers modifiés des deux côtés et les exclusions ne sont pas comptés ; la simulation liste les opérations exactes.", "Estimate from the cumulative size gap at a 4 MB/s reference. Files modified on both sides and exclusions are not counted; a preview lists the exact operations.", "Estimación sobre el tamaño acumulado de la diferencia a 4 MB/s de referencia. Los archivos modificados en ambos lados y las exclusiones no se cuentan; la simulación lista las operaciones exactas.", "Schätzung anhand der kumulativen Differenzgröße bei 4 MB/s Referenz. Beidseitig geänderte Dateien und Ausnahmen zählen nicht; die Vorschau listet die genauen Vorgänge."],
@@ -180,54 +191,159 @@ func syncText(_ key: String) -> String {
 
 func syncFileCount(_ count: Int) -> String { "\(count) \(syncText(count == 1 ? "file" : "files"))" }
 
-/// Source and destination as two real endpoints, each showing its own pending
-/// operations from the latest preview: uploads and local deletions on the Mac,
-/// downloads and remote deletions on Drive.
+/// Large source/destination panels inspired by the archive endpoint cards.
+/// Each side shows its own transfer and deletion counts from the latest preview.
 struct SyncPairLocations: View {
     let pair: SyncPair
     var plan: PreviewPlan?
     var body: some View {
-        let push = (plan?.pushNew.count ?? 0) + (plan?.pushModified.count ?? 0)
-        let pull = (plan?.pullNew.count ?? 0) + (plan?.pullModified.count ?? 0)
-        // A completed preview with no work is still meaningful: show explicit zeroes.
-        let showOps = plan != nil
-        return HStack(spacing: 8) {
-            endpoint(syncText("localSide"), path: shortPath(pair.localPath), symbol: "laptopcomputer", tint: .accentColor,
-                     transferIcon: "arrow.up", transfers: push, deletions: plan?.deleteLocal.count ?? 0,
-                     transferHelp: syncText("toPush"), deleteHelp: syncText("list.deleteLocal"), showOps: showOps)
-            Image(systemName: pair.direction == .bidirectional ? "arrow.left.arrow.right" : pair.direction == .push ? "arrow.right" : "arrow.left")
-                .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.accentColor)
-                .accessibilityLabel(pair.direction.label).help(pair.direction.label)
-            endpoint(syncText("remoteSide"), path: pair.destinationDescription, symbol: "externaldrive", tint: .green,
-                     transferIcon: "arrow.down", transfers: pull, deletions: plan?.deleteRemote.count ?? 0,
-                     transferHelp: syncText("toPull"), deleteHelp: syncText("list.deleteRemote"), showOps: showOps)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                localEndpoint.frame(width: 300)
+                directionBridge(vertical: false).frame(width: 62)
+                remoteEndpoint.frame(width: 300)
+            }.frame(maxWidth: .infinity, alignment: .center)
+            VStack(spacing: 8) {
+                localEndpoint
+                directionBridge(vertical: true)
+                remoteEndpoint
+            }
         }
     }
-    private func endpoint(_ title: String, path: String, symbol: String, tint: Color,
-                          transferIcon: String, transfers: Int, deletions: Int,
-                          transferHelp: String, deleteHelp: String, showOps: Bool) -> some View {
-        HStack(spacing: 9) {
-            Image(systemName: symbol).font(.system(size: 13, weight: .medium)).foregroundStyle(tint)
-                .frame(width: 26, height: 26).background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.caption2.weight(.medium)).foregroundStyle(.secondary)
-                Text(path).font(.system(.caption, design: .monospaced)).lineLimit(1).truncationMode(.middle)
-                    .help(path).textSelection(.enabled)
-                if showOps {
-                    HStack(spacing: 10) {
-                        Label("\(transfers)", systemImage: transferIcon)
-                            .foregroundStyle(transfers > 0 ? Color.blue : Color.secondary.opacity(0.45))
-                            .help(transferHelp).accessibilityLabel("\(transfers) \(transferHelp)")
-                        Label("\(deletions)", systemImage: "trash")
-                            .foregroundStyle(deletions > 0 ? Color.red : Color.secondary.opacity(0.45))
-                            .help(deleteHelp).accessibilityLabel("\(deletions) \(deleteHelp)")
-                    }.font(.caption2.weight(.semibold)).monospacedDigit()
+
+    private var localEndpoint: some View {
+        let uploads = (plan?.pushNew.count ?? 0) + (plan?.pushModified.count ?? 0)
+        return endpoint(
+            eyebrow: syncText("fromSide"), title: pair.name.isEmpty ? localFolderName : pair.name,
+            path: shortPath(pair.localPath), symbol: "laptopcomputer", tint: .accentColor,
+            transferIcon: "arrow.up", transferCount: uploads, transferLabel: syncText("sendShort"),
+            deletionCount: plan?.deleteLocal.count ?? 0, showOps: plan != nil,
+            actionTitle: workspaceText("showFolder"), actionIcon: "folder",
+            action: { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: pair.localPath) }
+        )
+    }
+
+    private var remoteEndpoint: some View {
+        let downloads = (plan?.pullNew.count ?? 0) + (plan?.pullModified.count ?? 0)
+        return endpoint(
+            eyebrow: syncText("toSide"), title: remoteFolderName, path: remotePath,
+            symbol: "externaldrive", tint: .green,
+            transferIcon: "arrow.down", transferCount: downloads, transferLabel: syncText("downloadShort"),
+            deletionCount: plan?.deleteRemote.count ?? 0, showOps: plan != nil,
+            actionTitle: syncText("openDrive"), actionIcon: "arrow.up.right.square",
+            action: openDrive
+        )
+    }
+
+    private var localFolderName: String {
+        let name = URL(fileURLWithPath: pair.localPath).lastPathComponent
+        return name.isEmpty || name == "/" ? pair.name : name
+    }
+
+    private var remoteFolderName: String {
+        let name = (pair.drivePath as NSString).lastPathComponent
+        return name.isEmpty ? syncText("driveTitle") : name
+    }
+
+    private var remotePath: String {
+        pair.drivePath.isEmpty ? pair.destinationDescription : "\(pair.remote):\(pair.drivePath)"
+    }
+
+    private func endpoint(eyebrow: String, title: String, path: String, symbol: String, tint: Color,
+                          transferIcon: String, transferCount: Int, transferLabel: String,
+                          deletionCount: Int, showOps: Bool, actionTitle: String, actionIcon: String,
+                          action: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 10) {
+                Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(tint)
+                    .frame(width: 38, height: 38)
+                    .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 11))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(eyebrow.uppercased()).font(.system(size: 10, weight: .bold)).tracking(1.2).foregroundStyle(.secondary)
+                    Text(title).font(.system(size: 19, weight: .bold, design: .rounded))
+                        .lineLimit(1).truncationMode(.middle).help(title)
                 }
+                Spacer(minLength: 0)
             }
-        }.padding(.horizontal, 10).padding(.vertical, 8)
+            Text(path).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+                .lineLimit(1).truncationMode(.middle).help(path).textSelection(.enabled)
+            if showOps {
+                HStack(spacing: 8) {
+                    operationBadge(transferCount, title: transferLabel, symbol: transferIcon, tint: .blue)
+                    operationBadge(deletionCount, title: syncText("deleteShort"), symbol: "trash", tint: .red)
+                }
+            } else {
+                Label(syncText("previewCounters"), systemImage: "eye")
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 7)
+            }
+            Button(action: action) {
+                Label(actionTitle, systemImage: actionIcon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 11).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(tint, in: RoundedRectangle(cornerRadius: 9))
+            }.buttonStyle(.plain).controlSize(.small)
+        }
+        .padding(13)
+        .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
+        .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+    }
+
+    private func operationBadge(_ count: Int, title: String, symbol: String, tint: Color) -> some View {
+        let color = count > 0 ? tint : Color.secondary
+        return HStack(spacing: 4) {
+            Image(systemName: symbol).font(.system(size: 11, weight: .bold))
+            Text("\(count)").font(.system(size: 15, weight: .bold, design: .rounded)).monospacedDigit()
+            Text(title).font(.system(size: 9, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.72)
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 7).padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 9))
+        .background(color.opacity(count > 0 ? 0.11 : 0.07), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(count) \(title)")
+    }
+
+    @ViewBuilder private func directionBridge(vertical: Bool) -> some View {
+        let label: String = switch pair.direction {
+        case .bidirectional: syncText("flowBoth")
+        case .push: syncText("flowToDrive")
+        case .pull: syncText("flowToMac")
+        }
+        let symbol: String = vertical
+            ? (pair.direction == .bidirectional ? "arrow.up.arrow.down" : pair.direction == .push ? "arrow.down" : "arrow.up")
+            : (pair.direction == .bidirectional ? "arrow.left.arrow.right" : pair.direction == .push ? "arrow.right" : "arrow.left")
+        if vertical {
+            HStack(spacing: 8) {
+                Capsule().fill(Color.primary.opacity(0.12)).frame(width: 24, height: 1)
+                Image(systemName: symbol).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.accentColor)
+                Capsule().fill(Color.primary.opacity(0.12)).frame(width: 24, height: 1)
+                Text(label.uppercased()).font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+            }.frame(maxWidth: .infinity).padding(.vertical, 2)
+        } else {
+            VStack(spacing: 7) {
+                HStack(spacing: 7) {
+                    Capsule().fill(Color.primary.opacity(0.12)).frame(height: 1)
+                    Image(systemName: symbol).font(.system(size: 16, weight: .semibold)).foregroundStyle(Color.accentColor)
+                    Capsule().fill(Color.primary.opacity(0.12)).frame(height: 1)
+                }
+                Text(label.uppercased()).font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+            }
+        }
+    }
+
+    private func openDrive() {
+        let url = pair.driveFolderID.flatMap { URL(string: "https://drive.google.com/drive/folders/\($0)") }
+            ?? URL(string: "https://drive.google.com/drive/my-drive")!
+        NSWorkspace.shared.open(url)
     }
 }
 
@@ -427,14 +543,13 @@ struct SyncSectionView: View {
         let plan = engine.previewRun(for: pair.id)?.plan
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(pair.name).font(.system(size: 15, weight: .semibold))
                 if pair.previewOnly { previewBadge(pair) }
-                Spacer(minLength: 12)
+                Spacer(minLength: 0)
                 status(state)
             }
             SyncPairLocations(pair: pair, plan: plan)
             if let plan {
-                verdict(plan)
+                deletionWarning(plan)
                 typeRow(plan)
             }
             if running {
@@ -538,7 +653,6 @@ struct SyncSectionView: View {
                 Toggle(syncText("enabled"), isOn: enableBinding(pair))
                 Button(syncText("edit")) { editing = pair }
                 if pair.direction.usesBisync { Button(syncText("needsResync")) { merging = pair } }
-                Button(workspaceText("showFolder")) { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: pair.localPath) }
                 Divider()
                 Button(syncText("remove"), role: .destructive) { removing = pair }
             } label: { Image(systemName: "ellipsis.circle") }
@@ -556,7 +670,6 @@ struct SyncSectionView: View {
         }.disabled(engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
         Toggle(syncText("enabled"), isOn: enableBinding(pair)).disabled(engine.busy || engine.storageError != nil)
         Button(syncText("edit")) { editing = pair }.disabled(engine.busy || engine.storageError != nil)
-        Button(workspaceText("showFolder")) { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: pair.localPath) }
         Divider()
         Button(syncText("remove"), role: .destructive) { removing = pair }.disabled(engine.busy || engine.storageError != nil)
     }
@@ -622,19 +735,26 @@ struct SyncSectionView: View {
         }
     }
 
-    /// A single quiet row of file-type pictos with counts.
+    /// File-type pictos use soft capsules so they read as a deliberate summary, not loose glyphs.
     @ViewBuilder private func typeRow(_ plan: PreviewPlan) -> some View {
         let types = Self.typeComposition(plan)
-        if !types.isEmpty {
-            HStack(spacing: 12) {
+        if !types.isEmpty || !plan.conflicts.isEmpty {
+            HStack(spacing: 7) {
                 ForEach(types.prefix(5)) { type in
                     HStack(spacing: 4) {
-                        Image(systemName: type.symbol).font(.system(size: 13, weight: .medium)).foregroundStyle(type.tint)
-                        Text("\(type.count)").font(.caption.weight(.medium)).monospacedDigit()
-                    }
+                        Image(systemName: type.symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(type.tint)
+                        Text("\(type.count)").font(.caption2.weight(.semibold)).monospacedDigit()
+                    }.padding(.horizontal, 8).padding(.vertical, 5)
+                        .background(Color.primary.opacity(0.04), in: Capsule())
                 }
                 if types.count > 5 {
-                    Text("+\(types.count - 5)").font(.caption2).foregroundStyle(.secondary)
+                    Text("+\(types.count - 5)").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                }
+                if !plan.conflicts.isEmpty {
+                    Label("\(plan.conflicts.count) \(syncText("conflictsShort"))", systemImage: "bolt.fill")
+                        .font(.caption2.weight(.semibold)).foregroundStyle(.orange)
+                        .padding(.horizontal, 8).padding(.vertical, 5)
+                        .background(Color.orange.opacity(0.09), in: Capsule())
                 }
                 Spacer(minLength: 0)
             }
@@ -672,20 +792,15 @@ struct SyncSectionView: View {
             }
         }
     }
-    @ViewBuilder private func verdict(_ plan: PreviewPlan) -> some View {
+    @ViewBuilder private func deletionWarning(_ plan: PreviewPlan) -> some View {
         let deletions = plan.deleteRemote.count + plan.deleteLocal.count
-        if plan.totalOps == 0 {
-            Label(syncText("alignedVerdict"), systemImage: "checkmark.seal.fill")
-                .font(.callout.weight(.medium)).foregroundStyle(.green)
-        } else if deletions > 0 {
-            VStack(alignment: .leading, spacing: 3) {
-                Label(String(format: syncText("deleteVerdict"), "\(deletions)"), systemImage: "exclamationmark.triangle.fill")
-                    .font(.callout.weight(.medium)).foregroundStyle(.red)
-                Text(syncText("deleteVerdictNote")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-        } else {
-            Label(String(format: syncText("opsVerdict"), "\(plan.totalOps)"), systemImage: "info.circle.fill")
-                .font(.callout.weight(.medium)).foregroundStyle(.orange)
+        if deletions > 0 {
+            Label(syncText("deleteVerdictNote"), systemImage: "exclamationmark.triangle.fill")
+                .font(.caption).foregroundStyle(Color.orange).lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 11).padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
         }
     }
     /// Real file/byte counts per side on one line, gap highlighted, honest ETA.

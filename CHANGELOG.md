@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.56` (compteurs de la comparaison intégrés dans chaque côté de la paire)
+Statut : `2026.10.57` (cartes de synchronisation réorganisées en grands panneaux Local ⇄ Drive)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,11 @@ Statut : `2026.10.56` (compteurs de la comparaison intégrés dans chaque côté
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.57] - 2026-10-29
+#### Changed
+- Cartes de paires redessinées d’après la référence : deux grands panneaux « Depuis / Vers », nom et chemin lisibles, liaison directionnelle au centre, compteurs distincts et nommés pour envoi/téléchargement/suppression, accès direct au Finder et à Google Drive ; mise en colonne automatique dans le panneau étroit de la barre des menus.
+- Retrait de la bannière orange redondante pour les transferts ordinaires ; alerte de sécurité conservée lorsqu’une simulation prévoit des suppressions. Pictos de types de fichiers présentés dans des capsules discrètes.
 
 ### [2026.10.56] - 2026-10-29
 #### Changed
