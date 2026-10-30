@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.73` (compteurs d’analyse en direct et comparaison automatique au lancement)
+Statut : `2026.10.74` (listing Drive récursif, cadence 15 min et analyse visible)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,14 @@ Statut : `2026.10.73` (compteurs d’analyse en direct et comparaison automatiqu
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.74] - 2026-10-30
+#### Changed
+- Les comparaisons et inventaires Drive utilisent le listing récursif (`--fast-list`) : une requête pour environ 1 000 fichiers au lieu d’une par dossier. Avec 4 transferts, 8 vérificateurs et 8 requêtes/s, une analyse de 20 000 fichiers passe d’une heure à quelques minutes — les buffers restent minuscules et rclone reste léger pour le Mac.
+- La cadence Drive passe d’environ une heure à environ 15 minutes (et au réveil) : avec des comparaisons rapides, la synchronisation automatique devient continue sans surcharger le Mac.
+- Pendant une analyse, la ligne de suivi affiche les objets listés et le temps écoulé, actualisés par les statistiques rclone ; la barre et les compteurs continuent de suivre les différences repérées puis les actions terminées.
+#### Fixed
+- « Prochain contrôle automatique » ne s’affiche plus pendant un contrôle en cours : le résumé d’exécution est alors la seule ligne d’horaire lisible, plus de « dans 1 heure » contradictoire pendant que l’analyse tourne encore.
 
 ### [2026.10.73] - 2026-10-29
 #### Changed

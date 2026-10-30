@@ -169,7 +169,11 @@ struct TestFailure: Error { let message: String }
         try wait(quota)
         try expect(quota.runs[0].pair.id == anotherConnection.id && quota.runs[0].finished != nil, "One account cooldown blocked another account")
         quota.tick(now: Date().addingTimeInterval(901))
-        try expect(quota.cooldownUntil(for: qp) == nil && !quota.busy, "Quota expiry started a real initial merge")
+        // The 15-minute remote cadence may auto-start one preview for this preview-only pair;
+        // it must fail read-only and renew the backoff, never promote a real merge.
+        if quota.busy || !quota.queue.isEmpty { try wait(quota) }
+        try expect(!quota.runs.contains(where: { !$0.dryRun }), "Quota expiry started a real initial merge")
+        try expect(quota.cooldownUntil(for: qp) != nil, "Automatic quota retry did not renew the backoff")
 
         // Historical errors are reclassified from their raw evidence without rewriting it.
         let past = SyncDisk(base: root.appendingPathComponent("past-quota/data"), logs: root.appendingPathComponent("past-quota/logs"))
@@ -732,6 +736,12 @@ struct TestFailure: Error { let message: String }
         try expect(desktop.pairs[0].lastOutcome == "verified", "Desktop baseline failed")
         let normalRun = desktop.runs[0]
         try expect(!desktop.transferArguments(normalRun, work: desktop.disk.workdir(desktopPair.id), filter: root.appendingPathComponent("f")).contains("--force"), "Normal sync bypasses bulk-deletion safeguards")
+        // Speed contract: recursive Drive listing and wider parallelism, still tiny buffers.
+        let speedArgs = desktop.transferArguments(normalRun, work: desktop.disk.workdir(desktopPair.id), filter: root.appendingPathComponent("f"))
+        func flag(_ name: String) -> String { let i = speedArgs.firstIndex(of: name)!; return speedArgs[i + 1] }
+        try expect(speedArgs.contains("--fast-list"), "Recursive Drive listing missing: comparisons crawl directory by directory")
+        try expect(flag("--transfers") == "4" && flag("--checkers") == "8", "Parallelism stayed at the slow defaults")
+        try expect(flag("--buffer-size") == "4M" && flag("--max-buffer-memory") == "32M", "Speed was bought with unbounded memory")
         var archiveReady = false
         try expect(desktop.prepareArchive(source: desktopLocal.path) { archiveReady = true }, "Archive reservation rejected")
         try expect(archiveReady && desktop.archiveInProgress, "Idle archive did not get priority")

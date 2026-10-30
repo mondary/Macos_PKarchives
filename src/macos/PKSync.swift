@@ -113,7 +113,7 @@ private let syncStrings: [String: [String]] = [
     "status.paused": ["Synchronisation en pause", "Sync paused", "Sincronización pausada", "Synchronisierung pausiert"],
     "status.lastChecked": ["Dernier contrôle vérifié", "Last verified check", "Última comprobación verificada", "Letzter bestätigter Abgleich"],
     "status.lastTransfers": ["Dernière synchronisation : %d envoyés · %d rapatriés · %d supprimés", "Last sync: %d sent · %d received · %d deleted", "Última sincronización: %d enviados · %d recibidos · %d borrados", "Letzter Abgleich: %d gesendet · %d empfangen · %d gelöscht"],
-    "status.cadence": ["Arrière-plan via l’icône 📦 tant que l’app est ouverte · Mac : 45 s après un changement · Drive : environ chaque heure et au réveil", "Background via the 📦 icon while the app is open · Mac: 45 s after a change · Drive: about hourly and on wake", "Segundo plano con el icono 📦 mientras la app está abierta · Mac: 45 s tras un cambio · Drive: cada hora y al despertar", "Hintergrund über das 📦-Symbol bei geöffneter App · Mac: 45 s nach Änderung · Drive: etwa stündlich und nach dem Aufwachen"],
+    "status.cadence": ["Arrière-plan via l’icône 📦 tant que l’app est ouverte · Mac : 45 s après un changement · Drive : environ toutes les 15 minutes et au réveil", "Background via the 📦 icon while the app is open · Mac: 45 s after a change · Drive: about every 15 minutes and on wake", "Segundo plano con el icono 📦 mientras la app está abierta · Mac: 45 s tras un cambio · Drive: cada 15 minutos y al despertar", "Hintergrund über das 📦-Symbol bei geöffneter App · Mac: 45 s nach Änderung · Drive: etwa alle 15 Minuten und nach dem Aufwachen"],
     "status.nextCheck": ["Prochain contrôle automatique :", "Next automatic check:", "Próxima comprobación automática:", "Nächste automatische Prüfung:"],
     "refreshAllFiles": ["Actualiser tout", "Refresh all", "Actualizar todo", "Alle aktualisieren"],
     "syncAllNow": ["Synchroniser tout", "Sync all", "Sincronizar todo", "Alle synchronisieren"],
@@ -553,11 +553,21 @@ struct SyncActionProgressView: View {
     private var total: Int { progress.plannedPushes + progress.plannedPulls + progress.plannedDeletes }
     private var done: Int { progress.pushDone + progress.pullDone + progress.deleteDone }
 
+    /// Analysis feedback that visibly moves: listed objects plus the elapsed time, both
+    /// refreshed by rclone's own stats. No invented total while the listing runs.
+    private var analysisText: String {
+        var text = String(format: syncText("analyzing"), "\(progress.listed)")
+        if progress.elapsed > 0 {
+            text += " · \(syncText("elapsedShort")) \(SyncEngine.durationText(progress.elapsed))"
+        }
+        return text
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if dryRun {
                 Text(syncText("previewMeasured")).font(.caption.weight(.medium))
-                Text(String(format: syncText("analyzing"), "\(progress.listed)"))
+                Text(analysisText)
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             } else if let fraction = progress.operationFraction {
                 HStack {
@@ -570,8 +580,7 @@ struct SyncActionProgressView: View {
             } else if progress.totalsKnown && total == 0 {
                 Text(syncText("noActions")).font(.caption).foregroundStyle(.secondary)
             } else {
-                Text(done > 0 ? String(format: syncText("actionsUnknown"), done)
-                     : String(format: syncText("analyzing"), "\(progress.listed)"))
+                Text(done > 0 ? String(format: syncText("actionsUnknown"), done) : analysisText)
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
             HStack(alignment: .top, spacing: 16) {
@@ -803,12 +812,14 @@ struct SyncSectionView: View {
             if let paused = engine.pausedUntil {
                 Text(String(format: syncText("pausedUntilLabel"), paused.formatted(date: .omitted, time: .shortened)))
                     .font(.caption.weight(.medium)).foregroundStyle(.orange)
-            } else if engine.automaticEnabled, let next = engine.nextAutomaticCheck {
+            } else if !engine.busy, engine.automaticEnabled, let next = engine.nextAutomaticCheck {
+                // Never advertise the next check while one is still running: the live run
+                // summary above is the only schedule line to read then.
                 TimelineView(.periodic(from: .now, by: 10)) { _ in
                     Text(infoLine(next: next))
                         .font(.caption.weight(.medium)).foregroundStyle(.secondary)
                 }
-            } else if let lastVerified {
+            } else if !engine.busy, let lastVerified {
                 Text("\(syncText("status.lastChecked")) · \(lastVerified.formatted(date: .abbreviated, time: .shortened))")
                     .font(.caption.weight(.medium)).foregroundStyle(.secondary)
             }

@@ -133,6 +133,7 @@ struct SettingsSectionHeader: View {
             var measured = RunProgress()
             measured.phase = .listing
             measured.listed = 1_740
+            measured.elapsed = 252
             measured.discoveredPushPaths = Set((1...12).map { "nouveau-\($0).pdf" })
             measured.discoveredPullPaths = Set((1...3).map { "drive-\($0).docx" })
             measured.discoveredDeleteRemotePaths = ["ancien.pdf"]

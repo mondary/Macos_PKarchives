@@ -364,7 +364,7 @@ final class SyncEngine: ObservableObject {
     private var revisions: [UUID: Int] = [:]
     private var runRevision = 0
     private var localDue: [UUID: Date] = [:]
-    private var remoteDue = Date().addingTimeInterval(3600)
+    private var remoteDue = Date().addingTimeInterval(900)
     private var lastStat = Date.distantPast
     private var hasUncheckedHashes = false
     private var verifying = false
@@ -687,7 +687,7 @@ final class SyncEngine: ObservableObject {
     /// Bytes per second used for the alignment estimate. Reference value, not a measurement:
     /// the true duration depends on the exact operations listed by a preview.
     static let referenceThroughput: Int64 = 4 * 1024 * 1024
-    private static let sizeFlags = ["--tpslimit", "4", "--tpslimit-burst", "4", "--checkers", "2", "--retries", "1",
+    private static let sizeFlags = ["--tpslimit", "8", "--tpslimit-burst", "16", "--checkers", "8", "--fast-list", "--retries", "1",
                                     "--low-level-retries", "12", "--drive-pacer-burst", "20", "--contimeout", "15s", "--timeout", "2m"]
 
     func refreshInventory(_ id: UUID) {
@@ -1040,10 +1040,13 @@ final class SyncEngine: ObservableObject {
     }
 
     // A 403 quota refusal is per-minute: retry with growing backoff so a listing waits out the
-    // saturated minute instead of aborting the whole comparison two seconds in.
-    static let lightFlags = ["--transfers", "2", "--checkers", "2", "--buffer-size", "4M", "--drive-chunk-size", "8M",
-                             "--max-buffer-memory", "32M", "--max-backlog", "256", "--multi-thread-streams", "0",
-                             "--tpslimit", "4", "--tpslimit-burst", "4", "--retries", "1", "--low-level-retries", "12",
+    // saturated minute instead of aborting the whole comparison two seconds in. --fast-list
+    // turns Drive's per-directory walk into a recursive listing (one call per ~1 000 files),
+    // which is what makes 20k-file comparisons minutes instead of an hour. Buffers stay tiny:
+    // rclone remains network-bound and light on the Mac.
+    static let lightFlags = ["--transfers", "4", "--checkers", "8", "--fast-list", "--buffer-size", "4M", "--drive-chunk-size", "8M",
+                             "--max-buffer-memory", "32M", "--max-backlog", "512", "--multi-thread-streams", "0",
+                             "--tpslimit", "8", "--tpslimit-burst", "16", "--retries", "1", "--low-level-retries", "12",
                              "--drive-pacer-burst", "20",
                              "--contimeout", "15s", "--timeout", "2m", "--stats", "5s", "--use-json-log", "--log-level", "INFO"]
 
@@ -1689,7 +1692,7 @@ final class SyncEngine: ObservableObject {
             pausedUntil = nil
         }
         let remoteReady = remoteDue <= now
-        if remoteReady { remoteDue = now.addingTimeInterval(3600) }
+        if remoteReady { remoteDue = now.addingTimeInterval(900) }
         for pair in pairs where pair.enabled && !pair.archiveReviewRequired && cooldownUntil(for: pair) == nil && !(pair.direction.usesBisync && pair.needsResync && !pair.previewOnly) {
             let retry = pair.nextRetryAt.map { $0 <= now } ?? false
             let local = localDue[pair.id].map { $0 <= now } ?? false
