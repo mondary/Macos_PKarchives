@@ -55,13 +55,38 @@ struct SettingsSectionHeader: View {
         precondition(SyncOperationKind.push.files(in: samplePlan).count == 2)
         precondition(SyncOperationKind.push.files(in: samplePlan)[0].reason != SyncOperationKind.push.files(in: samplePlan)[1].reason)
         precondition(SyncOperationKind.deleteLocal.files(in: samplePlan)[0].reason.contains(syncText("reason.deleteLocal")))
+        let diffPlan = PreviewPlan(pushNew: ["new.txt", "conflict.txt"], pushModified: ["changed.txt"],
+                                   pullNew: ["remote.txt"], pullModified: ["remote-change.txt"],
+                                   deleteRemote: ["removed-on-mac.txt"], deleteLocal: ["removed-on-drive.txt"],
+                                   conflicts: ["conflict.txt"])
+        let diffRows = SyncDiffEntry.rows(in: diffPlan)
+        precondition(diffRows.count == 7 && Set(diffRows.map(\.id)).count == 7)
+        precondition(diffRows.map(\.path) == diffRows.map(\.path).sorted())
+        precondition(diffRows.first { $0.path == "new.txt" }?.remoteKey == "diff.copy")
+        precondition(diffRows.first { $0.path == "changed.txt" }?.remoteKey == "diff.replace")
+        precondition(diffRows.first { $0.path == "remote.txt" }?.localKey == "diff.copy")
+        precondition(diffRows.first { $0.path == "remote-change.txt" }?.localKey == "diff.replace")
+        precondition(diffRows.first { $0.path == "removed-on-mac.txt" }?.remoteKey == "diff.remove")
+        precondition(diffRows.first { $0.path == "removed-on-drive.txt" }?.localKey == "diff.remove")
+        precondition(diffRows.first { $0.path == "conflict.txt" }?.operation == nil)
+        precondition(SyncDiffEntry.rows(in: PreviewPlan()).isEmpty)
+        let previousLanguage = UserDefaults.standard.object(forKey: "app-language")
+        for lang in ["fr", "en", "es", "de"] {
+            UserDefaults.standard.set(lang, forKey: "app-language")
+            for key in ["diff.open", "diff.short", "diff.hint", "diff.scope", "diff.search", "diff.noChanges", "diff.noMatch"] +
+                diffRows.flatMap({ [$0.localKey, $0.remoteKey] }) {
+                precondition(syncText(key) != key, "Missing diff translation: \(lang) / \(key)")
+            }
+        }
+        if let previousLanguage { UserDefaults.standard.set(previousLanguage, forKey: "app-language") }
+        else { UserDefaults.standard.removeObject(forKey: "app-language") }
         print("Menu activity regressions passed")
         guard args.count >= 3 else { fatalError("sync-snapshot TEST_ROOT OUTPUT.png [sync|history|quota|menu|menuArchive|form]") }
         let root = URL(fileURLWithPath: args[1])
         let kind = args.count > 3 ? args[3] : "sync"
-        let fixture = kind == "quota" ? "past-quota" : ["linked", "narrow", "drawer", "comparison"].contains(kind) ? "linked" : "push"
+        let fixture = kind == "quota" ? "past-quota" : ["linked", "narrow", "drawer", "comparison", "diff"].contains(kind) ? "linked" : "push"
         var fixtureRoot = root.appendingPathComponent(fixture)
-        if ["drawer", "comparison"].contains(kind) {
+        if ["drawer", "comparison", "diff"].contains(kind) {
             // A fresh preview fixture: never show a completed run's obsolete file plan.
             let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("sync-drawer-\(UUID().uuidString)")
             try FileManager.default.copyItem(at: fixtureRoot, to: scratch)
@@ -162,6 +187,9 @@ struct SettingsSectionHeader: View {
         } else if kind == "general" {
             content = AnyView(WorkspaceGeneralSettings())
             bounds = NSRect(x: 0, y: 0, width: 660, height: 480)
+        } else if kind == "diff", let pair = engine.pairs.first {
+            content = AnyView(SyncDiffView(pair: pair, engine: engine))
+            bounds = NSRect(x: 0, y: 0, width: 880, height: 640)
         } else if kind == "form" {
             content = AnyView(SyncPairForm(original: SyncPair(), engine: engine))
             bounds = NSRect(x: 0, y: 0, width: 580, height: 640)

@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.80` (le diptyque Depuis / Vers reprend sa place au cœur de la carte)
+Statut : `2026.10.81` (vue diff Mac ↔ Drive et allègement des couleurs)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,18 @@ Statut : `2026.10.80` (le diptyque Depuis / Vers reprend sa place au cœur de la
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.81] - 2026-10-30
+#### Added
+- Vue **Comparaison** : clic sur le pont ⇄ ou menu « Comparer Mac et Drive » ouvre une feuille qui liste, pour une paire, les envois, rapatriements, suppressions et conflits prévus, avec le fichier, son motif et le côté concerné. Lecture seule : aucun transfert ni suppression depuis cette vue.
+#### Changed
+- Allègement des couleurs : les boutons « Ouvrir dans Finder / Ouvrir Drive / Monter le Drive » quittent les panneaux (menu ⋯) ; les icônes de la trace passent en neutre ; la pastille d'état garde la couleur uniquement pour l'attention (orange) et le succès (vert). La couleur ne sert plus que là où elle informe.
+
+### [2026.10.81] - 2026-10-30
+#### Added
+- Vue **Comparaison** : clic sur le pont ⇄ ou menu « Comparer Mac et Drive » ouvre une feuille qui liste, pour une paire, les envois, rapatriements, suppressions et conflits prévus, avec le fichier, son motif et le côté concerné. Lecture seule : aucun transfert ni suppression depuis cette vue.
+#### Changed
+- Allègement des couleurs : les boutons « Ouvrir dans Finder / Ouvrir Drive / Monter le Drive » quittent les panneaux (menu ⋯) ; les icônes de la trace passent en neutre ; la pastille d'état garde la couleur uniquement pour l'attention (orange) et le succès (vert). La couleur ne sert plus que là où elle informe.
 
 ### [2026.10.80] - 2026-10-30
 #### Fixed
