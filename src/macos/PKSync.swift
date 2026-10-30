@@ -103,6 +103,10 @@ private let syncStrings: [String: [String]] = [
     "status.checked": ["À jour au dernier contrôle", "Up to date at last check", "Al día en la última comprobación", "Beim letzten Abgleich aktuell"],
     "status.checkedNote": ["Les fichiers inclus ont été vérifiés à cette date. Les changements ultérieurs seront contrôlés au prochain passage.", "Included files were verified then. Later changes will be checked on the next pass.", "Los archivos incluidos se verificaron entonces. Los cambios posteriores se comprobarán después.", "Enthaltene Dateien wurden damals geprüft. Spätere Änderungen werden beim nächsten Lauf geprüft."],
     "status.action": ["Action nécessaire", "Action needed", "Acción necesaria", "Aktion erforderlich"],
+    "status.cooling": ["Attente de Google Drive", "Waiting for Google Drive", "Esperando a Google Drive", "Warte auf Google Drive"],
+    "status.coolingNote": ["Aucune action n’est nécessaire : la reprise est automatique. Les fichiers déjà présents et les plans connus restent intacts.", "No action is needed: resume is automatic. Existing files and known plans stay intact.", "No hace falta ninguna acción: la reanudación es automática. Los archivos existentes y los planes conocidos permanecen intactos.", "Keine Aktion nötig: Die Fortsetzung erfolgt automatisch. Vorhandene Dateien und bekannte Pläne bleiben unverändert."],
+    "status.confirmPending": ["%d fichiers prêts · Synchroniser maintenant", "%d files ready · Sync now", "%d archivos listos · Sincronizar ahora", "%d Dateien bereit · Jetzt synchronisieren"],
+    "status.autoResume": ["Reprise automatique à %@ · %@", "Automatic resume at %@ · %@", "Reanudación automática a las %@ · %@", "Automatische Fortsetzung um %@ · %@"],
     "status.pending": ["Changements à vérifier", "Changes awaiting check", "Cambios pendientes de comprobar", "Änderungen warten auf Prüfung"],
     "status.previewChanges": ["La dernière simulation prévoit des opérations. Consultez les compteurs avant de synchroniser.", "The latest preview plans changes. Review the counts before syncing.", "La última simulación prevé cambios. Revise los contadores antes de sincronizar.", "Die letzte Vorschau sieht Änderungen vor. Vor dem Abgleich die Zähler prüfen."],
     "status.previewOnly": ["Simulation uniquement", "Preview only", "Solo simulación", "Nur Vorschau"],
@@ -764,21 +768,29 @@ struct SyncSectionView: View {
 
     private var globalStatus: some View {
         let enabled = engine.pairs.filter(\.enabled)
-        let failed = engine.storageError != nil || enabled.contains { ["error", "unverified", "interrupted", "rateLimited", "needsResync", "archiveReview"].contains(engine.presentationState(for: $0)) }
+        let coolingUntil = enabled.compactMap { engine.cooldownUntil(for: $0) }.min()
+        let failed = engine.storageError != nil || enabled.contains { ["error", "unverified", "interrupted", "needsResync"].contains(engine.presentationState(for: $0)) }
         let previewOnly = enabled.contains { $0.previewOnly }
+        let pendingOps = enabled.filter(\.previewOnly).reduce(0) { $0 + (engine.previewRun(for: $1.id)?.plan?.totalOps ?? 0) }
         let previewChanges = enabled.contains { (engine.previewRun(for: $0.id)?.plan?.totalOps ?? 0) > 0 }
         let verified = !enabled.isEmpty && !previewChanges && enabled.allSatisfy { engine.presentationState(for: $0) == "verified" }
+        let needsConfirmation = coolingUntil == nil && !failed && pendingOps > 0
         let title: String = engine.archiveInProgress || engine.waitingForOperationLock ? syncText("archiveWaiting")
             : enabled.contains(where: \.archiveReviewRequired) ? syncText("archiveReview")
             : engine.busy ? syncText(engine.isDryRun ? "status.simulating" : "status.running")
             : engine.isPaused ? syncText("status.paused")
+            : coolingUntil != nil ? syncText("status.cooling")
             : failed ? syncText("status.action")
+            : needsConfirmation ? String(format: syncText("status.confirmPending"), pendingOps)
             : previewOnly ? syncText("status.previewOnly")
             : verified ? syncText("status.checked")
             : previewChanges || enabled.contains(where: { $0.lastOutcome == "pending" }) ? syncText("status.pending") : syncText("status.never")
-        let symbol = engine.busy ? "arrow.triangle.2.circlepath" : failed ? "exclamationmark.circle.fill"
+        let symbol = engine.busy ? "arrow.triangle.2.circlepath"
+            : coolingUntil != nil ? "hourglass"
+            : failed ? "exclamationmark.circle.fill"
+            : needsConfirmation ? "hand.point.up.left.fill"
             : verified ? "checkmark.seal.fill" : "clock.arrow.circlepath"
-        let color: Color = failed ? .orange : verified ? .green : .accentColor
+        let color: Color = failed || coolingUntil != nil ? .orange : verified ? .green : .accentColor
         let lastVerified = enabled.compactMap(\.lastRun).min()
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
@@ -812,6 +824,15 @@ struct SyncSectionView: View {
             if let paused = engine.pausedUntil {
                 Text(String(format: syncText("pausedUntilLabel"), paused.formatted(date: .omitted, time: .shortened)))
                     .font(.caption.weight(.medium)).foregroundStyle(.orange)
+            } else if !engine.busy, let until = coolingUntil {
+                // One truth: while Google throttles, the useful time is the automatic resume,
+                // not the regular check schedule. No action is expected from the user.
+                TimelineView(.periodic(from: .now, by: 10)) { _ in
+                    Text(String(format: syncText("status.autoResume"),
+                                until.formatted(date: .omitted, time: .shortened),
+                                until.formatted(.relative(presentation: .named))))
+                        .font(.caption.weight(.medium)).foregroundStyle(.orange)
+                }
             } else if !engine.busy, engine.automaticEnabled, let next = engine.nextAutomaticCheck {
                 // Never advertise the next check while one is still running: the live run
                 // summary above is the only schedule line to read then.
@@ -844,6 +865,9 @@ struct SyncSectionView: View {
     private var hint: String {
         let enabled = engine.pairs.filter(\.enabled)
         if engine.storageError != nil { return engine.storageError ?? "" }
+        if enabled.contains(where: { engine.cooldownUntil(for: $0) != nil }) {
+            return syncText("failure.quota.help") + " " + syncText("status.coolingNote")
+        }
         if enabled.contains(where: \.previewOnly) { return syncText("status.previewOnlyNote") }
         if enabled.allSatisfy({ engine.presentationState(for: $0) == "verified" }) { return syncText("status.checkedNote") }
         return syncText("status.previewChanges")
@@ -979,8 +1003,11 @@ struct SyncSectionView: View {
         let presentation = engine.presentationState(for: pair)
         let state = presentation == "verified" && (engine.previewRun(for: pair.id)?.plan?.totalOps ?? 0) > 0 ? "pending" : presentation
         let running = engine.runningPairID == pair.id
-        let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync", "archiveReview"].contains(state)
         let plan = engine.operationPlan(for: pair.id)
+        // A verified pair with nothing to do does not need a second throttling warning:
+        // the global status already names the automatic resume time.
+        let quietCooldown = state == "rateLimited" && pair.lastOutcome == "verified" && (plan?.totalOps ?? 0) == 0
+        let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync", "archiveReview"].contains(state) && !quietCooldown
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 10) {
                     Text(pair.name.isEmpty ? URL(fileURLWithPath: pair.localPath).lastPathComponent : pair.name)
@@ -1019,23 +1046,29 @@ struct SyncSectionView: View {
     }
 
     /// Attention states get one explicit tinted strip instead of scattered caption lines.
+    /// A simple cooldown stays a plain caption: it is waiting, not a failure to fix.
     @ViewBuilder private func warningStrip(_ pair: SyncPair, state: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            if state == "rateLimited" {
-                Label(syncText("failure.quota.title"), systemImage: "hourglass").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
-            } else if state == "archiveReview" {
-                Label(syncText("archiveReview"), systemImage: "archivebox").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
-            } else if state == "needsResync" {
-                Label(syncText("needsResync"), systemImage: "arrow.triangle.2.circlepath").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
-            } else if let message = pair.lastMessage {
-                Label(SyncDiagnostic.clean(message), systemImage: "exclamationmark.triangle.fill")
-                    .font(.callout).foregroundStyle(Color.orange).lineLimit(3)
-            } else {
-                Label(syncText(state), systemImage: "exclamationmark.circle").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
+        if state == "rateLimited" {
+            if let until = engine.cooldownUntil(for: pair) {
+                Label("\(syncText("retryAt")) \(until.formatted(date: .omitted, time: .shortened))", systemImage: "hourglass")
+                    .font(.caption.weight(.medium)).foregroundStyle(Color.orange)
             }
-            if let until = engine.cooldownUntil(for: pair) { retryTime(until) }
-        }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 9))
+        } else {
+            VStack(alignment: .leading, spacing: 5) {
+                if state == "archiveReview" {
+                    Label(syncText("archiveReview"), systemImage: "archivebox").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
+                } else if state == "needsResync" {
+                    Label(syncText("needsResync"), systemImage: "arrow.triangle.2.circlepath").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
+                } else if let message = pair.lastMessage {
+                    Label(SyncDiagnostic.clean(message), systemImage: "exclamationmark.triangle.fill")
+                        .font(.callout).foregroundStyle(Color.orange).lineLimit(3)
+                } else {
+                    Label(syncText(state), systemImage: "exclamationmark.circle").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
+                }
+                if let until = engine.cooldownUntil(for: pair) { retryTime(until) }
+            }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 9))
+        }
     }
 
     /// Calm states keep a single secondary line: last run, queue position, next attempt.

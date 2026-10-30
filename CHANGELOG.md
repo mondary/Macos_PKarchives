@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.74` (listing Drive récursif, cadence 15 min et analyse visible)
+Statut : `2026.10.75` (statut unique : attente Google, confirmation ou contrôle en cours)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,12 @@ Statut : `2026.10.74` (listing Drive récursif, cadence 15 min et analyse visibl
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.75] - 2026-10-30
+#### Changed
+- Un seul état lisible : quand Google limite temporairement l’accès, le bloc titre « Attente de Google Drive » et affiche uniquement la reprise automatique (« à 9:12 · dans 8 minutes ») ; le prochain contrôle ordinaire disparaît pour ne plus contredire l’échéance.
+- Une limitation Google n’est plus présentée comme « Action nécessaire » ni répétée sous chaque paire : une paire vérifiée sans opération reste calme, et une paire concernée n’affiche qu’une ligne « Prochaine tentative : … ».
+- Une paire en simulation avec des fichiers en attente affiche le nombre exact prêt : « 152 fichiers prêts · Synchroniser maintenant », au lieu d’un « Action nécessaire » générique.
 
 ### [2026.10.74] - 2026-10-30
 #### Changed
