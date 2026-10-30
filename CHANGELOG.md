@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.78` (README aligné sur le changelog)
+Statut : `2026.10.79` (une carte compacte par paire, trace repliable)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,11 @@ Statut : `2026.10.78` (README aligné sur le changelog)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.79] - 2026-10-30
+#### Changed
+- Une paire = une seule carte lisible, façon archivage : nom + pastille d'état en direct (En cours / Prêts / À jour / Simulation / Attente Google / À réconcilier), emplacements Mac ⇄ Drive sur une ligne, trois compteurs cliquables (envois, rapatriements, suppressions), une seule ligne de statut contextuelle et une trace repliable des opérations prévues (fichier + motif, jusqu'à 8 lignes puis lien vers le tiroir).
+- Les cinq blocs empilés disparaissent : les panneaux Depuis / Vers, la date de comparaison isolée, l'avertissement suppressions permanent, la rangée de pictogrammes de types et le bandeau orange pleine largeur. Finder, Drive, montage, actualisation et réglages passent dans le menu ⋯ et le clic droit ; le bouton d'action n'apparaît que quand il y a quelque chose à synchroniser.
 
 ### [2026.10.78] - 2026-10-30
 #### Changed

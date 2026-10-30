@@ -57,6 +57,11 @@ private let syncStrings: [String: [String]] = [
     "previewShort": ["à simuler", "preview needed", "por simular", "Vorschau nötig"],
     "sendShort": ["à envoyer", "to send", "por enviar", "zu senden"],
     "downloadShort": ["à rapatrier", "to bring back", "por descargar", "herunterzuladen"],
+    "syncShort": ["Synchroniser", "Sync", "Sincronizar", "Sync"],
+    "card.running": ["En cours", "Running", "En curso", "Läuft"],
+    "card.pending": ["Prêts à synchroniser", "Ready to sync", "Listos para sincronizar", "Bereit zum Abgleich"],
+    "card.trace": ["Trace · %d opérations", "Trace · %d operations", "Traza · %d operaciones", "Trace · %d Vorgänge"],
+    "card.moreOps": ["Voir les %d autres", "See %d more", "Ver %d más", "%d weitere ansehen"],
     "deleteShort": ["à supprimer", "to delete", "por eliminar", "zu löschen"],
     "previewCounters": ["Simulez pour afficher les opérations prévues", "Preview to see planned operations", "Simula para ver las operaciones previstas", "Vorschau starten, um geplante Vorgänge zu sehen"],
     "conflictsShort": ["conflits", "conflicts", "conflictos", "Konflikte"],
@@ -260,7 +265,7 @@ func syncText(_ key: String) -> String {
 
 func syncFileCount(_ count: Int) -> String { "\(count) \(syncText(count == 1 ? "file" : "files"))" }
 
-enum SyncOperationKind: String {
+enum SyncOperationKind: String, CaseIterable {
     case push, pull, deleteLocal, deleteRemote
 
     var title: String {
@@ -643,6 +648,8 @@ struct SyncSectionView: View {
     @State private var removing: SyncPair?
     @State private var tab = "pairs"
     @State private var selectedOperation: SelectedSyncOperation?
+    /// Which pairs have their collapsed operation trace expanded.
+    @State private var traceExpanded: Set<UUID> = []
     @State private var pairError: String?
     private let onMountDrive: () -> Void
     private let showSampleOperation: Bool
@@ -999,110 +1006,238 @@ struct SyncSectionView: View {
         }
         .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .spring(duration: 0.3), value: orderedPairs.map(\.id))
     }
+    /// One pair = one card, one background, one action. The archive screen's clarity
+    /// applied to sync: a live state pill, one locations line, one counters row,
+    /// one contextual status line, and a collapsed per-file trace.
     private func pairCard(_ pair: SyncPair) -> some View {
         let presentation = engine.presentationState(for: pair)
-        let state = presentation == "verified" && (engine.previewRun(for: pair.id)?.plan?.totalOps ?? 0) > 0 ? "pending" : presentation
-        let running = engine.runningPairID == pair.id
         let plan = engine.operationPlan(for: pair.id)
+        let state = presentation == "verified" && (plan?.totalOps ?? 0) > 0 ? "pending" : presentation
+        let running = engine.runningPairID == pair.id
         // A verified pair with nothing to do does not need a second throttling warning:
         // the global status already names the automatic resume time.
         let quietCooldown = state == "rateLimited" && pair.lastOutcome == "verified" && (plan?.totalOps ?? 0) == 0
         let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync", "archiveReview"].contains(state) && !quietCooldown
-        return VStack(alignment: .leading, spacing: 12) {
+        let uploads = (plan?.pushNew.count ?? 0) + (plan?.pushModified.count ?? 0)
+        let downloads = (plan?.pullNew.count ?? 0) + (plan?.pullModified.count ?? 0)
+        let deletions = (plan?.deleteLocal.count ?? 0) + (plan?.deleteRemote.count ?? 0)
+        let deletionKind: SyncOperationKind? = deletions == 0 ? nil : ((plan?.deleteLocal.count ?? 0) > 0 ? .deleteLocal : .deleteRemote)
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 10) {
-                    Text(pair.name.isEmpty ? URL(fileURLWithPath: pair.localPath).lastPathComponent : pair.name)
-                        .font(.headline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                Text(pair.name.isEmpty ? URL(fileURLWithPath: pair.localPath).lastPathComponent : pair.name)
+                    .font(.headline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                statePill(pair, state: state, running: running)
                 Spacer(minLength: 8)
-                if !running { actionsRow(pair) }
-            }
-            SyncPairLocations(pair: pair, plan: plan, active: running, onMountDrive: onMountDrive,
-                              onOperation: {
-                                  selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: $0)
-                                  if plan == nil { refreshFiles(pair) }
-                              })
-            if let preview = engine.previewRun(for: pair.id) {
-                Text("\(syncText("previewOf")) \((preview.finished ?? preview.started).formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            if let plan {
-                deletionWarning(plan)
-                typeRow(plan)
-            }
-            if !running {
-                if attention { warningStrip(pair, state: state) }
-                else if engine.pairs.count > 1 { metaLine(pair) }
-            }
-        }.padding(.vertical, 8)
-            .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.22), value: running)
-            .contextMenu { pairContextMenu(pair) }
-    }
-
-    private func previewBadge(_ pair: SyncPair) -> some View {
-        Label(syncText("previewOnly"), systemImage: "eye")
-            .font(.caption2.weight(.medium)).foregroundStyle(.secondary)
-            .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(Color.secondary.opacity(0.12), in: Capsule())
-            .help(syncText("previewOnlyNote"))
-    }
-
-    /// Attention states get one explicit tinted strip instead of scattered caption lines.
-    /// A simple cooldown stays a plain caption: it is waiting, not a failure to fix.
-    @ViewBuilder private func warningStrip(_ pair: SyncPair, state: String) -> some View {
-        if state == "rateLimited" {
-            if let until = engine.cooldownUntil(for: pair) {
-                Label("\(syncText("retryAt")) \(until.formatted(date: .omitted, time: .shortened))", systemImage: "hourglass")
-                    .font(.caption.weight(.medium)).foregroundStyle(Color.orange)
-            }
-        } else {
-            VStack(alignment: .leading, spacing: 5) {
-                if state == "archiveReview" {
-                    Label(syncText("archiveReview"), systemImage: "archivebox").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
-                } else if state == "needsResync" {
-                    Label(syncText("needsResync"), systemImage: "arrow.triangle.2.circlepath").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
-                } else if let message = pair.lastMessage {
-                    Label(SyncDiagnostic.clean(message), systemImage: "exclamationmark.triangle.fill")
-                        .font(.callout).foregroundStyle(Color.orange).lineLimit(3)
-                } else {
-                    Label(syncText(state), systemImage: "exclamationmark.circle").font(.callout.weight(.medium)).foregroundStyle(Color.orange)
+                if !running {
+                    if (plan?.totalOps ?? 0) > 0 || pair.archiveReviewRequired {
+                        Button(syncText("syncShort")) { startSync(pair) }
+                            .buttonStyle(.borderedProminent).controlSize(.small)
+                            .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
+                    }
+                    Menu { pairCardMenu(pair) } label: { Image(systemName: "ellipsis.circle") }
+                        .controlSize(.small)
+                        .accessibilityLabel(syncText("globalActions"))
+                        .disabled(isQAScreen)
                 }
-                if let until = engine.cooldownUntil(for: pair) { retryTime(until) }
-            }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 9))
+            }
+            locationsLine(pair)
+            HStack(spacing: 8) {
+                countCapsule(pair, plan: plan, kind: .push, count: uploads)
+                countCapsule(pair, plan: plan, kind: .pull, count: downloads)
+                countCapsule(pair, plan: plan, kind: deletionKind, count: deletions)
+                Spacer(minLength: 0)
+            }
+            statusLine(pair, state: state, attention: attention)
+            if let plan, plan.totalOps > 0 { traceDisclosure(pair, plan: plan) }
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+        .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.22), value: running)
+        .contextMenu { pairContextMenu(pair) }
     }
 
-    /// Calm states keep a single secondary line: last run, queue position, next attempt.
-    @ViewBuilder private func metaLine(_ pair: SyncPair) -> some View {
-        if pair.lastRun != nil || pair.nextRetryAt != nil || engine.queue.contains(where: { $0.pairID == pair.id }) {
-            HStack(spacing: 14) {
-                if let date = pair.lastRun {
-                    Label("\(syncText("lastRunLabel")) · \(date.formatted(date: .abbreviated, time: .shortened))", systemImage: "clock.arrow.circlepath")
-                }
-                if engine.queue.contains(where: { $0.pairID == pair.id }) {
-                    Label(syncText("queued"), systemImage: "clock")
-                }
-                if let date = pair.nextRetryAt {
-                    Label("\(syncText("retryAt")) \(date.formatted(date: .omitted, time: .shortened))", systemImage: "timer")
-                }
-            }.font(.caption).foregroundStyle(.secondary)
+    /// Compact live state next to the name: one icon, one word, one color.
+    private func statePill(_ pair: SyncPair, state: String, running: Bool) -> some View {
+        let key: String, symbol: String, tint: Color
+        if running { key = "card.running"; symbol = "arrow.triangle.2.circlepath"; tint = .accentColor }
+        else if state == "archiveReview" { key = "archiveReview"; symbol = "archivebox"; tint = .orange }
+        else if state == "rateLimited" { key = "status.cooling"; symbol = "hourglass"; tint = .orange }
+        else if state == "needsResync" { key = "needsResync"; symbol = "arrow.triangle.2.circlepath"; tint = .orange }
+        else if ["error", "unverified", "interrupted"].contains(state) { key = state; symbol = "exclamationmark.triangle"; tint = .orange }
+        else if state == "pending" { key = "card.pending"; symbol = "clock"; tint = .accentColor }
+        else if state == "verified" { key = pair.previewOnly ? "previewOnly" : "verified"; symbol = pair.previewOnly ? "eye" : "checkmark.seal"; tint = pair.previewOnly ? .secondary : .green }
+        else { key = pair.previewOnly ? "previewOnly" : "idle"; symbol = pair.previewOnly ? "eye" : "circle.dashed"; tint = .secondary }
+        let hint = state == "rateLimited" ? syncText("failure.quota.help")
+            : pair.previewOnly ? syncText("previewOnlyNote")
+            : state == "verified" ? syncText("status.checkedNote") : syncText("status.previewChanges")
+        return Label(syncText(key), systemImage: symbol)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(tint.opacity(0.12), in: Capsule())
+            .lineLimit(1)
+            .help(hint)
+    }
+
+    /// Both endpoints on one quiet line: ~/Desktop ⇄ gdrive:Desktop.
+    private func locationsLine(_ pair: SyncPair) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "folder").font(.caption)
+            Text(shortPath(pair.localPath)).font(.caption.monospaced())
+                .lineLimit(1).truncationMode(.middle).help(pair.localPath)
+            Text(pair.direction.arrow).font(.caption.weight(.bold))
+            Image(systemName: "externaldrive.badge.icloud").font(.caption)
+            Text(pair.drivePath.isEmpty ? pair.destinationDescription : "\(pair.remote):\(pair.drivePath)")
+                .font(.caption.monospaced())
+                .lineLimit(1).truncationMode(.middle)
+                .help(pair.drivePath.isEmpty ? pair.destinationDescription : "\(pair.remote):\(pair.drivePath)")
+            Spacer(minLength: 0)
+        }.foregroundStyle(.secondary)
+    }
+
+    /// One clickable counter capsule per direction; a click opens that file drawer.
+    /// Unknown counts stay visible as "—" and trigger a read-only refresh.
+    private func countCapsule(_ pair: SyncPair, plan: PreviewPlan?, kind: SyncOperationKind?, count: Int) -> some View {
+        let known = plan != nil
+        let title = syncText(kind == .push ? "sendShort" : kind == .pull ? "downloadShort" : "deleteShort")
+        let tint: Color = kind == nil || kind == .push || kind == .pull ? .accentColor : .red
+        let active = known && count > 0
+        return Button {
+            if let kind { selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: kind) }
+            if plan == nil { refreshFiles(pair) }
+        } label: {
+            Label("\(known ? "\(count)" : "—") \(title)", systemImage: kind?.symbol ?? "trash")
+                .font(.caption.weight(.semibold)).monospacedDigit()
+                .foregroundStyle(active ? tint : Color.secondary)
+                .padding(.horizontal, 9).padding(.vertical, 4)
+                .background((active ? tint : Color.primary).opacity(active ? 0.10 : 0.05), in: Capsule())
         }
+        .buttonStyle(.plain)
+        .disabled(isQAScreen || (known && count == 0))
+        .help(known ? syncText("plannedFiles") : syncText("unknownFiles"))
     }
 
-    private func actionsRow(_ pair: SyncPair) -> some View {
+    /// Exactly one status line per card, never a stack of caption blocks.
+    @ViewBuilder private func statusLine(_ pair: SyncPair, state: String, attention: Bool) -> some View {
         HStack(spacing: 8) {
-            Button { refreshFiles(pair) } label: {
-                Label(syncText("refreshFiles"), systemImage: "arrow.clockwise")
-            }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
-            .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
-            Button(syncText("syncNow")) {
-                if pair.archiveReviewRequired { archiveCleanup = pair }
-                else if pair.previewOnly || pair.needsResync && pair.direction.usesBisync { merging = pair }
-                else { engine.syncPair(pair.id) }
+            if attention {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.orange)
+                if state == "rateLimited", let until = engine.cooldownUntil(for: pair) {
+                    Text("\(syncText("retryAfter")) \(until.formatted(date: .omitted, time: .shortened))")
+                        .font(.caption.weight(.semibold)).foregroundStyle(Color.orange)
+                } else {
+                    Text(attentionText(pair, state: state))
+                        .font(.caption.weight(.semibold)).foregroundStyle(Color.orange).lineLimit(2)
+                }
+            } else if let preview = engine.previewRun(for: pair.id) {
+                Image(systemName: "eye")
+                Text("\(syncText("previewOf")) \((preview.finished ?? preview.started).formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption)
+            } else if let date = pair.lastRun {
+                Image(systemName: "clock.arrow.circlepath")
+                Text("\(syncText("lastRunLabel")) · \(date.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption)
+            } else {
+                Image(systemName: "circle.dashed")
+                Text(syncText("previewCounters")).font(.caption)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(isQAScreen || !pair.enabled || engine.cooldownUntil(for: pair) != nil)
-        }.controlSize(.regular)
-        .disabled(isQAScreen || engine.busy || engine.archiveInProgress || engine.waitingForOperationLock || engine.storageError != nil)
+            Spacer(minLength: 6)
+            if let date = pair.nextRetryAt {
+                Label("\(syncText("retryAfter")) \(date.formatted(date: .omitted, time: .shortened))", systemImage: "timer")
+                    .font(.caption2)
+            }
+            if engine.queue.contains(where: { $0.pairID == pair.id }) {
+                Label(syncText("queued"), systemImage: "clock").font(.caption2)
+            }
+        }.foregroundStyle(.secondary)
+    }
+
+    private func attentionText(_ pair: SyncPair, state: String) -> String {
+        if state == "archiveReview" { return syncText("archiveReview") }
+        if state == "needsResync" { return syncText("needsResync") }
+        if let message = pair.lastMessage { return SyncDiagnostic.clean(message) }
+        return syncText(state)
+    }
+
+    /// Collapsed per-file trace, one line per planned operation with its reason —
+    /// the archive activity feed style. Files stay clickable toward their drawer.
+    private func traceDisclosure(_ pair: SyncPair, plan: PreviewPlan) -> some View {
+        let entries: [(path: String, reason: String, kind: SyncOperationKind)] =
+            SyncOperationKind.allCases.flatMap { kind in kind.files(in: plan).map { ($0.path, $0.reason, kind) } }
+        let shown = entries.prefix(8)
+        let overflowKind = entries.first?.kind ?? .push
+        return DisclosureGroup(isExpanded: traceBinding(pair.id)) {
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(Array(shown.enumerated()), id: \.offset) { _, entry in
+                    HStack(spacing: 8) {
+                        Image(systemName: Self.fileTypeSymbol(entry.path).symbol)
+                            .foregroundStyle(Self.fileTypeSymbol(entry.path).tint)
+                        Text((entry.path as NSString).lastPathComponent)
+                            .font(.caption.weight(.medium)).lineLimit(1).truncationMode(.middle)
+                            .help(entry.path)
+                        Spacer(minLength: 6)
+                        Label(entry.reason, systemImage: entry.kind.symbol)
+                            .font(.caption2)
+                            .foregroundStyle(entry.kind == .deleteLocal || entry.kind == .deleteRemote ? Color.red : Color.secondary)
+                    }
+                }
+                if entries.count > shown.count {
+                    Button {
+                        selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: overflowKind)
+                    } label: {
+                        Label(String(format: syncText("card.moreOps"), entries.count - shown.count), systemImage: "chevron.right")
+                            .font(.caption.weight(.medium))
+                    }.buttonStyle(.plain)
+                }
+                if !plan.conflicts.isEmpty {
+                    Label("\(plan.conflicts.count) \(syncText("conflictsShort"))", systemImage: "bolt.fill")
+                        .font(.caption.weight(.semibold)).foregroundStyle(Color.orange)
+                        .help(plan.conflicts.prefix(20).joined(separator: "\n"))
+                }
+            }
+            .padding(.top, 7)
+        } label: {
+            Label(String(format: syncText("card.trace"), plan.totalOps), systemImage: "list.bullet.rectangle")
+                .font(.caption.weight(.semibold))
+        }
+        .accentColor(.accentColor)
+    }
+
+    private func traceBinding(_ id: UUID) -> Binding<Bool> {
+        Binding(get: { traceExpanded.contains(id) },
+                set: { if $0 { traceExpanded.insert(id) } else { traceExpanded.remove(id) } })
+    }
+
+    /// Secondary actions live here and in the context menu, not as permanent buttons.
+    @ViewBuilder private func pairCardMenu(_ pair: SyncPair) -> some View {
+        Button { refreshFiles(pair) } label: { Label(syncText("refreshFiles"), systemImage: "arrow.clockwise") }
+            .disabled(isQAScreen || engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
+        Button { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: pair.localPath) } label: {
+            Label(syncText("openFinderCard"), systemImage: "folder")
+        }.disabled(isQAScreen)
+        Button {
+            let url = pair.driveFolderID.flatMap { URL(string: "https://drive.google.com/drive/folders/\($0)") }
+                ?? URL(string: "https://drive.google.com/drive/my-drive")!
+            NSWorkspace.shared.open(url)
+        } label: { Label(syncText("openDriveCard"), systemImage: "externaldrive.badge.icloud") }
+            .disabled(isQAScreen)
+        Button { onMountDrive() } label: { Label(syncText("mountDriveCard"), systemImage: "arrow.down") }
+            .disabled(isQAScreen)
+        Divider()
+        Button { startSync(pair) } label: { Label(syncText("syncNow"), systemImage: "arrow.triangle.2.circlepath") }
+            .disabled(isQAScreen || engine.busy || !pair.enabled || engine.storageError != nil || engine.cooldownUntil(for: pair) != nil)
+        Button { editing = pair } label: { Label(syncText("edit"), systemImage: "pencil") }
+            .disabled(isQAScreen || engine.busy || engine.storageError != nil)
+        Button(role: .destructive) { removing = pair } label: { Label(syncText("remove"), systemImage: "trash") }
+            .disabled(isQAScreen || engine.busy || engine.storageError != nil)
+    }
+
+    private func startSync(_ pair: SyncPair) {
+        if pair.archiveReviewRequired { archiveCleanup = pair }
+        else if pair.previewOnly || pair.needsResync && pair.direction.usesBisync { merging = pair }
+        else { engine.syncPair(pair.id) }
     }
 
     private func refreshFiles(_ pair: SyncPair) {
@@ -1133,23 +1268,6 @@ struct SyncSectionView: View {
         })
     }
 
-    struct TypeCount: Identifiable {
-        let symbol: String, tint: Color, count: Int
-        var id: String { symbol }
-    }
-
-    /// Picto per file type, derived from the extensions of the planned operations.
-    static func typeComposition(_ plan: PreviewPlan) -> [TypeCount] {
-        let all = plan.pushNew + plan.pushModified + plan.pullNew + plan.pullModified + plan.deleteRemote + plan.deleteLocal
-        var counts: [String: Int] = [:]
-        for name in all { counts[fileTypeSymbol(name).symbol, default: 0] += 1 }
-        return counts.map { key, count in
-            let probe = all.first { fileTypeSymbol($0).symbol == key } ?? ""
-            let meta = fileTypeSymbol(probe)
-            return TypeCount(symbol: meta.symbol, tint: meta.tint, count: count)
-        }.sorted { $0.count == $1.count ? $0.symbol < $1.symbol : $0.count > $1.count }
-    }
-
     /// Same per-type pictos as the archive view: image, video, audio, pdf, archive, code, text.
     static func fileTypeSymbol(_ name: String) -> (symbol: String, tint: Color) {
         switch (name as NSString).pathExtension.lowercased() {
@@ -1161,44 +1279,6 @@ struct SyncSectionView: View {
         case "swift", "go", "js", "ts", "html", "css", "py", "sh", "json", "yaml", "yml": return ("chevron.left.forwardslash.chevron.right", .teal)
         case "txt", "md", "csv", "log", "rtf", "doc", "docx", "pages", "xls", "xlsx", "ppt", "pptx", "key": return ("doc.plaintext", .secondary)
         default: return ("doc", .secondary)
-        }
-    }
-
-    /// File-type pictos use soft capsules so they read as a deliberate summary, not loose glyphs.
-    @ViewBuilder private func typeRow(_ plan: PreviewPlan) -> some View {
-        let types = Self.typeComposition(plan)
-        if !types.isEmpty || !plan.conflicts.isEmpty {
-            HStack(spacing: 7) {
-                ForEach(types.prefix(5)) { type in
-                    HStack(spacing: 4) {
-                        Image(systemName: type.symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(type.tint)
-                        Text("\(type.count)").font(.caption2.weight(.semibold)).monospacedDigit()
-                    }.padding(.horizontal, 8).padding(.vertical, 5)
-                        .background(Color.primary.opacity(0.04), in: Capsule())
-                }
-                if types.count > 5 {
-                    Text("+\(types.count - 5)").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
-                }
-                if !plan.conflicts.isEmpty {
-                    Label("\(plan.conflicts.count) \(syncText("conflictsShort"))", systemImage: "bolt.fill")
-                        .font(.caption2.weight(.semibold)).foregroundStyle(.orange)
-                        .padding(.horizontal, 8).padding(.vertical, 5)
-                        .background(Color.orange.opacity(0.09), in: Capsule())
-                }
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
-    @ViewBuilder private func deletionWarning(_ plan: PreviewPlan) -> some View {
-        let deletions = plan.deleteRemote.count + plan.deleteLocal.count
-        if deletions > 0 {
-            Label(syncText("deleteVerdictNote"), systemImage: "exclamationmark.triangle.fill")
-                .font(.caption).foregroundStyle(Color.orange).lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 11).padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
         }
     }
     /// Real file/byte counts per side on one line, gap highlighted, honest ETA.
