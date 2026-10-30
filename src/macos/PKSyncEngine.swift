@@ -725,10 +725,14 @@ final class SyncEngine: ObservableObject {
     }
 
     private func enqueueAutomaticComparison(for pair: SyncPair) {
-        guard automatic, pair.enabled, !(pair.direction.usesBisync && pair.needsResync),
+        guard automatic, pair.enabled,
               operationPlan(for: pair.id) == nil, cooldownUntil(for: pair) == nil,
               !["error", "unverified", "rateLimited", "interrupted"].contains(pair.lastOutcome) else { return }
-        enqueue(SyncJob(pairID: pair.id, dryRun: true, resync: false))
+        // Saving a new or reconfigured pair explicitly requests a comparison,
+        // including its first bisync merge. Keep that listing isolated/read-only;
+        // only a separately confirmed real run may initialize the live baseline.
+        enqueue(SyncJob(pairID: pair.id, dryRun: true,
+                        resync: pair.direction.usesBisync && pair.needsResync))
         startNext()
     }
 

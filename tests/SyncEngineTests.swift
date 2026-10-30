@@ -575,6 +575,29 @@ struct TestFailure: Error { let message: String }
                    "First-merge comparison transferred a file")
         unmergedEngine.shutdown()
 
+        // Saving a new two-way pair starts its first read-only comparison immediately,
+        // even if the Synchronization view's once-per-session scan already ran.
+        let createdBase = startupBase.appendingPathComponent("created-pair")
+        let createdDisk = SyncDisk(base: createdBase.appendingPathComponent("data"),
+                                   logs: createdBase.appendingPathComponent("logs"))
+        let createdLocal = createdBase.appendingPathComponent("local")
+        let createdRemote = root.appendingPathComponent("remote/created-pair")
+        try write("first merge stays read-only", createdLocal.appendingPathComponent("to-send.txt"))
+        try fm.createDirectory(at: createdRemote, withIntermediateDirectories: true)
+        let createdEngine = SyncEngine(disk: createdDisk, automatic: true)
+        var createdPair = startupPair
+        createdPair.id = UUID(); createdPair.name = "created pair"
+        createdPair.localPath = createdLocal.path; createdPair.drivePath = "created-pair"
+        createdPair.direction = .bidirectional; createdPair.previewOnly = false
+        try expect(createdEngine.savePair(createdPair), "Could not save new bidirectional pair")
+        try wait(createdEngine, seconds: 60)
+        try expect(createdEngine.runs.first?.dryRun == true && createdEngine.runs.first?.outcome == "preview",
+                   "Saving a pair did not start a read-only first-merge comparison")
+        try expect(createdEngine.previewRun(for: createdPair.id)?.plan?.pushNew.contains("to-send.txt") == true,
+                   "New pair comparison did not expose the planned upload")
+        try expect(files(createdRemote).isEmpty, "Creating a pair transferred a file before confirmation")
+        createdEngine.shutdown()
+
         // If the copy phase fails, do not start any cleanup.
         let orderedFailureBinary = root.appendingPathComponent("ordered-copy-failure")
         try write("#!/bin/bash\nif [[ $1 == copy ]]; then echo '{\"level\":\"error\",\"msg\":\"ordered copy fixture failure\"}'; exit 1; fi\nexec '\(rcloneBinary())' \"$@\"\n", orderedFailureBinary)

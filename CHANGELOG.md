@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.76` (dernier contrôle réellement le plus récent)
+Statut : `2026.10.77` (comparaison automatique après création d’une paire)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,10 @@ Statut : `2026.10.76` (dernier contrôle réellement le plus récent)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.77] - 2026-10-30
+#### Fixed
+- L’enregistrement d’une paire lance désormais immédiatement un scan en lecture seule, même pour une première fusion bidirectionnelle et même si l’écran Synchronisation a déjà fait son contrôle de session. Aucun fichier n’est transféré ou supprimé avant confirmation de la première synchronisation réelle.
 
 ### [2026.10.76] - 2026-10-30
 #### Fixed
