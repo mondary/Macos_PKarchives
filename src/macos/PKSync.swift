@@ -385,19 +385,21 @@ struct SyncPairLocations: View {
                 .frame(maxWidth: .infinity, alignment: trailing ? .trailing : .leading)
                 .padding(.bottom, 8)
             ViewThatFits(in: .horizontal) {
+                // Counters read FIRST, before the folder title: the number is the
+                // actionable information, the name is context. Mirrored per panel.
                 HStack(spacing: 10) {
                     if trailing { Spacer(minLength: 0) }
-                    endpointTitle(title, icon: icon)
                     operationCounts(transferIcon: transferIcon, transferCount: transferCount,
                                     transferLabel: transferLabel, tint: tint, deletionCount: deletionCount, showOps: showOps,
                                     transferKind: transferKind, deletionKind: deletionKind)
+                    endpointTitle(title, icon: icon)
                     if !trailing { Spacer(minLength: 0) }
                 }
                 VStack(alignment: .leading, spacing: 8) {
-                    endpointTitle(title, icon: icon)
                     operationCounts(transferIcon: transferIcon, transferCount: transferCount,
                                     transferLabel: transferLabel, tint: tint, deletionCount: deletionCount, showOps: showOps,
                                     transferKind: transferKind, deletionKind: deletionKind)
+                    endpointTitle(title, icon: icon)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
             Spacer(minLength: 10)
@@ -1018,10 +1020,6 @@ struct SyncSectionView: View {
         // the global status already names the automatic resume time.
         let quietCooldown = state == "rateLimited" && pair.lastOutcome == "verified" && (plan?.totalOps ?? 0) == 0
         let attention = ["error", "unverified", "interrupted", "rateLimited", "needsResync", "archiveReview"].contains(state) && !quietCooldown
-        let uploads = (plan?.pushNew.count ?? 0) + (plan?.pushModified.count ?? 0)
-        let downloads = (plan?.pullNew.count ?? 0) + (plan?.pullModified.count ?? 0)
-        let deletions = (plan?.deleteLocal.count ?? 0) + (plan?.deleteRemote.count ?? 0)
-        let deletionKind: SyncOperationKind? = deletions == 0 ? nil : ((plan?.deleteLocal.count ?? 0) > 0 ? .deleteLocal : .deleteRemote)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 10) {
                 Text(pair.name.isEmpty ? URL(fileURLWithPath: pair.localPath).lastPathComponent : pair.name)
@@ -1040,13 +1038,13 @@ struct SyncSectionView: View {
                         .disabled(isQAScreen)
                 }
             }
-            locationsLine(pair)
-            HStack(spacing: 8) {
-                countCapsule(pair, plan: plan, kind: .push, count: uploads)
-                countCapsule(pair, plan: plan, kind: .pull, count: downloads)
-                countCapsule(pair, plan: plan, kind: deletionKind, count: deletions)
-                Spacer(minLength: 0)
-            }
+            // The Depuis / Vers diptych stays the card's core: paths, per-side counters,
+            // Finder/Drive access. Everything else folds into one status line + trace.
+            SyncPairLocations(pair: pair, plan: plan, active: running, onMountDrive: onMountDrive,
+                              onOperation: {
+                                  selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: $0)
+                                  if plan == nil { refreshFiles(pair) }
+                              })
             statusLine(pair, state: state, attention: attention)
             if let plan, plan.totalOps > 0 { traceDisclosure(pair, plan: plan) }
         }
@@ -1079,44 +1077,6 @@ struct SyncSectionView: View {
             .background(tint.opacity(0.12), in: Capsule())
             .lineLimit(1)
             .help(hint)
-    }
-
-    /// Both endpoints on one quiet line: ~/Desktop ⇄ gdrive:Desktop.
-    private func locationsLine(_ pair: SyncPair) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "folder").font(.caption)
-            Text(shortPath(pair.localPath)).font(.caption.monospaced())
-                .lineLimit(1).truncationMode(.middle).help(pair.localPath)
-            Text(pair.direction.arrow).font(.caption.weight(.bold))
-            Image(systemName: "externaldrive.badge.icloud").font(.caption)
-            Text(pair.drivePath.isEmpty ? pair.destinationDescription : "\(pair.remote):\(pair.drivePath)")
-                .font(.caption.monospaced())
-                .lineLimit(1).truncationMode(.middle)
-                .help(pair.drivePath.isEmpty ? pair.destinationDescription : "\(pair.remote):\(pair.drivePath)")
-            Spacer(minLength: 0)
-        }.foregroundStyle(.secondary)
-    }
-
-    /// One clickable counter capsule per direction; a click opens that file drawer.
-    /// Unknown counts stay visible as "—" and trigger a read-only refresh.
-    private func countCapsule(_ pair: SyncPair, plan: PreviewPlan?, kind: SyncOperationKind?, count: Int) -> some View {
-        let known = plan != nil
-        let title = syncText(kind == .push ? "sendShort" : kind == .pull ? "downloadShort" : "deleteShort")
-        let tint: Color = kind == nil || kind == .push || kind == .pull ? .accentColor : .red
-        let active = known && count > 0
-        return Button {
-            if let kind { selectedOperation = SelectedSyncOperation(pairID: pair.id, kind: kind) }
-            if plan == nil { refreshFiles(pair) }
-        } label: {
-            Label("\(known ? "\(count)" : "—") \(title)", systemImage: kind?.symbol ?? "trash")
-                .font(.caption.weight(.semibold)).monospacedDigit()
-                .foregroundStyle(active ? tint : Color.secondary)
-                .padding(.horizontal, 9).padding(.vertical, 4)
-                .background((active ? tint : Color.primary).opacity(active ? 0.10 : 0.05), in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .disabled(isQAScreen || (known && count == 0))
-        .help(known ? syncText("plannedFiles") : syncText("unknownFiles"))
     }
 
     /// Exactly one status line per card, never a stack of caption blocks.

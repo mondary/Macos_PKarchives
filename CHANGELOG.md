@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.79` (une carte compacte par paire, trace repliable)
+Statut : `2026.10.80` (le diptyque Depuis / Vers reprend sa place au cœur de la carte)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,11 @@ Statut : `2026.10.79` (une carte compacte par paire, trace repliable)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.80] - 2026-10-30
+#### Fixed
+- Le **diptyque Depuis / Vers reprend sa place au cœur de la carte** : chemins, compteurs par côté et accès Finder / Drive / montage reviennent dans les deux panneaux, comme dans le design validé. La refonte ne conserve autour de lui que l'essentiel : pastille d'état à côté du nom, bouton « Synchroniser » uniquement quand il y a quelque chose à faire, une seule ligne de statut et la trace repliable des opérations.
+- Dans chaque panneau du diptyque, **les compteurs se lisent désormais avant le titre du dossier** : « 1 à envoyer » apparaît en première position à gauche, le nom du dossier vient après — le nombre est l'information, le nom est le contexte.
 
 ### [2026.10.79] - 2026-10-30
 #### Changed
