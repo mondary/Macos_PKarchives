@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.77` (comparaison automatique après création d’une paire)
+Statut : `2026.10.78` (README aligné sur le changelog)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -13,11 +13,15 @@ Statut : `2026.10.77` (comparaison automatique après création d’une paire)
 - [x] Externaliser le remote rclone, le chemin du Bureau, le nom du symlink
 - [x] Rendre le fichier /tmp prédictible (PID-based)
 - [x] Supprimer les chemins personnels hardcodés
-- [ ] README FR + EN synchronisé
-- [ ] Lien vers CHANGELOG dans README
+- [x] README FR + EN synchronisé
+- [x] Lien vers CHANGELOG dans README
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.78] - 2026-10-30
+#### Changed
+- Les README FR/EN affichent la version courante du projet (la référence était restée bloquée à 2026.10.73) ; les cases roadmap « README synchronisés » et « lien CHANGELOG » sont cochées, déjà effectives depuis plusieurs versions.
 
 ### [2026.10.77] - 2026-10-30
 #### Fixed
