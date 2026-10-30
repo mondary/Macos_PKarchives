@@ -791,7 +791,7 @@ struct SyncSectionView: View {
             : needsConfirmation ? "hand.point.up.left.fill"
             : verified ? "checkmark.seal.fill" : "clock.arrow.circlepath"
         let color: Color = failed || coolingUntil != nil ? .orange : verified ? .green : .accentColor
-        let lastVerified = enabled.compactMap(\.lastRun).min()
+        let lastVerified = enabled.compactMap(\.lastRun).max()
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Label(title, systemImage: symbol).font(.title3.weight(.semibold)).foregroundStyle(color)
@@ -855,7 +855,7 @@ struct SyncSectionView: View {
     /// One compact line: last verified check + next automatic check.
     private func infoLine(next: Date) -> String {
         var parts = [String]()
-        if let lastVerified = engine.pairs.filter(\.enabled).compactMap(\.lastRun).min() {
+        if let lastVerified = engine.pairs.filter(\.enabled).compactMap(\.lastRun).max() {
             parts.append("\(syncText("status.lastChecked")) \(lastVerified.formatted(date: .omitted, time: .shortened))")
         }
         parts.append("\(syncText("status.nextCheck")) \(next.formatted(.relative(presentation: .named))) (\(next.formatted(date: .omitted, time: .shortened)))")

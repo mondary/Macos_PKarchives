@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.75` (statut unique : attente Google, confirmation ou contrôle en cours)
+Statut : `2026.10.76` (dernier contrôle réellement le plus récent)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,10 @@ Statut : `2026.10.75` (statut unique : attente Google, confirmation ou contrôle
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.10.76] - 2026-10-30
+#### Fixed
+- « Dernier contrôle vérifié » affiche la vérification vérifiée la plus récente, plus la plus ancienne : après une synchronisation réussie, l’heure affichée correspond bien au dernier passage terminé.
 
 ### [2026.10.75] - 2026-10-30
 #### Changed
