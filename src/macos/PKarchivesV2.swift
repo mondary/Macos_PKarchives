@@ -1508,13 +1508,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
             hoverChanged: { [weak self] inside in
                 self?.overStatusPanel = inside
                 if inside { self?.hideTimer?.invalidate() } else { self?.schedulePanelHide() }
-            })
+            },
+            resize: { [weak self] size in self?.resizeStatusPanel(to: size) })
         let controller = NSHostingController(rootView: panel)
         controller.sizingOptions = [.preferredContentSize]
         statusPopover.contentViewController = controller
-        statusPopover.contentSize = NSSize(width: 400, height: max(400, min(controller.view.fittingSize.height, 640)))
+        statusPopover.contentSize = NSSize(width: 400, height: max(320, min(controller.view.fittingSize.height, 720)))
         statusPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         button.highlight(true)
+    }
+
+    /// An expanded pair grows its content; NSPopover keeps the size used at `show`
+    /// unless the delegate resizes it. Clamp to the screen so it never overflows.
+    private func resizeStatusPanel(to content: CGSize) {
+        guard statusPopover.isShown else { return }
+        let screenHeight = NSScreen.main?.visibleFrame.height ?? 900
+        let height = min(max(content.height, 240), screenHeight - 80)
+        guard abs(statusPopover.contentSize.height - height) > 1 else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.12
+            context.allowsImplicitAnimation = true
+            statusPopover.contentSize = NSSize(width: 400, height: height)
+        }
     }
 
     private func closeStatusPanel() {

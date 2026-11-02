@@ -451,25 +451,50 @@ struct SyncPairLocations: View {
     let pair: SyncPair
     var plan: PreviewPlan?
     var active = false
+    /// Narrow containers (the menu bar panel) stack the panels instead of placing
+    /// them side by side: two full panels never fit in a 400 pt popover.
+    var compact = false
     /// Clicking the ⇄ bridge compares both sides. Nil keeps it decorative.
     var onCompare: (() -> Void)? = nil
     var onOperation: (SyncOperationKind) -> Void = { _ in }
     var body: some View {
-        HStack(spacing: 10) {
-            localEndpoint(trailing: false).frame(maxWidth: .infinity)
-            if let onCompare {
-                Button(action: onCompare) { directionBridge(vertical: false) }
-                    .buttonStyle(.plain)
-                    .contentShape(Rectangle())
-                    .help(syncText("diff.hint"))
-                    .accessibilityLabel(syncText("diff.open"))
-                    .accessibilityIdentifier("syncCompareBridge")
-                    .frame(width: 64)
-            } else {
-                directionBridge(vertical: false).frame(width: 64)
-            }
-            remoteEndpoint(trailing: true).frame(maxWidth: .infinity)
-        }.frame(maxWidth: .infinity)
+        if compact {
+            VStack(alignment: .leading, spacing: 10) {
+                localEndpoint(trailing: false)
+                if let onCompare {
+                    HStack(spacing: 8) {
+                        Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
+                        Button(action: onCompare) {
+                            Label(syncText("diff.short"), systemImage: "arrow.left.arrow.right")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .buttonStyle(.plain).foregroundStyle(.secondary)
+                        .help(syncText("diff.hint"))
+                        .accessibilityLabel(syncText("diff.open"))
+                        Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
+                    }
+                } else {
+                    Divider()
+                }
+                remoteEndpoint(trailing: true)
+            }.frame(maxWidth: .infinity)
+        } else {
+            HStack(spacing: 10) {
+                localEndpoint(trailing: false).frame(maxWidth: .infinity)
+                if let onCompare {
+                    Button(action: onCompare) { directionBridge(vertical: false) }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+                        .help(syncText("diff.hint"))
+                        .accessibilityLabel(syncText("diff.open"))
+                        .accessibilityIdentifier("syncCompareBridge")
+                        .frame(width: 64)
+                } else {
+                    directionBridge(vertical: false).frame(width: 64)
+                }
+                remoteEndpoint(trailing: true).frame(maxWidth: .infinity)
+            }.frame(maxWidth: .infinity)
+        }
     }
 
     private func localEndpoint(trailing: Bool) -> some View {

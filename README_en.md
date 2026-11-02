@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Project version: 2026.10.81** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.10.82** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -88,7 +88,7 @@ The new mode is available in the sources and Dev build, **not yet in the Stable 
 
 ![Action-based progress with sample data: uploads complete, downloads running, deletions waiting](store/media/10-sync-actions-dev.png)
 
-**Menu bar**: left-click, right-click or a 550 ms hover opens the native panel, directly on Synchronization when pairs are configured. Expand each row for Mac ↔ Drive locations, actual state, preview, sync and the latest report. Active runs show progress, speed, remaining files, ETA and a stop action. **Sync all** respects each pair’s preview mode. Hover never starts a transfer; disable automatic opening under **…** or **Settings → General**.
+**Menu bar**: left-click, right-click or a 550 ms hover opens the native panel, directly on Synchronization when pairs are configured. Expand each row for actual state, **vertically stacked From / To panels** (side by side does not fit in 400 points) with “Compare” between them, preview, sync and the latest report; the panel **resizes in height** when a pair is expanded. Active runs show progress, speed, remaining files, ETA and a stop action. **Sync all** respects each pair’s preview mode. Hover never starts a transfer; disable automatic opening under **…** or **Settings → General**.
 
 **Settings → General**: launch at login (in the background, with macOS approval if needed) and menu bar display: **Transfer speed**, **Remaining files** or **Icon only**. Numbers come from the current run’s rclone stats, updated roughly every 5 s; queued pairs are excluded and totals may change during scanning. Scanning, preview and verification have distinct states; only the icon remains when idle. Archiving shows the remaining item count.
 

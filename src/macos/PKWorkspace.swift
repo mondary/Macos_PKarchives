@@ -236,20 +236,26 @@ struct WorkspacePopoverView: View {
     let about: @MainActor () -> Void
     let quit: @MainActor () -> Void
     let hoverChanged: @MainActor (Bool) -> Void
+    /// Reports the natural content size so the NSPopover can resize after expand/collapse.
+    let resize: @MainActor (CGSize) -> Void
     @State private var mode: WorkspaceMode
     @State private var expandedPairs: Set<UUID> = []
     @State private var confirmingPair: SyncPair?
+    @State private var pairsListHeight: CGFloat = 0
     @AppStorage("app-language") private var language = "fr"
     @AppStorage("menu-panel-on-hover") private var hoverEnabled = true
 
     init(engine: SyncEngine, navigation: WorkspaceNavigation,
          open: @escaping @MainActor (WorkspaceMode, Bool) -> Void, settings: @escaping @MainActor () -> Void,
          support: @escaping @MainActor () -> Void, updates: @escaping @MainActor () -> Void, about: @escaping @MainActor () -> Void,
-         quit: @escaping @MainActor () -> Void, hoverChanged: @escaping @MainActor (Bool) -> Void) {
+         quit: @escaping @MainActor () -> Void, hoverChanged: @escaping @MainActor (Bool) -> Void,
+         resize: @escaping @MainActor (CGSize) -> Void = { _ in },
+         expandFirstPair: Bool = false) {
         self.engine = engine; self.navigation = navigation
         self.open = open; self.settings = settings; self.support = support; self.updates = updates
-        self.about = about; self.quit = quit; self.hoverChanged = hoverChanged
+        self.about = about; self.quit = quit; self.hoverChanged = hoverChanged; self.resize = resize
         _mode = State(initialValue: engine.busy || !engine.pairs.isEmpty ? .sync : navigation.mode)
+        if expandFirstPair, let first = engine.pairs.first { _expandedPairs = State(initialValue: [first.id]) }
     }
 
     var body: some View {
@@ -309,6 +315,11 @@ struct WorkspacePopoverView: View {
         .frame(width: 400)
         .fixedSize(horizontal: false, vertical: true)
         .background(Color(nsColor: .windowBackgroundColor))
+        .background(GeometryReader { proxy in
+            Color.clear
+                .onAppear { resize(proxy.size) }
+                .onChange(of: proxy.size) { _, newValue in resize(newValue) }
+        })
         .onHover(perform: hoverChanged)
         .alert(syncText("realRun"), isPresented: Binding(get: { confirmingPair != nil }, set: { if !$0 { confirmingPair = nil } })) {
             Button(syncText("sync")) {
@@ -349,7 +360,14 @@ struct WorkspacePopoverView: View {
                                 if index < visiblePairs.count - 1 { Divider() }
                             }
                         }
-                    }.frame(height: min(CGFloat(visiblePairs.count) * 78 + CGFloat(expandedPairs.count) * 160, engine.busy ? 220 : 300))
+                        .background(GeometryReader { proxy in
+                            Color.clear.preference(key: PairsListHeightKey.self, value: proxy.size.height)
+                        })
+                    }
+                    // Measured, not guessed: an expanded pair stacks two full panels,
+                    // which the old "78 pt per pair" estimate clipped.
+                    .frame(height: min(max(pairsListHeight, 1), 520))
+                    .onPreferenceChange(PairsListHeightKey.self) { pairsListHeight = $0 }
                 }
             }
             HStack {
@@ -424,7 +442,8 @@ struct WorkspacePopoverView: View {
             if $0 { expandedPairs.insert(pair.id) } else { expandedPairs.remove(pair.id) }
         })) {
             VStack(alignment: .leading, spacing: 10) {
-                SyncPairLocations(pair: pair, plan: engine.operationPlan(for: pair.id))
+                SyncPairLocations(pair: pair, plan: engine.operationPlan(for: pair.id), compact: true,
+                                  onCompare: { open(.sync, false) })
                 if let message = pair.lastMessage, attention {
                     Text(SyncDiagnostic.clean(message)).font(.caption).foregroundStyle(.secondary).lineLimit(3)
                 }
@@ -485,6 +504,13 @@ struct WorkspacePopoverView: View {
                 .buttonStyle(.borderedProminent)
         }.padding(18)
     }
+}
+
+/// Natural height of the pairs list, so the popover can size itself to the content
+/// instead of a fixed guess that clipped expanded pairs.
+private struct PairsListHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 /// Passive tracking overlay: hit testing is always forwarded to the native status button.

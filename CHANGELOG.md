@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.81` (vue diff Mac ↔ Drive et allègement des couleurs)
+Statut : `2026.10.82` (panneau du menu bar redimensionné et paires empilées)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -19,11 +19,10 @@ Statut : `2026.10.81` (vue diff Mac ↔ Drive et allègement des couleurs)
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
 
-### [2026.10.81] - 2026-10-30
-#### Added
-- Vue **Comparaison** : clic sur le pont ⇄ ou menu « Comparer Mac et Drive » ouvre une feuille qui liste, pour une paire, les envois, rapatriements, suppressions et conflits prévus, avec le fichier, son motif et le côté concerné. Lecture seule : aucun transfert ni suppression depuis cette vue.
-#### Changed
-- Allègement des couleurs : les boutons « Ouvrir dans Finder / Ouvrir Drive / Monter le Drive » quittent les panneaux (menu ⋯) ; les icônes de la trace passent en neutre ; la pastille d'état garde la couleur uniquement pour l'attention (orange) et le succès (vert). La couleur ne sert plus que là où elle informe.
+### [2026.10.82] - 2026-11-02
+#### Fixed
+- Panneau de la barre des menus : une paire dépliée n'y affiche plus le diptyque horizontal prévu pour la grande fenêtre. Les panneaux **Depuis / Vers s'empilent verticalement**, avec « Comparer » entre eux, et tiennent dans les 400 points du panneau.
+- La popover du menu bar **se redimensionne** quand une paire est dépliée ou repliée : sa hauteur suit le contenu mesuré (plafonnée à l'écran) au lieu de rester figée sur la taille d'ouverture, qui coupait le bas des paires dépliées.
 
 ### [2026.10.81] - 2026-10-30
 #### Added

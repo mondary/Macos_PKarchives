@@ -194,7 +194,7 @@ struct SettingsSectionHeader: View {
             content = AnyView(SyncPairForm(original: SyncPair(), engine: engine))
             bounds = NSRect(x: 0, y: 0, width: 580, height: 640)
         } else if kind.hasPrefix("menu") {
-            content = AnyView(WorkspacePopoverView(engine: engine, navigation: navigation, open: { _, _ in }, settings: {}, support: {}, updates: {}, about: {}, quit: {}, hoverChanged: { _ in }))
+            content = AnyView(WorkspacePopoverView(engine: engine, navigation: navigation, open: { _, _ in }, settings: {}, support: {}, updates: {}, about: {}, quit: {}, hoverChanged: { _ in }, expandFirstPair: kind == "menuExpanded"))
             bounds = NSRect(x: 0, y: 0, width: 400, height: 620)
         } else {
             content = AnyView(VStack(spacing: 0) {
@@ -205,7 +205,7 @@ struct SettingsSectionHeader: View {
             bounds = NSRect(x: 0, y: 0, width: ["narrow", "drawer", "comparison"].contains(kind) ? 1000 : 1240, height: 820)
         }
         let view = NSHostingView(rootView: content.background(Color(nsColor: .windowBackgroundColor)).environment(\.colorScheme, dark ? .dark : .light))
-        if kind.hasPrefix("menu") { bounds.size.height = view.fittingSize.height }
+        if kind.hasPrefix("menu") { bounds.size.height = kind == "menuExpanded" ? 900 : view.fittingSize.height }
         let window = NSWindow(contentRect: NSRect(x: -12000, y: -12000, width: bounds.width, height: bounds.height), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = view
         view.frame = bounds

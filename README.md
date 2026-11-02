@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version du projet : 2026.10.81** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
+**Version du projet : 2026.10.82** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
@@ -88,7 +88,7 @@ Le nouveau mode est disponible dans les sources et la build Dev, **pas encore da
 
 ![Progression par action sur des données de démonstration : envois terminés, rapatriement en cours, suppressions en attente](store/media/10-sync-actions-dev.png)
 
-**Barre des menus** : clic gauche, clic droit ou survol de 550 ms ouvrent le panneau natif, directement sur Synchronisation si des paires sont configurées. Chaque ligne se déplie : emplacements Mac ↔ Drive, état réel, simulation, synchronisation et dernier rapport. L’exécution en cours affiche progression, débit, fichiers restants, temps restant et arrêt direct. **Synchroniser tout** respecte le mode simulation de chaque paire. Le survol ne lance aucun transfert ; son ouverture automatique se désactive dans **…** ou **Réglages → Général**.
+**Barre des menus** : clic gauche, clic droit ou survol de 550 ms ouvrent le panneau natif, directement sur Synchronisation si des paires sont configurées. Chaque ligne se déplie : état réel, **panneaux Depuis / Vers empilés verticalement** (les deux côte à côte ne tiennent pas dans 400 points) avec « Comparer » entre eux, simulation, synchronisation et dernier rapport ; le panneau **s'ajuste en hauteur** quand une paire est dépliée. L'exécution en cours affiche progression, débit, fichiers restants, temps restant et arrêt direct. **Synchroniser tout** respecte le mode simulation de chaque paire. Le survol ne lance aucun transfert ; son ouverture automatique se désactive dans **…** ou **Réglages → Général**.
 
 **Réglages → Général** : lancement à l’ouverture de session (en arrière-plan, avec approbation macOS si nécessaire) et affichage de barre des menus : **Débit**, **Fichiers restants** ou **Icône seule**. Les chiffres proviennent des statistiques rclone de l’exécution en cours, actualisées environ toutes les 5 s ; les paires encore en attente ne sont pas comptées et le total peut évoluer pendant l’analyse. Analyse, simulation et vérification ont leur propre état ; au repos, seule l’icône reste affichée. L’archivage affiche le nombre d’éléments restants.
 
