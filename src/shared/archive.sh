@@ -138,6 +138,15 @@ emit_event() { [[ -n "${EVENT_FILE}" ]] && printf '%s\n' "$*" >> "${EVENT_FILE}"
 
 shopt -s nullglob
 
+# Le tag Finder "Bureau" est lu dans l'xattr directement : mdls peut renvoyer
+# un index Spotlight périmé juste après une écriture programmatique.
+has_bureau_tag() {
+  local file="$1" hex
+  hex=$(xattr -px com.apple.metadata:_kMDItemUserTags "${file}" 2>/dev/null) || return 1
+  [[ -n "${hex}" ]] || return 1
+  printf '%s' "${hex}" | xxd -r -p | plutil -convert xml1 -o - - 2>/dev/null | grep -qi "Bureau"
+}
+
 # Collecte et tri : fichiers d'abord (du plus petit au plus gros), puis dossiers
 tmp_file=$(mktemp)
 tmp_dir=$(mktemp)
@@ -147,8 +156,7 @@ for file in "${desktop_path}"/*; do
   [[ "${bn}" == "${desktop_link_name}" ]] && continue
   [[ "${bn}" == ".DS_Store" ]] && continue
 
-  tags=$(mdls -name kMDItemUserTags -raw "${file}" 2>/dev/null || true)
-  [[ "${tags}" =~ "Bureau" ]] && continue
+  has_bureau_tag "${file}" && continue
 
   if [[ -d "${file}" ]]; then
     [[ "${MODE}" == "files" ]] && continue

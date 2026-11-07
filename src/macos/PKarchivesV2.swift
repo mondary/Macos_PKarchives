@@ -3,6 +3,7 @@
 // cartes animées qui s'envolent vers le Drive puis se dissolvent (suppression).
 import SwiftUI
 import AppKit
+import Darwin
 import Combine
 import WebKit
 import QuickLookThumbnailing
@@ -200,21 +201,122 @@ func fileThumb(_ url: URL) -> String? {
     return "data:image/png;base64," + data.base64EncodedString()
 }
 
+// Le tag Finder est la source de vérité. On le lit directement (xattr) au lieu
+// de mdls : Spotlight n'indexe pas immédiatement un tag écrit par l'app.
+func fileTagNames(_ url: URL) -> [String] {
+    (try? url.resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []
+}
+
 func hasBureauTag(_ url: URL) -> Bool {
-    let pipe = Pipe()
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/mdls")
-    process.arguments = ["-name", "kMDItemUserTags", "-raw", url.path]
-    process.standardOutput = pipe
-    process.standardError = FileHandle.nullDevice
-    do {
-        try process.run()
-        process.waitUntilExit()
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        return output.range(of: "Bureau", options: .caseInsensitive) != nil
-    } catch {
-        return false
+    fileTagNames(url).contains { $0.range(of: "Bureau", options: .caseInsensitive) != nil }
+}
+
+private let userTagsAttribute = "com.apple.metadata:_kMDItemUserTags"
+
+private func rawUserTags(_ url: URL) throws -> [String] {
+    let size = Darwin.getxattr(url.path, userTagsAttribute, nil, 0, 0, 0)
+    if size < 0 {
+        if errno == ENOATTR { return [] }
+        throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno),
+                      userInfo: [NSLocalizedDescriptionKey: String(cString: strerror(errno))])
     }
+    guard size > 0 else { return [] }
+    var data = Data(count: size)
+    let read = data.withUnsafeMutableBytes {
+        Darwin.getxattr(url.path, userTagsAttribute, $0.baseAddress, size, 0, 0)
+    }
+    guard read == size else {
+        throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno),
+                      userInfo: [NSLocalizedDescriptionKey: String(cString: strerror(errno))])
+    }
+    guard let list = try PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String] else {
+        throw NSError(domain: "PKarchives", code: 1,
+                      userInfo: [NSLocalizedDescriptionKey: "Tag Finder illisible"])
+    }
+    return list
+}
+
+private func writeUserTags(_ tags: [String], to url: URL) throws {
+    let data = try PropertyListSerialization.data(fromPropertyList: tags, format: .binary, options: 0)
+    let result = data.withUnsafeBytes {
+        Darwin.setxattr(url.path, userTagsAttribute, $0.baseAddress, data.count, 0, 0)
+    }
+    guard result == 0 else {
+        throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno),
+                      userInfo: [NSLocalizedDescriptionKey: String(cString: strerror(errno))])
+    }
+}
+
+private func tagName(of entry: String) -> String {
+    entry.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? entry
+}
+
+private func favoriteBureauTagName() -> String {
+    let favorites = CFPreferencesCopyAppValue("FavoriteTagNames" as CFString, "com.apple.finder" as CFString) as? [String] ?? []
+    return favorites.first { $0.range(of: "Bureau", options: .caseInsensitive) != nil } ?? "Bureau"
+}
+
+// Reprend le tag exact déjà utilisé par le Finder (nom + couleur) pour que
+// l'action soit indiscernable d'un tag ajouté à la main.
+private func preferredBureauTagEntry() -> String {
+    let canonical = favoriteBureauTagName()
+    let desktop = URL(fileURLWithPath: desktopPath())
+    let names = (try? FileManager.default.contentsOfDirectory(atPath: desktop.path)) ?? []
+    var fallback: String?
+    for name in names {
+        guard !name.hasPrefix(".") else { continue }
+        let url = desktop.appendingPathComponent(name)
+        guard let tags = try? rawUserTags(url) else { continue }
+        for entry in tags {
+            let tag = tagName(of: entry)
+            if tag.caseInsensitiveCompare(canonical) == .orderedSame { return entry }
+            if fallback == nil, tag.range(of: "Bureau", options: .caseInsensitive) != nil { fallback = entry }
+        }
+    }
+    return fallback ?? "\(canonical)\n0"
+}
+
+private func reindexUserTags(_ url: URL) {
+    DispatchQueue.global(qos: .utility).async {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/mdimport")
+        process.arguments = ["-i", url.path]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+    }
+}
+
+// L'API standard met à jour l'index Spotlight et applique la couleur du tag
+// favori. On restaure ensuite l'xattr brut pour conserver les couleurs des tags
+// existants, puis on réindexe pour que le Finder voie le résultat tout de suite.
+@discardableResult
+func addBureauTag(to url: URL) throws -> String? {
+    let original = try rawUserTags(url)
+    let already = original.contains { tagName(of: $0).range(of: "Bureau", options: .caseInsensitive) != nil }
+    guard !already else { return nil }
+
+    let preferred = preferredBureauTagEntry()
+    let name = tagName(of: preferred)
+    try (url as NSURL).setResourceValue(original.map(tagName) + [name], forKey: .tagNamesKey)
+
+    let indexed = (try? rawUserTags(url)) ?? []
+    let entry = indexed.first { tagName(of: $0).caseInsensitiveCompare(name) == .orderedSame } ?? preferred
+    var restored = original
+    restored.append(entry)
+    try writeUserTags(restored, to: url)
+    reindexUserTags(url)
+    return name
+}
+
+func desktopItemURL(named name: String) -> URL? {
+    guard !name.isEmpty, !name.contains("/"), name != ".", name != ".." else { return nil }
+    let base = URL(fileURLWithPath: desktopPath()).standardizedFileURL
+    let candidate = base.appendingPathComponent(name).standardizedFileURL
+    guard candidate.deletingLastPathComponent().path == base.path,
+          FileManager.default.fileExists(atPath: candidate.path) else { return nil }
+    return candidate
 }
 
 func dirStats(_ url: URL) -> (count: Int, bytes: Int64) {
@@ -1748,6 +1850,33 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     @objc func quickAll() { showArchive(); DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.js("window.__pkStart && __pkStart('all')") } }
     @objc func openDrive() { if let url = URL(string: driveFolderURL()) { NSWorkspace.shared.open(url) } }
     @objc func openFinder() { NSWorkspace.shared.open(URL(fileURLWithPath: desktopPath())) }
+
+    func keepOnDesktop(name: String) {
+        guard let url = desktopItemURL(named: name) else {
+            sendEV(["type": "log", "line": "❌ Élément introuvable : \(name)", "cls": "err"])
+            return
+        }
+        do {
+            if let tag = try addBureauTag(to: url) {
+                sendEV(["type": "log", "line": "📌 \(name) conservé sur le Bureau (tag \(tag))", "cls": "ok"])
+            } else {
+                sendEV(["type": "log", "line": "📌 \(name) a déjà un tag Bureau", "cls": "ok"])
+            }
+            refreshItems(mode: selectedMode)
+        } catch {
+            sendEV(["type": "log", "line": "❌ Impossible de taguer \(name) : \(error.localizedDescription)", "cls": "err"])
+        }
+    }
+
+    func openDesktopItem(name: String) {
+        guard let url = desktopItemURL(named: name) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func revealDesktopItem(name: String) {
+        guard let url = desktopItemURL(named: name) else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
     @objc func quitApp() { NSApp.terminate(nil) }
 
     // MARK: pont JS
@@ -1792,7 +1921,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
         case "chooseDesktop":
             chooseDesktop()
         case "rescan":
-            refreshItems(mode: body["mode"] as? String ?? "files")
+            selectedMode = body["mode"] as? String ?? "files"
+            refreshItems(mode: selectedMode)
+        case "keepOnDesktop":
+            if let name = body["name"] as? String { keepOnDesktop(name: name) }
+        case "openItem":
+            if let name = body["name"] as? String { openDesktopItem(name: name) }
+        case "revealItem":
+            if let name = body["name"] as? String { revealDesktopItem(name: name) }
         case "settingsReq":
             sendSettings()
         case "openPreferences":

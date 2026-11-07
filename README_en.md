@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Project version: 2026.10.82** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Project version: 2026.11.1** · Available app: 2026.10.27 · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 Archive your Desktop to Google Drive via rclone, with a macOS app and a CLI/TUI.
 
@@ -31,6 +31,7 @@ release/
 - Automatic monthly archiving (`YYYY_MM_month`)
 - Auto-delete after upload
 - Files and folders support
+- Right-click a pending item: Open, Keep on Desktop (Finder tag), or Show in Finder
 - Real-time progress bar
 - Native settings with search, language selection, PK project library, support, and version information
 - About compares the installed app with the latest Stable and Dev builds, showing per-channel status and manually checking a freshly fetched feed

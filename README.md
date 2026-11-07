@@ -4,7 +4,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-**Version du projet : 2026.10.82** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
+**Version du projet : 2026.11.1** · App disponible : 2026.10.27 · [Changelog](CHANGELOG.md) · [Licence MIT](LICENSE)
 
 Archive du Bureau vers Google Drive via rclone, avec interface macOS et interface CLI/TUI.
 
@@ -31,6 +31,7 @@ release/
 - Archivage par mois automatique (`YYYY_MM_mois`)
 - Suppression auto après upload
 - Support fichiers et dossiers
+- Clic droit sur un élément en attente : Ouvrir, Conserver sur le Bureau (tag Finder) ou Afficher dans le Finder
 - Barre de progression en temps réel
 - Réglages natifs avec recherche, langues, bibliothèque de projets PK, soutien et informations de version
 - À propos compare la version installée aux dernières builds Stable/Dev, avec statut par canal et vérification manuelle sur un flux actualisé

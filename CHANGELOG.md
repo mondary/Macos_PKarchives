@@ -4,7 +4,7 @@
 
 ## TODO — Roadmap
 
-Statut : `2026.10.82` (panneau du menu bar redimensionné et paires empilées)
+Statut : `2026.11.1` (menu contextuel pour conserver les fichiers du Bureau)
 
 ### Sécurité & Publication GitHub
 - [x] Supprimer les binaire compilé et .app du repo
@@ -18,6 +18,12 @@ Statut : `2026.10.82` (panneau du menu bar redimensionné et paires empilées)
 - [x] Dashboard SwiftUI et TUI avec statistiques et historique
 - [x] Graphique d'activité des archivages
 - [x] Navigation paramètres/historique dans les deux interfaces
+
+### [2026.11.1] - 2026-11-07
+#### Added
+- Clic droit sur les cartes « En attente sur le Bureau » : **Ouvrir**, **Conserver sur le Bureau** et **Afficher dans le Finder**. « Conserver » reprend le tag Finder déjà utilisé (`@Bureau` par exemple), avec sa couleur, et l’exclut de l’archivage.
+#### Fixed
+- Le tag « Bureau » est lu directement dans l’xattr (`PKarchivesV2` et `archive.sh`) au lieu de `mdls` : un tag écrit par l’app est pris en compte immédiatement par le scan et l’archivage, sans attendre la réindexation Spotlight.
 
 ### [2026.10.82] - 2026-11-02
 #### Fixed
